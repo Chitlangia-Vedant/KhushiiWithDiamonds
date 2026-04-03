@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Category } from '../../../types';
 import { ChevronDown, ChevronRight, Folder } from 'lucide-react';
-import { getCategoryDisplayName } from '../../utils/categoryUtils.ts';
+import { getCategoryDisplayName } from '../../../utils/categoryUtils.ts';
 
 
 interface JewelleryDetailsSectionProps {

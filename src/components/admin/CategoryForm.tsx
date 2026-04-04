@@ -7,11 +7,12 @@ import { CategoryDropdown } from '../CategoryDropdown';
 
 interface CategoryFormProps {
   editingCategory: Category | null;
-  onSubmit: (categoryData: Partial<Category>, imageUrls: string[]) => Promise<void>;
+  // CHANGE THIS LINE:
+  onSuccess: () => void;
   onCancel: () => void;
 }
 
-export function CategoryForm({ editingCategory, onSubmit, onCancel }: CategoryFormProps) {
+export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryFormProps) {
   const { categories } = useCategories(); 
   const [uploading, setUploading] = useState(false);
   const [categoryFormData, setCategoryFormData] = useState({
@@ -73,7 +74,7 @@ export function CategoryForm({ editingCategory, onSubmit, onCancel }: CategoryFo
         }
       }
 
-      await onSubmit(categoryFormData, imageUrls);
+      await onSuccess();
     } catch (error) {
       console.error('Error saving category:', error);
       alert('Error saving category. Please check your permissions and try again.');

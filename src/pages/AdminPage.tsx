@@ -7,7 +7,6 @@ import { AdminItemsTab } from '../components/admin/AdminItemsTab';
 import { AdminCategoriesTab } from '../components/admin/AdminCategoriesTab';
 import { AdminSettingsTab } from '../components/admin/AdminSettingsTab';
 import { LogOut, Shield, Folder, Package, Settings, Sparkles } from 'lucide-react';
-import { formatCurrency } from '../lib/goldPrice';
 import { useGoldPrice } from '../hooks/useGoldPrice';
 import { useAdminSettings } from '../hooks/useAdminSettings';
 import { useCategories } from '../hooks/useCategories';
@@ -127,26 +126,32 @@ export function AdminPage() {
         <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-between xl:justify-end border-t xl:border-t-0 border-gray-100 pt-3 xl:pt-0">
           
           {/* Micro Quality Selectors */}
-          <div className="flex items-center bg-gray-50 rounded-md p-1 border border-gray-200">
-            <select
-              value={globalGoldPurity}
-              onChange={(e) => setGlobalGoldPurity(e.target.value)}
-              className="text-xs bg-transparent text-gray-700 border-none py-0.5 pl-2 pr-6 focus:ring-0 cursor-pointer font-medium"
-            >
-              {GOLD_QUALITIES.map((gold) => <option key={gold.value} value={gold.value}>{gold.value}</option>)}
-            </select>
-            
-            <div className="w-px h-4 bg-gray-300 mx-1"></div>
-            
-            <Sparkles className="h-3 w-3 text-blue-500 ml-1" />
-            <select
-              value={globalDiamondQuality}
-              onChange={(e) => setGlobalDiamondQuality(e.target.value as DiamondQuality)}
-              className="text-xs bg-transparent text-gray-700 border-none py-0.5 pl-1 pr-6 focus:ring-0 cursor-pointer font-medium"
-            >
-              {DIAMOND_QUALITIES.map((quality) => <option key={quality} value={quality}>{quality}</option>)}
-            </select>
-          </div>
+          {activeTab === 'items' && (
+            <div className="flex items-center space-x-2 border-r border-gray-200 pr-3 md:pr-4">
+              <select
+                value={globalGoldPurity}
+                onChange={(e) => setGlobalGoldPurity(e.target.value)}
+                className="text-xs border-none bg-yellow-50 text-yellow-800 rounded-md py-1 pl-2 pr-6 focus:ring-0 cursor-pointer font-medium"
+              >
+                {GOLD_QUALITIES.map((gold) => (
+                  <option key={gold.value} value={gold.value}>{gold.value}</option>
+                ))}
+              </select>
+
+              <div className="flex items-center space-x-1 bg-blue-50 rounded-md pl-2">
+                <Sparkles className="h-3 w-3 text-blue-500" />
+                <select
+                  value={globalDiamondQuality}
+                  onChange={(e) => setGlobalDiamondQuality(e.target.value as DiamondQuality)}
+                  className="text-xs border-none bg-transparent text-blue-800 py-1 pl-1 pr-6 focus:ring-0 cursor-pointer font-medium"
+                >
+                  {DIAMOND_QUALITIES.map((quality) => (
+                    <option key={quality} value={quality}>{quality}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
 
           {/* Live Pricing Stats */}
           <div className="flex items-center space-x-3 text-[11px] sm:text-xs font-medium px-2">
@@ -173,7 +178,7 @@ export function AdminPage() {
 
       {/* --- TAB CONTENT STARTS IMMEDIATELY HERE --- */}
       {activeTab === 'items' && <AdminItemsTab />}
-      {activeTab === 'categories' && <AdminCategoriesTab items={items} />}
+      {activeTab === 'categories' && <AdminCategoriesTab />}
       {activeTab === 'settings' && (
         <AdminSettingsTab 
           fallbackGoldPrice={fallbackGoldPrice}

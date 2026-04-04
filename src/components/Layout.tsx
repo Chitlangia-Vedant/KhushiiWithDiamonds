@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Gem, Menu, X, Sparkles } from 'lucide-react';
 import { CategoryDropdown } from './CategoryDropdown';
 import { useQualityContext } from '../context/QualityContext';
-import { GOLD_QUALITIES, DIAMOND_QUALITIES } from '../constants/jewellery';
+import { GOLD_QUALITIES, DIAMOND_QUALITIES, DiamondQuality } from '../constants/jewellery';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -68,7 +68,7 @@ export function Layout({ children }: LayoutProps) {
                   <Sparkles className="h-3 w-3 text-blue-500" />
                   <select 
                     value={globalDiamondQuality}
-                    onChange={(e) => setGlobalDiamondQuality(e.target.value)}
+                    onChange={(e) => setGlobalDiamondQuality(e.target.value as DiamondQuality)}
                     className="text-sm border-none bg-blue-50 text-blue-800 rounded-md py-1 pl-2 pr-6 focus:ring-0 cursor-pointer font-medium"
                   >
                     {DIAMOND_QUALITIES.map((quality) => (

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { DiamondSlot, DiamondQuality } from '../../../types';
+import { DiamondSlot } from '../../../types';
 import { formatCurrency, calculateJewelleryPriceSync } from '../../../lib/goldPrice';
 import { ChevronDown } from 'lucide-react';
-import { DIAMOND_QUALITIES } from '../../../constants/jewellery'
+import { DIAMOND_QUALITIES, DiamondQuality } from '../../../constants/jewellery'
 import { useGoldPrice } from '../../../hooks/useGoldPrice';
 import { useAdminSettings } from '../../../hooks/useAdminSettings';
 

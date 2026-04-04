@@ -1,5 +1,5 @@
-import { JewelleryItem, DiamondQuality } from '../types';
-import { DIAMOND_QUALITIES } from '../constants/jewellery';
+import { JewelleryItem } from '../types';
+import { DIAMOND_QUALITIES, DiamondQuality } from '../constants/jewellery';
 
 // 1. If the item has diamonds, all qualities are available!
 export const getAvailableDiamondQualities = (item: JewelleryItem): DiamondQuality[] => {

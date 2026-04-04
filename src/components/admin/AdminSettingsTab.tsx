@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit, Save, X } from 'lucide-react';
+import { Save, AlertCircle } from 'lucide-react';
 import { formatCurrency } from '../../lib/goldPrice';
 
 interface AdminSettingsTabProps {
@@ -17,13 +17,15 @@ export function AdminSettingsTab({
   overrideLiveGoldPrice,
   updateSetting 
 }: AdminSettingsTabProps) {
-  const [showSettingsForm, setShowSettingsForm] = useState(false);
+  
+  const [isSaving, setIsSaving] = useState(false);
   const [settingsFormData, setSettingsFormData] = useState({
     fallback_gold_price: fallbackGoldPrice.toString(),
     gst_rate: (gstRate * 100).toString(),
     override_live_gold_price: overrideLiveGoldPrice,
   });
 
+  // Keep form synced if external data changes
   React.useEffect(() => {
     setSettingsFormData({
       fallback_gold_price: fallbackGoldPrice.toString(),
@@ -34,6 +36,7 @@ export function AdminSettingsTab({
 
   const handleSettingsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSaving(true);
     
     try {
       const fallbackPrice = parseFloat(settingsFormData.fallback_gold_price);
@@ -46,174 +49,147 @@ export function AdminSettingsTab({
 
       if (success1 && success2 && success3) {
         alert('Settings updated successfully!');
-        setShowSettingsForm(false);
       } else {
-        alert('Error updating settings. Please try again.');
+        alert('Error updating some settings. Please try again.');
       }
     } catch (error) {
       console.error('Error updating settings:', error);
       alert('Error updating settings. Please check your input values.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const effectiveGoldPrice = overrideLiveGoldPrice ? fallbackGoldPrice : goldPrice;
+  const isChanged = 
+    settingsFormData.fallback_gold_price !== fallbackGoldPrice.toString() ||
+    settingsFormData.gst_rate !== (gstRate * 100).toString() ||
+    settingsFormData.override_live_gold_price !== overrideLiveGoldPrice;
 
   return (
-    <>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">System Settings</h2>
-        <button
-          onClick={() => setShowSettingsForm(true)}
-          className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 flex items-center space-x-2"
-        >
-          <Edit className="h-5 w-5" />
-          <span>Edit Settings</span>
-        </button>
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      
+      {/* LEFT COLUMN: Editable Form */}
+      <div className="lg:col-span-7 bg-white shadow-lg rounded-xl p-6 border border-gray-100">
+        <div className="mb-6 border-b border-gray-100 pb-4">
+          <h2 className="text-xl font-bold text-gray-900">Configure System Settings</h2>
+          <p className="text-sm text-gray-500 mt-1">Updates to these values instantly affect pricing site-wide.</p>
+        </div>
+
+        <form onSubmit={handleSettingsSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-yellow-50/50 p-4 rounded-lg border border-yellow-100">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Fallback Gold Price (₹/gram)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                value={settingsFormData.fallback_gold_price}
+                onChange={(e) => setSettingsFormData({ ...settingsFormData, fallback_gold_price: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500 bg-white"
+              />
+              <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                Used if the live API fails, or if override is manually enabled.
+              </p>
+            </div>
+
+            <div className="bg-green-50/50 p-4 rounded-lg border border-green-100">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                GST Rate (%)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                value={settingsFormData.gst_rate}
+                onChange={(e) => setSettingsFormData({ ...settingsFormData, gst_rate: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500 bg-white"
+              />
+              <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                Applied globally to the final cost of all jewellery items.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-orange-50/50 p-4 rounded-lg border border-orange-100 mt-4">
+            <div className="flex items-start">
+              <div className="flex items-center h-5">
+                <input
+                  type="checkbox"
+                  id="override_live_gold_price"
+                  checked={settingsFormData.override_live_gold_price}
+                  onChange={(e) => setSettingsFormData({ ...settingsFormData, override_live_gold_price: e.target.checked })}
+                  className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded cursor-pointer"
+                />
+              </div>
+              <div className="ml-3 text-sm">
+                <label htmlFor="override_live_gold_price" className="font-semibold text-gray-800 cursor-pointer">
+                  Force Fallback Gold Price
+                </label>
+                <p className="text-gray-600 mt-1">
+                  Enable this to stop using the live API and strictly use your Fallback Price defined above.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
+            <span className="text-sm text-gray-500 italic">
+              {isChanged ? "Unsaved changes..." : "All settings are up to date."}
+            </span>
+            <button
+              type="submit"
+              disabled={!isChanged || isSaving}
+              className={`px-6 py-2.5 rounded-lg flex items-center space-x-2 font-medium transition-all ${
+                isChanged 
+                  ? 'bg-yellow-600 text-white hover:bg-yellow-700 shadow-md' 
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              <Save className="h-4 w-4" />
+              <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
+            </button>
+          </div>
+        </form>
       </div>
 
-      <div className="bg-white shadow-lg rounded-lg p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-yellow-800 mb-2">Fallback Gold Price</h3>
-            <p className="text-2xl font-bold text-yellow-600">{formatCurrency(fallbackGoldPrice)}/gram</p>
-            <p className="text-sm text-yellow-700 mt-1">Used when live API fails or override is enabled</p>
-          </div>
-
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-green-800 mb-2">GST Rate</h3>
-            <p className="text-2xl font-bold text-green-600">{Math.round(gstRate * 100)}%</p>
-            <p className="text-sm text-green-700 mt-1">Applied to all jewellery items</p>
-          </div>
-        </div>
-
-        <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">Current Status</h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Live Gold Price:</span>
-              <span className="font-medium">{formatCurrency(goldPrice)}/gram</span>
+      {/* RIGHT COLUMN: Live Status Panel */}
+      <div className="lg:col-span-5 space-y-6">
+        <div className="bg-white shadow-lg rounded-xl p-6 border border-gray-100">
+          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+            <AlertCircle className="h-5 w-5 text-blue-500 mr-2" />
+            Live System Status
+          </h3>
+          
+          <div className="space-y-4">
+            <div className="flex justify-between items-center pb-3 border-b border-gray-50">
+              <span className="text-sm font-medium text-gray-500">Live API Readout</span>
+              <span className="font-bold text-gray-900">{formatCurrency(goldPrice)}/g</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Effective Price:</span>
-              <span className="font-medium">{formatCurrency(effectiveGoldPrice)}/gram</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Price Source:</span>
-              <span className={`font-medium ${overrideLiveGoldPrice ? 'text-orange-600' : goldPrice === fallbackGoldPrice ? 'text-red-600' : 'text-green-600'}`}>
-                {overrideLiveGoldPrice ? 'Override (Fallback)' : goldPrice === fallbackGoldPrice ? 'Fallback (API Failed)' : 'Live API'}
+            
+            <div className="flex justify-between items-center pb-3 border-b border-gray-50">
+              <span className="text-sm font-medium text-gray-500">Currently Applying</span>
+              <span className={`font-bold text-lg ${overrideLiveGoldPrice ? 'text-orange-600' : 'text-green-600'}`}>
+                {formatCurrency(effectiveGoldPrice)}/g
               </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Override Enabled:</span>
-              <span className={`font-medium ${overrideLiveGoldPrice ? 'text-orange-600' : 'text-gray-600'}`}>
-                {overrideLiveGoldPrice ? 'Yes' : 'No'}
+
+            <div className="flex justify-between items-center pb-3 border-b border-gray-50">
+              <span className="text-sm font-medium text-gray-500">Data Source</span>
+              <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${
+                overrideLiveGoldPrice ? 'bg-orange-100 text-orange-700' : 
+                goldPrice === fallbackGoldPrice ? 'bg-red-100 text-red-700' : 
+                'bg-green-100 text-green-700'
+              }`}>
+                {overrideLiveGoldPrice ? 'MANUAL OVERRIDE' : goldPrice === fallbackGoldPrice ? 'FALLBACK TRIGGERED' : 'LIVE API'}
               </span>
             </div>
           </div>
         </div>
-
-        {overrideLiveGoldPrice && (
-          <div className="mt-4 bg-orange-50 border border-orange-200 rounded-lg p-4">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-orange-800">
-                  <strong>Override Active:</strong> The system is using fallback gold prices instead of live prices.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Settings Form Modal */}
-      {showSettingsForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Edit System Settings</h2>
-              <button onClick={() => setShowSettingsForm(false)} className="text-gray-500 hover:text-gray-700">
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSettingsSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Fallback Gold Price (₹/gram)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  value={settingsFormData.fallback_gold_price}
-                  onChange={(e) => setSettingsFormData({ ...settingsFormData, fallback_gold_price: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500"
-                  placeholder="5450"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Used when live gold price API is unavailable or override is enabled
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  GST Rate (%)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  value={settingsFormData.gst_rate}
-                  onChange={(e) => setSettingsFormData({ ...settingsFormData, gst_rate: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500"
-                  placeholder="18"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  GST percentage applied to all jewellery items
-                </p>
-              </div>
-
-              <div>
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="override_live_gold_price"
-                    checked={settingsFormData.override_live_gold_price}
-                    onChange={(e) => setSettingsFormData({ ...settingsFormData, override_live_gold_price: e.target.checked })}
-                    className="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="override_live_gold_price" className="ml-2 block text-sm text-gray-700">
-                    Override Live Gold Prices with Fallback Gold Prices
-                  </label>
-                </div>
-                <p className="text-xs text-gray-500 mt-1 ml-6">
-                  When enabled, the system will always use fallback prices instead of live API prices
-                </p>
-              </div>
-
-              <div className="flex space-x-4 pt-4">
-                <button
-                  type="submit"
-                  className="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700 flex items-center space-x-2"
-                >
-                  <Save className="h-4 w-4" />
-                  <span>Update Settings</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowSettingsForm(false)}
-                  className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </>
+    </div>
   );
 }

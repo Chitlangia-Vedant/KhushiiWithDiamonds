@@ -1,4 +1,4 @@
-import { DIAMOND_QUALITIES } from '../constants/jewellery';
+import { DiamondQuality } from '../constants/jewellery';
 
 export type Diamond = {
   carat: number;

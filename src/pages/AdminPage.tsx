@@ -1,18 +1,22 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { JewelleryItem } from '../types';
 import { AdminLogin } from '../components/AdminLogin';
 import { AdminItemsTab } from '../components/admin/AdminItemsTab';
 import { AdminCategoriesTab } from '../components/admin/AdminCategoriesTab';
 import { AdminSettingsTab } from '../components/admin/AdminSettingsTab';
-import { LogOut, Shield, Folder, Package, Settings } from 'lucide-react';
+import { LogOut, Shield, Folder, Package, Settings, Sparkles } from 'lucide-react';
 import { formatCurrency } from '../lib/goldPrice';
 import { useGoldPrice } from '../hooks/useGoldPrice';
 import { useAdminSettings } from '../hooks/useAdminSettings';
 import { useCategories } from '../hooks/useCategories';
+import { useQualityContext } from '../context/QualityContext';
+import { GOLD_QUALITIES, DIAMOND_QUALITIES, DiamondQuality } from '../constants/jewellery';
 
 export function AdminPage() {
   const { categories } = useCategories();
+  const { globalGoldPurity, setGlobalGoldPurity, globalDiamondQuality, setGlobalDiamondQuality } = useQualityContext();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<JewelleryItem[]>([]);
@@ -85,34 +89,73 @@ export function AdminPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Jewellery Admin Panel</h1>
-          <p className="text-gray-600 mt-1">Manage your jewellery catalog</p>
-        </div>
-        <div className="flex items-center space-x-4">
-          <div className="text-sm text-gray-600">
-            Gold Price: <span className={`font-semibold ${overrideLiveGoldPrice ? 'text-orange-600' : 'text-yellow-600'}`}>
-              {formatCurrency(effectiveGoldPrice)}/gram
-            </span>
-            {overrideLiveGoldPrice && (
-              <span className="text-xs text-orange-600 block">Override Active</span>
-            )}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-5 space-y-4 lg:space-y-0">
+        
+        {/* 1. Clickable Storefront Branding */}
+        <Link to="/" className="group flex flex-col hover:opacity-80 transition-opacity">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 group-hover:text-yellow-600 transition-colors">
+            KhushiiWithDiamonds
+          </h1>
+          <p className="text-[10px] sm:text-xs font-semibold text-yellow-600 uppercase tracking-widest mt-0.5">
+            Premium Indian Jewellery
+          </p>
+        </Link>
+
+        {/* 2. Controls & Status Container */}
+        <div className="flex flex-wrap items-center gap-3 md:gap-4">
+          
+          {/* Global Quality Selectors */}
+          <div className="flex items-center space-x-2 border-r border-gray-200 pr-3 md:pr-4">
+            <select
+              value={globalGoldPurity}
+              onChange={(e) => setGlobalGoldPurity(e.target.value)}
+              className="text-xs border-none bg-yellow-50 text-yellow-800 rounded-md py-1 pl-2 pr-6 focus:ring-0 cursor-pointer font-medium"
+            >
+              {GOLD_QUALITIES.map((gold) => (
+                <option key={gold.value} value={gold.value}>{gold.value}</option>
+              ))}
+            </select>
+
+            <div className="flex items-center space-x-1 bg-blue-50 rounded-md pl-2">
+              <Sparkles className="h-3 w-3 text-blue-500" />
+              <select
+                value={globalDiamondQuality}
+                onChange={(e) => setGlobalDiamondQuality(e.target.value as DiamondQuality)}
+                className="text-xs border-none bg-transparent text-blue-800 py-1 pl-1 pr-6 focus:ring-0 cursor-pointer font-medium"
+              >
+                {DIAMOND_QUALITIES.map((quality) => (
+                  <option key={quality} value={quality}>{quality}</option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div className="text-sm text-gray-600">
-            GST: <span className="font-semibold text-green-600">{Math.round(gstRate * 100)}%</span>
+
+          {/* Pricing Status */}
+          <div className="flex items-center space-x-3 text-xs md:text-sm text-gray-600">
+            <div>
+              Gold: <span className={`font-semibold ${overrideLiveGoldPrice ? 'text-orange-600' : 'text-yellow-600'}`}>
+                {formatCurrency(effectiveGoldPrice)}/g
+              </span>
+            </div>
+            <div>
+              GST: <span className="font-semibold text-green-600">{Math.round(gstRate * 100)}%</span>
+            </div>
           </div>
+
+          {/* Logout Button (Shrunk slightly) */}
           <button
             onClick={handleLogout}
-            className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 flex items-center space-x-2"
+            className="bg-gray-800 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-lg hover:bg-gray-900 flex items-center space-x-2 text-sm"
           >
-            <LogOut className="h-5 w-5" />
-            <span>Sign Out</span>
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Sign Out</span>
           </button>
         </div>
       </div>
+      </div>
 
       {/* Tabs */}
-      <div className="flex space-x-1 mb-8">
+      <div className="flex space-x-1 mb-4">
         {[
           { key: 'items', icon: Package, label: `Items (${items.length})` },
           { key: 'categories', icon: Folder, label: `Categories (${categories.length})` },

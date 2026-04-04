@@ -1,172 +1,169 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Category, JewelleryItem } from '../../types';
-import { Plus, Folder } from 'lucide-react';
+import { Category } from '../../types';
+import { Plus, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
 import { CategoryForm } from './CategoryForm';
-import { CategoryCard } from './CategoryCard';
-import { useCategories } from '../../hooks/useCategories';
 import { deleteDriveImages } from '../../utils/uploadUtils';
+import { useCategories } from '../../hooks/useCategories';
+import { getCategoryDisplayName, getValidCategoryNames } from '../../utils/categoryUtils';
+import { CategoryFilter } from '../CategoryFilter';
 
-interface AdminCategoriesTabProps {
-  items: JewelleryItem[];
-}
-
-export function AdminCategoriesTab({ items }: AdminCategoriesTabProps) {
-  const { categories, topLevelCategories, getSubcategories, refetchCategories } = useCategories();
-  const [showAddCategoryForm, setShowAddCategoryForm] = useState(false);
+export function AdminCategoriesTab() {
+  // We pull refetchCategories to immediately update the app when you add/delete!
+  const { categories, refetchCategories } = useCategories();
+  
+  const [activeCategoryId, setActiveCategoryId] = useState<string | 'All'>('All');
+  const [showAddForm, setShowAddForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
-  const resetCategoryForm = () => {
-    setShowAddCategoryForm(false);
+  const resetForm = () => {
+    setShowAddForm(false);
     setEditingCategory(null);
   };
 
-  const startEditCategory = (category: Category) => {
+  const startEdit = (category: Category) => {
     setEditingCategory(category);
-    setShowAddCategoryForm(true);
+    setShowAddForm(true);
   };
 
-  const handleCategorySubmit = async (categoryData: Partial<Category>, newImageUrls: string[]) => {
-    // Default to the existing image string
-    let finalImageUrl = editingCategory?.image_url || '';
-
-    // If new images were uploaded, overwrite the old ones AND delete them from Drive
-    if (newImageUrls.length > 0) {
-      finalImageUrl = newImageUrls.join(', ');
-
-      // --- NEW DRIVE CLEANUP LOGIC ---
-      if (editingCategory?.image_url) {
-        // Split the old string and remove any blank spaces
-        const oldUrls = editingCategory.image_url.split(',').map(url => url.trim()).filter(Boolean);
-        
-        if (oldUrls.length > 0) {
-          try {
-            await deleteDriveImages(oldUrls);
-            console.log('Successfully cleaned up old category images from Google Drive');
-          } catch (deleteError) {
-            console.error('Failed to delete old images from Drive:', deleteError);
-            // We intentionally do not 'throw' here. 
-            // If Drive fails to delete the old file, we still want the database to save the new one!
-          }
-        }
-      }
-    }
-
-    const submitData = {
-      ...categoryData,
-      parent_id: categoryData.parent_id || null,
-      image_url: finalImageUrl, 
-    };
-
-    if (editingCategory) {
-      const { error } = await supabase
-        .from('categories')
-        .update(submitData)
-        .eq('id', editingCategory.id);
-      if (error) throw error;
-    } else {
-      const { error } = await supabase.from('categories').insert([submitData]);
-      if (error) throw error;
-    }
-    
-    // Using your shiny new custom hook to reload!
-    refetchCategories(); 
-    resetCategoryForm();
-  };
-
-  const handleDeleteCategory = async (id: string, categoryName: string) => {
-    // ... (Keep your existing checks for itemCount and subcategories at the top)
-
-    if (confirm(`Are you sure you want to delete the category "${categoryName}"?`)) {
+  const handleDelete = async (id: string) => {
+    if (confirm('Are you sure you want to delete this category? (Note: Ensure no items are using it first!)')) {
       try {
-        // 1. --- NEW: DRIVE CLEANUP LOGIC ---
-        // Find the category we are about to delete
-        const categoryToDelete = categories.find(c => c.id === id);
+        const catToDelete = categories.find(c => c.id === id);
         
-        if (categoryToDelete?.image_url) {
-          // Extract the URLs into an array
-          const urlsToDelete = categoryToDelete.image_url.split(',').map(url => url.trim()).filter(Boolean);
-          
-          if (urlsToDelete.length > 0) {
-            try {
-              // Delete them from Drive!
-              await deleteDriveImages(urlsToDelete);
-              console.log('Successfully deleted category images from Google Drive');
-            } catch (deleteError) {
-              console.error('Failed to delete images from Drive:', deleteError);
-              // We don't throw here so the category still deletes from Supabase even if Drive glitches
-            }
-          }
+        // Cleanup images from Google Drive if they exist
+        if (catToDelete?.image_url) {
+          try { await deleteDriveImages([catToDelete.image_url]); } catch (e) { console.error(e); }
         }
 
-        // 2. --- EXISTING SUPABASE DELETION ---
         const { error } = await supabase.from('categories').delete().eq('id', id);
         if (error) throw error;
         
-        refetchCategories(); // Using the hook we set up earlier!
-      } catch (error) {
-        console.error('Error deleting category:', error);
-        alert('Error deleting category. Please check your permissions and try again.');
+        // Refresh the global category state!
+        await refetchCategories();
+      } catch (error: any) {
+        console.error('Error deleting:', error);
+        alert('Error deleting category. It might have subcategories or items attached to it.');
       }
     }
   };
 
-  const toggleExpanded = (categoryId: string) => {
-    const newExpanded = new Set(expandedCategories);
-    if (newExpanded.has(categoryId)) {
-      newExpanded.delete(categoryId);
-    } else {
-      newExpanded.add(categoryId);
-    }
-    setExpandedCategories(newExpanded);
-  };
+  // Filter categories using our universal logic
+  const filteredCategories = categories.filter(cat => {
+    if (activeCategoryId === 'All') return true;
+    const validNames = getValidCategoryNames(activeCategoryId, categories);
+    return validNames.includes(cat.name);
+  });
 
   return (
     <>
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Categories & Subcategories</h2>
-          <p className="text-gray-600">Manage your hierarchical category structure</p>
-        </div>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold text-gray-900">Categories</h2>
         <button
-          onClick={() => setShowAddCategoryForm(true)}
+          onClick={() => setShowAddForm(true)}
           className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 flex items-center space-x-2"
         >
           <Plus className="h-5 w-5" />
-          <span>Add Category</span>
+          <span className="hidden sm:inline">Add Category</span>
         </button>
       </div>
 
-      <div className="space-y-6">
-        {topLevelCategories.map((category) => (
-          <CategoryCard 
-            key={category.id} 
-            category={category}
-            items={items}
-            subcategories={getSubcategories(category.id)}
-            expandedCategories={expandedCategories}
-            onToggleExpanded={toggleExpanded}
-            onEdit={startEditCategory}
-            onDelete={handleDeleteCategory}
-          />
-        ))}
-        
-        {topLevelCategories.length === 0 && (
-          <div className="text-center py-12 bg-gray-50 rounded-lg">
-            <Folder className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No categories found</h3>
-            <p className="text-gray-600">Create your first category to get started.</p>
-          </div>
-        )}
+      {/* 1. Universal Category Filter */}
+      <CategoryFilter 
+        categories={categories}
+        activeCategoryId={activeCategoryId}
+        onSelect={setActiveCategoryId}
+      />
+
+      {/* 2. Responsive Table */}
+      <div className="bg-white shadow-lg rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                {/* Hide the full path column on mobile */}
+                <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Full Path Structure</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredCategories.map((category) => {
+                // Generate the infinite-depth breadcrumb string (e.g., "Rings → Engagement → Solitaire")
+                const fullPath = getCategoryDisplayName(categories, category.name);
+                
+                return (
+                  <tr key={category.id} className="hover:bg-gray-50">
+                    
+                    {/* Category Name & Image */}
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        {category.image_url ? (
+                          <img
+                            className="h-10 w-10 rounded-lg object-cover border border-gray-200"
+                            src={category.image_url}
+                            alt=""
+                          />
+                        ) : (
+                          <div className="h-10 w-10 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
+                            <ImageIcon className="h-5 w-5 text-gray-400" />
+                          </div>
+                        )}
+                        <div className="ml-3">
+                          <div className="text-sm font-bold text-gray-900">{category.name}</div>
+                          {/* Mobile-only path preview since the main column is hidden */}
+                          <div className="md:hidden mt-0.5 text-xs text-gray-500 truncate max-w-[180px]">
+                            {fullPath}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Full Path Structure (Hidden on mobile) */}
+                    <td className="hidden md:table-cell px-4 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-600">
+                        {fullPath.split(' → ').map((part, index, array) => (
+                          <React.Fragment key={index}>
+                            <span className={index === array.length - 1 ? 'font-bold text-gray-900' : ''}>
+                              {part}
+                            </span>
+                            {index < array.length - 1 && <span className="mx-1 text-gray-400">→</span>}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    </td>
+
+                    {/* Actions */}
+                    <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button onClick={() => startEdit(category)} className="text-yellow-600 hover:text-yellow-900 mr-3 p-1">
+                        <Edit className="h-4 w-4 md:h-5 md:w-5" />
+                      </button>
+                      <button onClick={() => handleDelete(category.id)} className="text-red-600 hover:text-red-900 p-1">
+                        <Trash2 className="h-4 w-4 md:h-5 md:w-5" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          
+          {filteredCategories.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              No categories found.
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Add/Edit Category Form Modal */}
-      {showAddCategoryForm && (
-        <CategoryForm
-          editingCategory={editingCategory}
-          onSubmit={handleCategorySubmit}
-          onCancel={resetCategoryForm}
+      {showAddForm && (
+        <CategoryForm 
+          editingCategory={editingCategory} 
+          onSuccess={() => {
+            refetchCategories();
+            resetForm();
+          }} 
+          onCancel={resetForm} 
         />
       )}
     </>

@@ -52,12 +52,12 @@ export function Layout({ children }: LayoutProps) {
               ))}
 
               {/* --- DESKTOP NAV DROPDOWN --- */}
-              <div className="w-48">
+                <div>
                 <CategoryDropdown
                   valueLabel="Categories"
                   onSelect={handleCategorySelect}
-                  // We inject custom styling here so it perfectly matches the other nav links!
-                  triggerClassName="flex items-center justify-between w-full px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-yellow-600 hover:bg-gray-100 transition-colors"
+                  // Replaced "justify-between w-full" with "space-x-1"
+                  triggerClassName="flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-yellow-600 hover:bg-gray-100 transition-colors"
                 />
               </div>
             </nav>
@@ -74,32 +74,32 @@ export function Layout({ children }: LayoutProps) {
         {/* --- MOBILE NAV MENU --- */}
         {isMenuOpen && (
           <div className="md:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white border-t">
-              {navigation.map((item) => (
-                <Link
-                  key={item.name}
-                  to={item.path}
-                  onClick={() => setIsMenuOpen(false)}
-                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                    location.pathname === item.path
-                      ? 'text-yellow-600 bg-yellow-50'
-                      : 'text-gray-700 hover:text-yellow-600 hover:bg-gray-100'
-                  }`}
-                >
-                  {item.name}
-                </Link>
-              ))}
+              <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white border-t">
+                {navigation.map((item) => (
+                  <Link
+                    key={item.name}
+                    to={item.path}
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                      location.pathname === item.path
+                        ? 'text-yellow-600 bg-yellow-50'
+                        : 'text-gray-700 hover:text-yellow-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {item.name}
+                  </Link>
+                ))}
 
-              <div className="px-3 py-2">
-                <div className="text-base font-medium text-gray-900 mb-2">Categories</div>
-                {/* On mobile, we let it use the default "form input" styling because it looks great as a large touch target! */}
-                <CategoryDropdown
-                  valueLabel="Browse Categories..."
-                  onSelect={handleCategorySelect}
-                />
+                {/* Fix: Replaced the form box with a seamless mobile accordion style! */}
+                <div className="w-full">
+                  <CategoryDropdown
+                    valueLabel="Categories"
+                    onSelect={handleCategorySelect}
+                    triggerClassName="flex items-center justify-between w-full px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-yellow-600 hover:bg-gray-100 transition-colors"
+                  />
+                </div>
               </div>
             </div>
-          </div>
         )}
       </header>
 

@@ -13,47 +13,35 @@ import { getValidCategoryNames } from '../utils/categoryUtils';
 export function CategoryPage() {
   const { categoryName } = useParams<{ categoryName: string }>();
   const navigate = useNavigate();
-  const { categories, getSubcategories, loadingCategories } = useCategories();  const [items, setItems] = useState<JewelleryItem[]>([]);
+  const { categories, loadingCategories } = useCategories();  const [items, setItems] = useState<JewelleryItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(true);
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('name');
   const currentCategory = categories.find(c => c.name === categoryName);
   const activeCategoryId = currentCategory ? currentCategory.id : 'All';
-  const subcategories = currentCategory ? getSubcategories(currentCategory.id) : [];
 
   useEffect(() => {
-  const fetchItems = async () => {
-    // Wait until the URL has a category and the hook has finished loading categories
-    if (!categoryName || loadingCategories) return;
+    const loadAllItems = async () => {
+      try {
+        setLoadingItems(true); // Only show loader on the very first page load
+        
+        const { data, error } = await supabase
+          .from('jewellery_items')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-    try {
-      setLoadingItems(true);
-
-      // Create an array of the main category + all its subcategories
-      const subcategoryNames = subcategories.map(cat => cat.name);
-      const allCategoryNames = [categoryName, ...subcategoryNames];
-
-      const { data: itemsData, error } = await supabase
-        .from('jewellery_items')
-        .select('*')
-        .in('category', allCategoryNames)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      if (itemsData) {
-        setItems(itemsData);
+        if (error) throw error;
+        if (data) setItems(data);
+      } catch (error) {
+        console.error('Error fetching items:', error);
+      } finally {
+        setLoadingItems(false);
       }
-    } catch (error) {
-      console.error('Error loading items:', error);
-    } finally {
-      setLoadingItems(false);
-    }
-  };
+    };
 
-  fetchItems();
-}, [categoryName, categories, loadingCategories]);
+    loadAllItems();
+  }, [])
 
   const handleCategorySelect = (categoryId: string) => {
       if (categoryId === 'All') {

@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { JewelleryItem, DiamondQuality } from '../../types';
-import { Edit, Trash2, Image, Gem, ChevronDown } from 'lucide-react';
+import { Edit, Trash2, Gem, ChevronDown } from 'lucide-react';
 import { formatCurrency, calculateJewelleryPriceSync, formatDiamondSummary } from '../../lib/goldPrice';
-import { getCategoryDisplayName } from '../../utils/categoryUtils';
 import { useClickOutside } from '../../hooks/useClickOutside'; // Import the hook!
 import { getAvailableDiamondQualities, getDiamondsForQuality } from '../../utils/diamondUtils';
-import { useCategories } from '../../hooks/useCategories';
 import { useGoldPrice } from '../../hooks/useGoldPrice';
 import { useAdminSettings } from '../../hooks/useAdminSettings';
 
@@ -16,7 +14,6 @@ interface AdminTableRowProps {
 }
 
 export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
-    const { categories } = useCategories();
     const { goldPrice } = useGoldPrice();
     const { gstRate } = useAdminSettings();
   // Local state just for this specific row!
@@ -40,8 +37,6 @@ const totalCost = calculateJewelleryPriceSync(
     diamondsData, item.making_charges_per_gram, goldPrice, gstRate
   );
 
-  const categoryDisplay = getCategoryDisplayName(categories, item.category);
-
   return (
     <tr className="hover:bg-gray-50">
       
@@ -49,13 +44,13 @@ const totalCost = calculateJewelleryPriceSync(
       <td className="px-4 py-4 whitespace-nowrap">
         <div className="flex items-center">
           <img
-            className="h-10 w-10 rounded-full object-cover border border-gray-200"
+            /* FIX: Changed rounded-full to rounded-lg */
+            className="h-10 w-10 md:h-12 md:w-12 rounded-lg object-cover border border-gray-200 flex-shrink-0"
             src={item.image_url[0] || 'https://drive.google.com/thumbnail?id=1KRTxnA-gFSbg6R5EfBhu-y-tAxElt_AO&sz=w625-h340'}
             alt=""
           />
           <div className="ml-3">
             <div className="text-sm font-bold text-gray-900 truncate max-w-[150px] sm:max-w-xs">{item.name}</div>
-            {/* Mobile-only category badge since the main column is hidden */}
             <div className="md:hidden mt-1 inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full bg-yellow-100 text-yellow-800">
               {item.category}
             </div>
@@ -68,14 +63,6 @@ const totalCost = calculateJewelleryPriceSync(
         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
           {item.category}
         </span>
-      </td>
-
-      {/* 3. Images (Hidden on mobile & tablet) */}
-      <td className="hidden lg:table-cell px-4 py-4 whitespace-nowrap">
-        <div className="flex items-center space-x-1">
-          <Image className="h-4 w-4 text-gray-400" />
-          <span className="text-sm text-gray-600">{item.image_url.length}</span>
-        </div>
       </td>
 
       {/* 4. Specs (Hidden on mobile & tablet) */}

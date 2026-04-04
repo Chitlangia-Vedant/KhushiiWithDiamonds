@@ -64,9 +64,12 @@ export function CategoryDropdown({
             className="flex-1 text-left px-4 py-2 text-sm text-gray-700 hover:text-yellow-600 transition-colors"
             style={{ paddingLeft: `${16 + paddingLeft}px` }}
           >
-            <div className="flex items-center space-x-2">
-              {hasSubcategories ? <Folder className="h-4 w-4 text-blue-500" /> : <div className="h-4 w-4" />}
-              <span>{category.name}</span>
+            {/* Changed to items-start and added text wrapping classes */}
+            <div className="flex items-start space-x-2">
+              <div className="mt-0.5 flex-shrink-0">
+                {hasSubcategories ? <Folder className="h-4 w-4 text-blue-500" /> : <div className="h-4 w-4" />}
+              </div>
+              <span className="break-words whitespace-normal leading-tight">{category.name}</span>
             </div>
           </button>
           {hasSubcategories && (
@@ -112,7 +115,8 @@ export function CategoryDropdown({
       </button>
 
       {showDropdown && (
-        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+        /* Added z-50, min-w-[260px], and overflow-x-hidden */
+        <div className="absolute z-50 mt-1 w-full min-w-[260px] bg-white border border-gray-300 rounded-md shadow-lg max-h-80 overflow-y-auto overflow-x-hidden">
           <div className="py-1">
             {onClear && (
               <>

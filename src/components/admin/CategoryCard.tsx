@@ -92,7 +92,6 @@ export function CategoryCard({
       {hasSubcategories && isExpanded && (
         <div className="space-y-4">
           {subcategories.map((subcategory) => {
-            const subSubcategories = items.filter(item => item.category === subcategory.name);
             return (
               <CategoryCard 
                 key={subcategory.id} 

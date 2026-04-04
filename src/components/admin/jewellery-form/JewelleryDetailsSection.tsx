@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Category } from '../../../types';
 import { ChevronDown, ChevronRight, Folder } from 'lucide-react';
-import { getCategoryDisplayName } from '../../../utils/categoryUtils.ts';
+import { getCategoryDisplayName } from '../../../utils/categoryUtils';
+import { useClickOutside } from '../../../hooks/useClickOutside';
+import { useCategories } from '../../../hooks/useCategories';
 
 
 interface JewelleryDetailsSectionProps {
@@ -18,17 +20,12 @@ interface JewelleryDetailsSectionProps {
 export function JewelleryDetailsSection({ 
   formData, 
   setFormData, 
-  categories, 
   uploading 
 }: JewelleryDetailsSectionProps) {
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const { categories } = useCategories();
+  const { ref: dropdownRef, isOpen: showCategoryDropdown, setIsOpen: setShowCategoryDropdown } = useClickOutside<HTMLDivElement>();
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-
-  // Organize categories into hierarchy
-  const topLevelCategories = categories.filter(cat => !cat.parent_id);
-  const getSubcategories = (parentId: string) => 
-    categories.filter(cat => cat.parent_id === parentId);
-
+  const { topLevelCategories, getSubcategories } = useCategories();
   const toggleExpanded = (categoryId: string) => {
     const newExpanded = new Set(expandedCategories);
     if (newExpanded.has(categoryId)) {
@@ -115,7 +112,7 @@ export function JewelleryDetailsSection({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-          <div className="relative">
+          <div className="relative" ref={dropdownRef}>
             <button
               type="button"
               onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
@@ -165,14 +162,6 @@ export function JewelleryDetailsSection({
           disabled={uploading}
         />
       </div>
-
-      {/* Dropdown Overlay */}
-      {showCategoryDropdown && (
-        <div
-          className="fixed inset-0 z-45"
-          onClick={() => setShowCategoryDropdown(false)}
-        />
-      )}
     </>
   );
 }

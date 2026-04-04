@@ -1,26 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { JewelleryItem, Category, DiamondQuality } from '../../types';
+import { JewelleryItem, DiamondQuality } from '../../types';
 import { Edit, Trash2, Image, ChevronRight, Gem, ChevronDown } from 'lucide-react';
 import { formatCurrency, calculateJewelleryPriceSync, formatDiamondSummary } from '../../lib/goldPrice';
 import { getCategoryDisplayName } from '../../utils/categoryUtils';
 import { useClickOutside } from '../../hooks/useClickOutside'; // Import the hook!
 import { getAvailableDiamondQualities, getDiamondsForQuality } from '../../utils/diamondUtils';
+import { useCategories } from '../../hooks/useCategories';
+import { useGoldPrice } from '../../hooks/useGoldPrice';
+import { useAdminSettings } from '../../hooks/useAdminSettings';
 
 interface AdminTableRowProps {
   item: JewelleryItem;
-  categories: Category[];
-  goldPrice: number;
-  gstRate: number;
   onEdit: (item: JewelleryItem) => void;
   onDelete: (id: string) => void;
 }
 
-export function AdminTableRow({ item, categories, goldPrice, gstRate, onEdit, onDelete }: AdminTableRowProps) {
+export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
+    const { categories } = useCategories();
+    const { goldPrice } = useGoldPrice();
+    const { gstRate } = useAdminSettings();
   // Local state just for this specific row!
   const { ref: dropdownRef, isOpen: isDropdownOpen, setIsOpen: setIsDropdownOpen } = useClickOutside<HTMLDivElement>(false);
   const [selectedQuality, setSelectedQuality] = useState<DiamondQuality | null>(null);
-
-
   const availableQualities = getAvailableDiamondQualities(item);
 
   // Initialize selected quality on mount

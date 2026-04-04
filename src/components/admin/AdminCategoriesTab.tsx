@@ -1,40 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Category, JewelleryItem } from '../../types';
 import { Plus, Folder } from 'lucide-react';
 import { CategoryForm } from './CategoryForm';
 import { CategoryCard } from './CategoryCard';
+import { useCategories } from '../../hooks/useCategories';
+import { deleteDriveImages } from '../../utils/uploadUtils';
 
 interface AdminCategoriesTabProps {
   items: JewelleryItem[];
-  onCategoriesChange: () => void;
 }
 
-export function AdminCategoriesTab({ items, onCategoriesChange }: AdminCategoriesTabProps) {
-  const [categories, setCategories] = useState<Category[]>([]);
+export function AdminCategoriesTab({ items }: AdminCategoriesTabProps) {
+  const { categories, topLevelCategories, getSubcategories, refetchCategories } = useCategories();
   const [showAddCategoryForm, setShowAddCategoryForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
-  const loadCategories = async () => {
-    try {
-      const { data } = await supabase
-        .from('categories')
-        .select('*')
-        .order('name');
-      
-      if (data) {
-        setCategories(data);
-        onCategoriesChange();
-      }
-    } catch (error) {
-      console.error('Error loading categories:', error);
-    }
-  };
 
   const resetCategoryForm = () => {
     setShowAddCategoryForm(false);
@@ -46,11 +27,36 @@ export function AdminCategoriesTab({ items, onCategoriesChange }: AdminCategorie
     setShowAddCategoryForm(true);
   };
 
-  const handleCategorySubmit = async (categoryData: Partial<Category>, imageUrls: string[]) => {
+  const handleCategorySubmit = async (categoryData: Partial<Category>, newImageUrls: string[]) => {
+    // Default to the existing image string
+    let finalImageUrl = editingCategory?.image_url || '';
+
+    // If new images were uploaded, overwrite the old ones AND delete them from Drive
+    if (newImageUrls.length > 0) {
+      finalImageUrl = newImageUrls.join(', ');
+
+      // --- NEW DRIVE CLEANUP LOGIC ---
+      if (editingCategory?.image_url) {
+        // Split the old string and remove any blank spaces
+        const oldUrls = editingCategory.image_url.split(',').map(url => url.trim()).filter(Boolean);
+        
+        if (oldUrls.length > 0) {
+          try {
+            await deleteDriveImages(oldUrls);
+            console.log('Successfully cleaned up old category images from Google Drive');
+          } catch (deleteError) {
+            console.error('Failed to delete old images from Drive:', deleteError);
+            // We intentionally do not 'throw' here. 
+            // If Drive fails to delete the old file, we still want the database to save the new one!
+          }
+        }
+      }
+    }
+
     const submitData = {
       ...categoryData,
       parent_id: categoryData.parent_id || null,
-      image_url: imageUrls.join(', '), // Store multiple URLs as comma-separated string
+      image_url: finalImageUrl, 
     };
 
     if (editingCategory) {
@@ -64,32 +70,41 @@ export function AdminCategoriesTab({ items, onCategoriesChange }: AdminCategorie
       if (error) throw error;
     }
     
-    await loadCategories();
+    // Using your shiny new custom hook to reload!
+    refetchCategories(); 
     resetCategoryForm();
   };
 
   const handleDeleteCategory = async (id: string, categoryName: string) => {
-    // Check for items in this category
-    const itemCount = items.filter(item => item.category === categoryName).length;
-    
-    // Check for subcategories
-    const subcategories = categories.filter(cat => cat.parent_id === id);
-    
-    if (itemCount > 0) {
-      alert(`Cannot delete category "${categoryName}" because it contains ${itemCount} items. Please move or delete the items first.`);
-      return;
-    }
-
-    if (subcategories.length > 0) {
-      alert(`Cannot delete category "${categoryName}" because it has ${subcategories.length} subcategories. Please delete the subcategories first.`);
-      return;
-    }
+    // ... (Keep your existing checks for itemCount and subcategories at the top)
 
     if (confirm(`Are you sure you want to delete the category "${categoryName}"?`)) {
       try {
+        // 1. --- NEW: DRIVE CLEANUP LOGIC ---
+        // Find the category we are about to delete
+        const categoryToDelete = categories.find(c => c.id === id);
+        
+        if (categoryToDelete?.image_url) {
+          // Extract the URLs into an array
+          const urlsToDelete = categoryToDelete.image_url.split(',').map(url => url.trim()).filter(Boolean);
+          
+          if (urlsToDelete.length > 0) {
+            try {
+              // Delete them from Drive!
+              await deleteDriveImages(urlsToDelete);
+              console.log('Successfully deleted category images from Google Drive');
+            } catch (deleteError) {
+              console.error('Failed to delete images from Drive:', deleteError);
+              // We don't throw here so the category still deletes from Supabase even if Drive glitches
+            }
+          }
+        }
+
+        // 2. --- EXISTING SUPABASE DELETION ---
         const { error } = await supabase.from('categories').delete().eq('id', id);
         if (error) throw error;
-        await loadCategories();
+        
+        refetchCategories(); // Using the hook we set up earlier!
       } catch (error) {
         console.error('Error deleting category:', error);
         alert('Error deleting category. Please check your permissions and try again.');
@@ -106,11 +121,6 @@ export function AdminCategoriesTab({ items, onCategoriesChange }: AdminCategorie
     }
     setExpandedCategories(newExpanded);
   };
-
-  // Organize categories into hierarchy
-  const topLevelCategories = categories.filter(cat => !cat.parent_id);
-  const getSubcategories = (parentId: string) => 
-    categories.filter(cat => cat.parent_id === parentId);
 
   return (
     <>
@@ -154,7 +164,6 @@ export function AdminCategoriesTab({ items, onCategoriesChange }: AdminCategorie
       {/* Add/Edit Category Form Modal */}
       {showAddCategoryForm && (
         <CategoryForm
-          categories={categories}
           editingCategory={editingCategory}
           onSubmit={handleCategorySubmit}
           onCancel={resetCategoryForm}

@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { Category } from '../../types';
 import { Save, X, Upload, FileImage, Loader } from 'lucide-react';
-import { GoogleDriveUploadService } from '../../lib/googleDriveUpload';
+import { useCategories } from '../../hooks/useCategories';
+import { uploadCategoryImages } from '../../utils/uploadUtils';
 
 interface CategoryFormProps {
-  categories: Category[];
   editingCategory: Category | null;
   onSubmit: (categoryData: Partial<Category>, imageUrls: string[]) => Promise<void>;
   onCancel: () => void;
 }
 
-export function CategoryForm({ categories, editingCategory, onSubmit, onCancel }: CategoryFormProps) {
+export function CategoryForm({ editingCategory, onSubmit, onCancel }: CategoryFormProps) {
+  const { categories, topLevelCategories } = useCategories();
   const [uploading, setUploading] = useState(false);
   const [categoryFormData, setCategoryFormData] = useState({
     name: editingCategory?.name || '', 
@@ -18,8 +19,6 @@ export function CategoryForm({ categories, editingCategory, onSubmit, onCancel }
     parent_id: editingCategory?.parent_id || '',
   });
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
-
-  const topLevelCategories = categories.filter(cat => !cat.parent_id);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -58,17 +57,18 @@ export function CategoryForm({ categories, editingCategory, onSubmit, onCancel }
       // Upload images to Google Drive if any are selected
       if (selectedImages.length > 0) {
         try {
-          const itemDescription = generateCategoryDescription(); // Generate the description here
+          const itemDescription = generateCategoryDescription(); 
           
-          imageUrls = await GoogleDriveUploadService.uploadCategoryImages(
+          // Use your new utility!
+          imageUrls = await uploadCategoryImages(
             selectedImages,
             categoryFormData.name,
-            itemDescription // Pass the generated description
+            itemDescription
           );
-          console.log('Successfully uploaded category images:', imageUrls);
         } catch (uploadError) {
           console.error('Image upload failed:', uploadError);
-          alert(`Image upload failed: ${uploadError.message}. The category will be saved without images.`);
+          const errorMessage = uploadError instanceof Error ? uploadError.message : 'Unknown error';
+          alert(`Image upload failed: ${errorMessage}. The category will be saved without images.`);
         }
       }
 

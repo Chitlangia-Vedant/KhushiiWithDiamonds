@@ -3,6 +3,8 @@ import { DiamondSlot, DiamondQuality } from '../../../types';
 import { formatCurrency, calculateJewelleryPriceSync } from '../../../lib/goldPrice';
 import { ChevronDown } from 'lucide-react';
 import { DIAMOND_QUALITIES } from '../../../constants/jewellery'
+import { useGoldPrice } from '../../../hooks/useGoldPrice';
+import { useAdminSettings } from '../../../hooks/useAdminSettings';
 
 interface PricePreviewSectionProps {
   formData: {
@@ -11,16 +13,14 @@ interface PricePreviewSectionProps {
     making_charges_per_gram: number;
   };
   diamondSlots: DiamondSlot[];
-  goldPrice: number;
-  gstRate: number;
 }
 
 export function PricePreviewSection({ 
   formData, 
   diamondSlots, 
-  goldPrice, 
-  gstRate 
 }: PricePreviewSectionProps) {
+  const { goldPrice } = useGoldPrice();
+  const { gstRate } = useAdminSettings();
   const [selectedQuality, setSelectedQuality] = useState<DiamondQuality>('Lab Grown');
   const [selectedGoldQuality, setSelectedGoldQuality] = useState('14K');
   const [showDropdown, setShowDropdown] = useState(false);

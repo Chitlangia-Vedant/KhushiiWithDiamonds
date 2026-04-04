@@ -12,7 +12,7 @@ import { useAdminSettings } from '../hooks/useAdminSettings';
 import { useCategories } from '../hooks/useCategories';
 
 export function AdminPage() {
-  const { categories, refetchCategories } = useCategories();
+  const { categories } = useCategories();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<JewelleryItem[]>([]);
@@ -63,11 +63,6 @@ export function AdminPage() {
     } catch (error) {
       console.error('Error loading items:', error);
     }
-  };
-
-  const handleCategoriesChange = () => {
-    // When an admin adds/edits a category, tell the hook to fetch fresh data
-    refetchCategories(); 
   };
 
   const effectiveGoldPrice = overrideLiveGoldPrice ? fallbackGoldPrice : goldPrice;
@@ -140,17 +135,12 @@ export function AdminPage() {
 
       {/* Tab Content */}
       {activeTab === 'items' && (
-        <AdminItemsTab 
-          categories={categories}
-          goldPrice={effectiveGoldPrice}
-          gstRate={gstRate}
-        />
+        <AdminItemsTab />
       )}
 
       {activeTab === 'categories' && (
         <AdminCategoriesTab 
           items={items}
-          onCategoriesChange={handleCategoriesChange}
         />
       )}
 

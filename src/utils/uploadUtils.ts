@@ -28,7 +28,7 @@ export const uploadJewelleryImages = async (
   return urls;
 };
 
-export const deleteJewelleryImages = async (urlsToDelete: string[]) => {
+export const deleteDriveImages = async (urlsToDelete: string[]) => {
   if (!urlsToDelete || urlsToDelete.length === 0) return;
   
   const deleteResult = await GoogleDriveUploadService.deleteFiles(urlsToDelete);
@@ -36,4 +36,23 @@ export const deleteJewelleryImages = async (urlsToDelete: string[]) => {
     console.warn('Some images failed to delete from Google Drive:', deleteResult.results);
   }
   return deleteResult;
+};
+
+// Add this below your existing uploadJewelleryImages function!
+
+export const uploadCategoryImages = async (
+  files: File[],
+  categoryName: string,
+  description: string
+): Promise<string[]> => {
+  if (!files || files.length === 0) return [];
+
+  // Let the utility handle the Drive service call
+  const urls = await GoogleDriveUploadService.uploadCategoryImages(
+    files,
+    categoryName,
+    description
+  );
+  
+  return urls;
 };

@@ -1,17 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { JewelleryItem, Category } from '../../types';
+import { JewelleryItem } from '../../types';
 import { Plus } from 'lucide-react';
 import { JewelleryForm } from './JewelleryForm';
 import { AdminTableRow } from './AdminTableRow';
+import { deleteDriveImages } from '../../utils/uploadUtils';
 
-interface AdminItemsTabProps {
-  categories: Category[];
-  goldPrice: number;
-  gstRate: number;
-}
-
-export function AdminItemsTab({ categories, goldPrice, gstRate }: AdminItemsTabProps) {
+export function AdminItemsTab() {
   const [items, setItems] = useState<JewelleryItem[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingItem, setEditingItem] = useState<JewelleryItem | null>(null);
@@ -66,12 +61,29 @@ const loadItems = async () => {
     resetForm();
   };
 
-  const handleDelete = async (id: string) => {
+const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this item?')) {
       try {
+        // 1. --- NEW: DRIVE CLEANUP LOGIC ---
+        // Find the item to get its image URLs
+        const itemToDelete = items.find(item => item.id === id);
+        
+        if (itemToDelete?.image_url && itemToDelete.image_url.length > 0) {
+          try {
+            // Delete the array of URLs from Google Drive
+            await deleteDriveImages(itemToDelete.image_url);
+            console.log('Successfully deleted jewellery images from Google Drive');
+          } catch (deleteError) {
+            console.error('Failed to delete jewellery images from Drive:', deleteError);
+            // Don't throw - we still want the item to delete from the database!
+          }
+        }
+
+        // 2. --- EXISTING SUPABASE DELETION ---
         const { error } = await supabase.from('jewellery_items').delete().eq('id', id);
         if (error) throw error;
-        await loadItems();
+        
+        await loadItems(); // (Or refetchItems() if you upgrade this tab to a hook later!)
       } catch (error) {
         console.error('Error deleting item:', error);
         alert('Error deleting item. Please check your permissions and try again.');
@@ -109,9 +121,6 @@ return (
                 <AdminTableRow 
                   key={item.id}
                   item={item}
-                  categories={categories}
-                  goldPrice={goldPrice}
-                  gstRate={gstRate}
                   onEdit={startEdit}
                   onDelete={handleDelete}
                 />
@@ -124,10 +133,7 @@ return (
       {/* Add/Edit Form Modal */}
       {showAddForm && (
         <JewelleryForm
-          categories={categories}
           editingItem={editingItem}
-          goldPrice={goldPrice}
-          gstRate={gstRate}
           onSubmit={handleSubmit}
           onCancel={resetForm}
         />

@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Diamond, DiamondQuality, JewelleryItem } from '../types/index.ts';
+import { Diamond, DiamondQuality, JewelleryItem } from '../types/index';
 import { DIAMOND_QUALITIES } from '../constants/jewellery'
 
 const GOLD_API_KEY = import.meta.env.VITE_GOLD_API_KEY || '9886e90c5c52f1a75a3ca50daccd91d4';

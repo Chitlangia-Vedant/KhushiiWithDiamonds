@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { JewelleryItem, Category, DiamondSlot, DiamondQuality } from '../../types';
+import { JewelleryItem, DiamondSlot, DiamondQuality } from '../../types';
 import { Save, X, Loader } from 'lucide-react';
 import { JewelleryDetailsSection } from './jewellery-form/JewelleryDetailsSection';
 import { JewelleryImagesSection } from './jewellery-form/JewelleryImagesSection';
@@ -8,27 +8,24 @@ import { DiamondSlotsSection } from './jewellery-form/DiamondSlotsSection';
 import { PricePreviewSection } from './jewellery-form/PricePreviewSection';
 import { ImagePreviewModal } from './jewellery-form/ImagePreviewModal';
 import { formatCurrency } from '../../lib/goldPrice';
-import { groupDiamondSlotsForDatabase } from '../../utils/diamondUtils';
-import { DIAMOND_QUALITIES } from '../../constants/jewellery'
-import { uploadJewelleryImages, deleteJewelleryImages } from '../../utils/uploadUtils';
+import { groupDiamondSlotsForDatabase, getDiamondsForQuality } from '../../utils/diamondUtils';
+import { DIAMOND_QUALITIES, DEFAULT_DIAMOND_COSTS } from '../../constants/jewellery' ;
+import { uploadJewelleryImages, deleteDriveImages } from '../../utils/uploadUtils';
+import { useCategories } from '../../hooks/useCategories';
+
 
 interface JewelleryFormProps {
-  categories: Category[];
   editingItem: JewelleryItem | null;
-  goldPrice: number;
-  gstRate: number;
   onSubmit: (itemData: Partial<JewelleryItem>, imageUrls: string[]) => Promise<void>;
   onCancel: () => void;
 }
 
 export function JewelleryForm({ 
-  categories, 
   editingItem, 
-  goldPrice, 
-  gstRate, 
   onSubmit, 
   onCancel 
 }: JewelleryFormProps) {
+  const { categories } = useCategories();
   const [uploading, setUploading] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
@@ -46,12 +43,11 @@ export function JewelleryForm({
     if (!editingItem) return [];
 
     // Get all diamond arrays from the item
-    const diamondArrays = {
-      'Lab Grown': editingItem.diamonds_lab_grown || [],
-      'GH/VS-SI': editingItem.diamonds_gh_vs_si || [],
-      'FG/VVS-SI': editingItem.diamonds_fg_vvs_si || [],
-      'EF/VVS': editingItem.diamonds_ef_vvs || []
-    };
+    const diamondArrays = {} as Record<DiamondQuality, any[]>;
+    
+    DIAMOND_QUALITIES.forEach(quality => {
+      diamondArrays[quality] = getDiamondsForQuality(editingItem, quality).diamonds;
+    });
 
     // Find the quality with diamonds to determine the structure
     const qualityWithDiamonds = DIAMOND_QUALITIES.find(
@@ -72,7 +68,8 @@ export function JewelleryForm({
       // Fill in costs from each quality array
       DIAMOND_QUALITIES.forEach(quality => {
         const diamonds = diamondArrays[quality];
-        slot.costs[quality] = diamonds[index]?.cost_per_carat || 25000;
+        // Change the 25000 to the dynamic default!
+        slot.costs[quality] = diamonds[index]?.cost_per_carat || DEFAULT_DIAMOND_COSTS[quality];
       });
 
       return slot;
@@ -132,7 +129,7 @@ export function JewelleryForm({
 
       // 3. Delete removed images using the utility
       if (imagesToDelete.length > 0) {
-        await deleteJewelleryImages(imagesToDelete);
+        await deleteDriveImages(imagesToDelete);
       }
 
       // 4. Combine arrays and format diamonds
@@ -220,8 +217,6 @@ export function JewelleryForm({
             <PricePreviewSection
               formData={formData}
               diamondSlots={diamondSlots}
-              goldPrice={goldPrice}
-              gstRate={gstRate}
             />
 
             <div className="flex space-x-4 pt-4">

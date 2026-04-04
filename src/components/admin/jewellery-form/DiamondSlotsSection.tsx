@@ -2,20 +2,13 @@ import React from 'react';
 import { DiamondSlot, DiamondQuality } from '../../../types';
 import { Gem, Plus, Trash2 } from 'lucide-react';
 import { formatCurrency } from '../../../lib/goldPrice';
-import { DIAMOND_QUALITIES } from '../../../constants/jewellery';
+import { DIAMOND_QUALITIES, DEFAULT_DIAMOND_COSTS } from '../../../constants/jewellery';
 
 interface DiamondSlotsSectionProps {
   diamondSlots: DiamondSlot[];
   setDiamondSlots: (slots: DiamondSlot[]) => void;
   uploading: boolean;
 }
-
-const DEFAULT_COSTS: Record<DiamondQuality, number> = {
-  'Lab Grown': 15000,
-  'GH/VS-SI': 25000,
-  'FG/VVS-SI': 35000,
-  'EF/VVS': 50000
-};
 
 export function DiamondSlotsSection({ 
   diamondSlots, 
@@ -26,7 +19,7 @@ export function DiamondSlotsSection({
   const addDiamondSlot = () => {
     const newSlot: DiamondSlot = {
       carat: 0,
-      costs: { ...DEFAULT_COSTS }
+      costs: { ...DEFAULT_DIAMOND_COSTS }
     };
     setDiamondSlots([...diamondSlots, newSlot]);
   };
@@ -128,7 +121,7 @@ export function DiamondSlotsSection({
                       value={slot.costs[quality]}
                       onChange={(e) => updateDiamondCost(index, quality, parseFloat(e.target.value) || 0)}
                       className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
-                      placeholder={DEFAULT_COSTS[quality].toString()}
+                      placeholder={DEFAULT_DIAMOND_COSTS[quality].toString()}
                       disabled={uploading}
                     />
                     {slot.carat > 0 && (

@@ -1,4 +1,5 @@
 import React from 'react';
+import { DEFAULT_MAKING_CHARGES } from "../../../constants/jewellery"
 
 interface GoldSpecificationsSectionProps {
   formData: {
@@ -40,7 +41,7 @@ export function GoldSpecificationsSection({
             value={formData.making_charges_per_gram}
             onChange={(e) => setFormData({ ...formData, making_charges_per_gram: parseFloat(e.target.value) || 0 })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500"
-            placeholder="500"
+            placeholder={DEFAULT_MAKING_CHARGES.toString()}
             disabled={uploading}
           />
         </div>

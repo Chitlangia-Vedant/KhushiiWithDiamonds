@@ -188,7 +188,7 @@ const JewelleryCard: React.FC<JewelleryCardProps> = ({ item }) => {
                         <div className="flex flex-col">
                           <span className="font-medium">{quality}</span>
                           <span className="text-xs text-gray-500">
-                            {formatDiamondSummary(getDiamondsData(quality).diamonds)}
+                            {formatDiamondSummary(getDiamondsForQuality(item, quality).diamonds)}
                           </span>
                         </div>
                       </button>

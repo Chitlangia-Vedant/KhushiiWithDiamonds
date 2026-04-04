@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { JewelleryItem, DiamondSlot, DiamondQuality } from '../../types';
+import { JewelleryItem, DiamondSlot } from '../../types';
 import { Save, X, Loader } from 'lucide-react';
 import { JewelleryDetailsSection } from './jewellery-form/JewelleryDetailsSection';
 import { JewelleryImagesSection } from './jewellery-form/JewelleryImagesSection';
@@ -8,9 +8,8 @@ import { DiamondSlotsSection } from './jewellery-form/DiamondSlotsSection';
 import { PricePreviewSection } from './jewellery-form/PricePreviewSection';
 import { ImagePreviewModal } from './jewellery-form/ImagePreviewModal';
 import { formatCurrency } from '../../lib/goldPrice';
-import { groupDiamondSlotsForDatabase, getDiamondsForQuality } from '../../utils/diamondUtils';
-import { DIAMOND_QUALITIES, DEFAULT_DIAMOND_COSTS } from '../../constants/jewellery' ;
-import { uploadJewelleryImages, deleteDriveImages } from '../../utils/uploadUtils';
+import { DIAMOND_QUALITIES } from '../../constants/jewellery' ;
+import { uploadJewelleryImages, deleteDriveImages, updateJewelleryDriveMetadata } from '../../utils/uploadUtils';
 import { useCategories } from '../../hooks/useCategories';
 
 
@@ -40,40 +39,8 @@ export function JewelleryForm({
 
   // Initialize diamond slots from editing item
   const initializeDiamondSlots = (): DiamondSlot[] => {
-    if (!editingItem) return [];
-
-    // Get all diamond arrays from the item
-    const diamondArrays = {} as Record<DiamondQuality, any[]>;
-    
-    DIAMOND_QUALITIES.forEach(quality => {
-      diamondArrays[quality] = getDiamondsForQuality(editingItem, quality).diamonds;
-    });
-
-    // Find the quality with diamonds to determine the structure
-    const qualityWithDiamonds = DIAMOND_QUALITIES.find(
-      quality => diamondArrays[quality].length > 0
-    );
-
-    if (!qualityWithDiamonds) return [];
-
-    // Use the first quality's diamonds as the template for carat weights
-    const templateDiamonds = diamondArrays[qualityWithDiamonds];
-    
-    return templateDiamonds.map((_, index) => {
-      const slot: DiamondSlot = {
-        carat: templateDiamonds[index]?.carat || 0,
-        costs: {} as Record<DiamondQuality, number>
-      };
-
-      // Fill in costs from each quality array
-      DIAMOND_QUALITIES.forEach(quality => {
-        const diamonds = diamondArrays[quality];
-        // Change the 25000 to the dynamic default!
-        slot.costs[quality] = diamonds[index]?.cost_per_carat || DEFAULT_DIAMOND_COSTS[quality];
-      });
-
-      return slot;
-    });
+    // We just load the exact JSON array straight from the database!
+    return editingItem?.diamonds || [];
   };
 
   const [diamondSlots, setDiamondSlots] = useState<DiamondSlot[]>(initializeDiamondSlots());
@@ -115,6 +82,16 @@ export function JewelleryForm({
       // 1. Generate description (if you are using this for Drive metadata)
       const itemDescription = generateItemDescription();
 
+      if (editingItem && currentImages.length > 0) {
+        // This will silently update the description and move the files if the category changed!
+        await updateJewelleryDriveMetadata(
+          currentImages,
+          formData.category,
+          categories,
+          itemDescription
+        );
+      }
+
       // 2. Upload new images using the utility
       let newImageUrls: string[] = [];
       if (selectedImages.length > 0) {
@@ -132,14 +109,14 @@ export function JewelleryForm({
         await deleteDriveImages(imagesToDelete);
       }
 
-      // 4. Combine arrays and format diamonds
+      // 4. Combine arrays and clean up diamonds (ignore empty slots)
       const finalImageUrls = [...currentImages, ...newImageUrls];
-      const diamondArrays = groupDiamondSlotsForDatabase(diamondSlots);
+      const cleanedDiamonds = diamondSlots.filter(slot => slot.carat > 0);
 
       // 5. Build final data and submit
       const itemData = {
         ...formData,
-        ...diamondArrays,
+        diamonds: cleanedDiamonds, // Just pass the JSON array directly!
         description: formData.description,
       };
 

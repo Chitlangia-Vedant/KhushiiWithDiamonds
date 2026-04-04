@@ -56,3 +56,25 @@ export const uploadCategoryImages = async (
   
   return urls;
 };
+
+export const updateJewelleryDriveMetadata = async (
+  currentImageUrls: string[],
+  categoryName: string,
+  categories: any[], // To find the parent
+  itemDescription: string
+): Promise<void> => {
+  if (!currentImageUrls || currentImageUrls.length === 0) return;
+
+  const category = categories.find(c => c.name === categoryName);
+  const parentCategory = category?.parent_id 
+    ? categories.find(c => c.id === category.parent_id)?.name 
+    : undefined;
+
+  await GoogleDriveUploadService.updateFilesMetadata(
+    currentImageUrls,
+    'jewellery',
+    categoryName,
+    parentCategory,
+    itemDescription
+  );
+};

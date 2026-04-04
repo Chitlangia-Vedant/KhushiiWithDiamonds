@@ -1,32 +1,26 @@
 import { JewelleryItem, DiamondQuality } from '../types';
+import { DIAMOND_QUALITIES } from '../constants/jewellery';
 
-// 1. Find which qualities actually have diamonds in them
+// 1. If the item has diamonds, all qualities are available!
 export const getAvailableDiamondQualities = (item: JewelleryItem): DiamondQuality[] => {
-  const qualities: DiamondQuality[] = [];
-  if (item.diamonds_lab_grown && item.diamonds_lab_grown.length > 0) qualities.push('Lab Grown');
-  if (item.diamonds_gh_vs_si && item.diamonds_gh_vs_si.length > 0) qualities.push('GH/VS-SI');
-  if (item.diamonds_fg_vvs_si && item.diamonds_fg_vvs_si.length > 0) qualities.push('FG/VVS-SI');
-  if (item.diamonds_ef_vvs && item.diamonds_ef_vvs.length > 0) qualities.push('EF/VVS');
-  return qualities;
+  if (!item.diamonds || item.diamonds.length === 0) return [];
+  // Since the admin enters costs for all 4 qualities per slot, they are all available
+  return [...DIAMOND_QUALITIES];
 };
 
 // 2. Fetch the specific diamond array for a selected quality
 export const getDiamondsForQuality = (item: JewelleryItem, quality: DiamondQuality | null) => {
-  switch (quality) {
-    case 'Lab Grown': return { diamonds: item.diamonds_lab_grown || [], quality };
-    case 'GH/VS-SI': return { diamonds: item.diamonds_gh_vs_si || [], quality };
-    case 'FG/VVS-SI': return { diamonds: item.diamonds_fg_vvs_si || [], quality };
-    case 'EF/VVS': return { diamonds: item.diamonds_ef_vvs || [], quality };
-    default: return { diamonds: [], quality: null };
+  if (!quality || !item.diamonds || item.diamonds.length === 0) {
+    return { diamonds: [], quality: null };
   }
+
+  // Map the rich DiamondSlots down into the simple { carat, cost_per_carat } format for the pricing calculator
+  const mappedDiamonds = item.diamonds.map(slot => ({
+    carat: slot.carat,
+    cost_per_carat: slot.costs[quality] || 0
+  }));
+
+  return { diamonds: mappedDiamonds, quality };
 };
 
-// 3. Format raw form slots into the 4 distinct database columns (for JewelleryForm)
-export const groupDiamondSlotsForDatabase = (diamondSlots: any[]) => {
-  return {
-    diamonds_lab_grown: diamondSlots.filter(d => d.quality === 'Lab Grown'),
-    diamonds_gh_vs_si: diamondSlots.filter(d => d.quality === 'GH/VS-SI'),
-    diamonds_fg_vvs_si: diamondSlots.filter(d => d.quality === 'FG/VVS-SI'),
-    diamonds_ef_vvs: diamondSlots.filter(d => d.quality === 'EF/VVS'),
-  };
-};
+// NOTICE: groupDiamondSlotsForDatabase is completely deleted! We don't need it!

@@ -38,7 +38,7 @@ interface DeleteResponse {
 export class GoogleDriveUploadService {
   private static readonly EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_DATABASE_URL}/functions/v1/upload-to-drive`
   private static readonly DELETE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_DATABASE_URL}/functions/v1/delete-from-drive`
-
+  private static readonly UPDATE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_DATABASE_URL}/functions/v1/update-in-drive`
   /**
    * Convert File objects to base64 encoded data
    */
@@ -238,5 +238,44 @@ export class GoogleDriveUploadService {
   ): Promise<string[]> {
     const result = await this.uploadFiles(files, itemName, 'jewellery', category, parentCategory, itemDescription)
     return result.imageUrls
+  }
+
+  /**
+   * Update file descriptions and move them to the correct folder in Google Drive
+   */
+  static async updateFilesMetadata(
+    imageUrls: string[],
+    itemType: 'category' | 'jewellery',
+    category?: string,
+    parentCategory?: string,
+    itemDescription?: string
+  ): Promise<boolean> {
+    try {
+      if (!imageUrls || imageUrls.length === 0) return true;
+
+      const folderPath = this.getFolderPath(itemType, category, parentCategory);
+
+      const response = await fetch(this.UPDATE_FUNCTION_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          imageUrls,
+          folderPath,
+          itemDescription,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update Drive metadata');
+      
+      const result = await response.json();
+      return result.success;
+    } catch (error) {
+      console.error('Google Drive update error:', error);
+      // We don't throw here. If Drive fails, we still want the Supabase database update to succeed!
+      return false; 
+    }
   }
 }

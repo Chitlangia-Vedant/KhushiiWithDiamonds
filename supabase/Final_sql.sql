@@ -38,10 +38,7 @@ CREATE TABLE IF NOT EXISTS jewellery_items (
   gold_quality text DEFAULT '14K',
   base_price decimal(10,2) DEFAULT 0,
   making_charges_per_gram numeric(10,2) DEFAULT 500,
-  diamonds_lab_grown JSONB DEFAULT '[]'::jsonb,
-  diamonds_gh_vs_si JSONB DEFAULT '[]'::jsonb,
-  diamonds_fg_vvs_si JSONB DEFAULT '[]'::jsonb,
-  diamonds_ef_vvs JSONB DEFAULT '[]'::jsonb,
+  diamonds JSONB DEFAULT '[]'::jsonb;
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );

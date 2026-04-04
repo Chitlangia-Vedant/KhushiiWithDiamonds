@@ -17,10 +17,7 @@ export type JewelleryItem = {
   category: string;
   image_url: string[];
   gold_weight: number;
-  diamonds_lab_grown: Diamond[];
-  diamonds_gh_vs_si: Diamond[];
-  diamonds_fg_vvs_si: Diamond[];
-  diamonds_ef_vvs: Diamond[];
+  diamonds: DiamondSlot[];
   making_charges_per_gram: number;
   base_price: number;
   created_at: string;

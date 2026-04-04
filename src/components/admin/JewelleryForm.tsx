@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { JewelleryItem, Category, DiamondSlot, DiamondQuality, Diamond, DIAMOND_QUALITIES } from '../../types';
+import { JewelleryItem, Category, DiamondSlot, DiamondQuality } from '../../types';
 import { Save, X, Loader } from 'lucide-react';
 import { GoogleDriveUploadService } from '../../lib/googleDriveUpload';
 import { JewelleryDetailsSection } from './jewellery-form/JewelleryDetailsSection';
@@ -9,6 +9,9 @@ import { DiamondSlotsSection } from './jewellery-form/DiamondSlotsSection';
 import { PricePreviewSection } from './jewellery-form/PricePreviewSection';
 import { ImagePreviewModal } from './jewellery-form/ImagePreviewModal';
 import { formatCurrency } from '../../lib/goldPrice';
+import { groupDiamondSlotsForDatabase } from '../../utils/diamondUtils';
+import { DIAMOND_QUALITIES } from '../../constants/jewellery'
+import { uploadJewelleryImages } from '../../utils/uploadUtils';
 
 interface JewelleryFormProps {
   categories: Category[];
@@ -108,95 +111,36 @@ export function JewelleryForm({
     return description;
   };
 
-  // Convert diamond slots to the four separate arrays
-  const convertSlotsToQualityArrays = () => {
-    const result = {
-      diamonds_lab_grown: [] as Diamond[],
-      diamonds_gh_vs_si: [] as Diamond[],
-      diamonds_fg_vvs_si: [] as Diamond[],
-      diamonds_ef_vvs: [] as Diamond[]
-    };
-
-    diamondSlots.forEach(slot => {
-      if (slot.carat > 0) {
-        DIAMOND_QUALITIES.forEach(quality => {
-          const diamond = {
-            carat: slot.carat,
-            cost_per_carat: slot.costs[quality]
-          };
-
-          switch (quality) {
-            case 'Lab Grown':
-              result.diamonds_lab_grown.push(diamond);
-              break;
-            case 'GH/VS-SI':
-              result.diamonds_gh_vs_si.push(diamond);
-              break;
-            case 'FG/VVS-SI':
-              result.diamonds_fg_vvs_si.push(diamond);
-              break;
-            case 'EF/VVS':
-              result.diamonds_ef_vvs.push(diamond);
-              break;
-          }
-        });
-      }
-    });
-
-    return result;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploading(true);
-    
+
     try {
-      let newImageUrls: string[] = [];
+      // 1. Generate description (if you are using this for Drive metadata)
       const itemDescription = generateItemDescription();
 
-      // Upload new images to Google Drive if any are selected
+      // 2. Upload new images using the utility
+      let newImageUrls: string[] = [];
       if (selectedImages.length > 0) {
-        try {
-          // Get category hierarchy for folder structure
-          const selectedCategory = categories.find(cat => cat.name === formData.category);
-          const parentCategory = selectedCategory?.parent_id 
-            ? categories.find(cat => cat.id === selectedCategory.parent_id)
-            : undefined;
-
-          newImageUrls = await GoogleDriveUploadService.uploadJewelleryImages(
-            selectedImages,
-            formData.name,
-            formData.category,
-            parentCategory?.name,
-            itemDescription
-          );
-          console.log('Successfully uploaded jewellery images:', newImageUrls);
-        } catch (uploadError) {
-          console.error('Image upload failed:', uploadError);
-          alert(`Image upload failed: ${uploadError.message}. The item will be saved without new images.`);
-        }
+        newImageUrls = await uploadJewelleryImages(
+          selectedImages,
+          formData.name,
+          formData.category,
+          categories,
+          itemDescription
+        );
       }
 
-      // Delete images marked for deletion from Google Drive
+      // 3. Delete removed images using the utility
       if (imagesToDelete.length > 0) {
-        try {
-          const deleteResult = await GoogleDriveUploadService.deleteFiles(imagesToDelete);
-          console.log('Image deletion result:', deleteResult);
-          
-          if (!deleteResult.success) {
-            console.warn('Some images failed to delete from Google Drive:', deleteResult.results);
-          }
-        } catch (deleteError) {
-          console.error('Image deletion failed:', deleteError);
-        }
+        await deleteJewelleryImages(imagesToDelete);
       }
 
-      // Combine current images (not marked for deletion) with new uploaded images
+      // 4. Combine arrays and format diamonds
       const finalImageUrls = [...currentImages, ...newImageUrls];
+      const diamondArrays = groupDiamondSlotsForDatabase(diamondSlots);
 
-      // Convert diamond slots to quality arrays
-      const diamondArrays = convertSlotsToQualityArrays();
-
+      // 5. Build final data and submit
       const itemData = {
         ...formData,
         ...diamondArrays,
@@ -204,9 +148,11 @@ export function JewelleryForm({
       };
 
       await onSubmit(itemData, finalImageUrls);
+      
     } catch (error) {
       console.error('Error saving item:', error);
-      alert('Error saving item. Please check your permissions and try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Error saving item: ${errorMessage}. Please check permissions.`);
     } finally {
       setUploading(false);
     }

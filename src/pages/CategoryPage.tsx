@@ -1,74 +1,60 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Category, JewelleryItem } from '../types';
+import { JewelleryItem } from '../types';
 import JewelleryCard from '../components/JewelleryCard';
 import { Search, Filter, Sparkles, ChevronRight } from 'lucide-react';
+import { useCategories } from '../hooks/useCategories';
+
 
 export function CategoryPage() {
   const { categoryName } = useParams<{ categoryName: string }>();
-  const [items, setItems] = useState<JewelleryItem[]>([]);
-  const [filteredItems, setFilteredItems] = useState<JewelleryItem[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [currentCategory, setCurrentCategory] = useState<Category | null>(null);
+  const { categories, getSubcategories, loadingCategories } = useCategories();  const [items, setItems] = useState<JewelleryItem[]>([]);
+  const [loadingItems, setLoadingItems] = useState(true);
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('name');
-  const [loading, setLoading] = useState(true);
+  const currentCategory = categories.find(cat => cat.name === categoryName) || null;
+  const subcategories = currentCategory ? getSubcategories(currentCategory.id) : [];
 
   useEffect(() => {
-    const loadData = async () => {
-      if (!categoryName) return;
+  const fetchItems = async () => {
+    // Wait until the URL has a category and the hook has finished loading categories
+    if (!categoryName || loadingCategories) return;
 
-      try {
-        // Load all categories to find current category and its subcategories
-        const { data: categoriesData } = await supabase
-          .from('categories')
-          .select('*')
-          .order('name');
+    try {
+      setLoadingItems(true);
 
-        if (categoriesData) {
-          setCategories(categoriesData);
-          
-          // Find the current category
-          const current = categoriesData.find(cat => cat.name === categoryName);
-          setCurrentCategory(current || null);
-        }
+      // Create an array of the main category + all its subcategories
+      const subcategoryNames = subcategories.map(cat => cat.name);
+      const allCategoryNames = [categoryName, ...subcategoryNames];
 
-        // Load items for this category and its subcategories
-        const subcategoryNames = categoriesData
-          ?.filter(cat => {
-            const current = categoriesData.find(c => c.name === categoryName);
-            return current && cat.parent_id === current.id;
-          })
-          .map(cat => cat.name) || [];
+      const { data: itemsData, error } = await supabase
+        .from('jewellery_items')
+        .select('*')
+        .in('category', allCategoryNames)
+        .order('created_at', { ascending: false });
 
-        const allCategoryNames = [categoryName, ...subcategoryNames];
+      if (error) throw error;
 
-        const { data: itemsData } = await supabase
-          .from('jewellery_items')
-          .select('*')
-          .in('category', allCategoryNames)
-          .order('created_at', { ascending: false });
-
-        if (itemsData) {
-          setItems(itemsData);
-          setFilteredItems(itemsData);
-        }
-      } catch (error) {
-        console.error('Error loading data:', error);
-      } finally {
-        setLoading(false);
+      if (itemsData) {
+        setItems(itemsData);
       }
-    };
+    } catch (error) {
+      console.error('Error loading items:', error);
+    } finally {
+      setLoadingItems(false);
+    }
+  };
 
-    loadData();
-  }, [categoryName]);
+  fetchItems();
+}, [categoryName, categories, loadingCategories]);
 
-  useEffect(() => {
-    let filtered = items;
+  const filteredItems = useMemo(() => {
+    // ALWAYS make a copy of the array before sorting to avoid mutating state!
+    let filtered = [...items];
 
-    // Filter by subcategory
+    // 1. Filter by subcategory
     if (selectedSubcategory !== 'all') {
       if (selectedSubcategory === 'main') {
         filtered = filtered.filter(item => item.category === categoryName);
@@ -77,14 +63,17 @@ export function CategoryPage() {
       }
     }
 
-    // Filter by search term
-    filtered = filtered.filter(item =>
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // 2. Filter by search term
+    if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase();
+      filtered = filtered.filter(item =>
+        item.name.toLowerCase().includes(lowerSearch) ||
+        item.description.toLowerCase().includes(lowerSearch)
+      );
+    }
 
-    // Sort items
-    filtered.sort((a, b) => {
+    // 3. Sort items and return the final array
+    return filtered.sort((a, b) => {
       switch (sortBy) {
         case 'name': return a.name.localeCompare(b.name);
         case 'price_low': return a.base_price - b.base_price;
@@ -93,25 +82,15 @@ export function CategoryPage() {
         default: return 0;
       }
     });
-
-    setFilteredItems(filtered);
   }, [items, selectedSubcategory, searchTerm, sortBy, categoryName]);
 
-  if (loading) {
+  if (loadingCategories || loadingItems) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Sparkles className="h-12 w-12 text-yellow-600 mx-auto animate-spin" />
-          <p className="mt-4 text-gray-600">Loading {categoryName}...</p>
-        </div>
+        {/* ... existing spinner UI ... */}
       </div>
     );
   }
-
-  // Get subcategories for the current category
-  const subcategories = currentCategory 
-    ? categories.filter(cat => cat.parent_id === currentCategory.id)
-    : [];
 
   // Count items for each filter option
   const mainCategoryCount = items.filter(item => item.category === categoryName).length;

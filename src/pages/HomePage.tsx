@@ -1,79 +1,58 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Category } from '../types';
 import { CategoryCard } from '../components/CategoryCard';
 import { Sparkles } from 'lucide-react';
+import { useCategories } from '../hooks/useCategories';
 
 export function HomePage() {
-  const [categories, setCategories] = useState<Category[]>([]);
   const [itemCounts, setItemCounts] = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(true);
-  const [setError] = useState<string | null>(null);
+  const [loadingCounts, setLoadingCounts] = useState(true)
+  const { topLevelCategories, getSubcategories, loadingCategories } = useCategories();
 
-  useEffect(() => {
-    const loadData = async () => {
+useEffect(() => {
+    const loadCounts = async () => {
+      // Wait for the hook to finish loading the categories first
+      if (loadingCategories) return;
+      if (topLevelCategories.length === 0) {
+        setLoadingCounts(false);
+        return;
+      }
+
       try {
-        console.log('Attempting to load categories...');
+        const counts: Record<string, number> = {};
         
-        // Load only top-level categories (no parent_id)
-        const { data: categoriesData, error: categoriesError } = await supabase
-          .from('categories')
-          .select('*')
-          .is('parent_id', null)
-          .order('name');
-
-        console.log('Top-level categories response:', { data: categoriesData, error: categoriesError });
-
-        if (categoriesError) {
-          throw categoriesError;
-        }
-
-        if (categoriesData) {
-          setCategories(categoriesData);
-
-          // Count items for each top-level category (including items in subcategories)
-          const counts: Record<string, number> = {};
+        for (const category of topLevelCategories) {
+          // Get subcategories using the hook's helper function
+          const subcategories = getSubcategories(category.id);
           
-          for (const category of categoriesData) {
-            // Get all subcategories for this parent category
-            const { data: subcategories } = await supabase
-              .from('categories')
-              .select('name')
-              .eq('parent_id', category.id);
+          // Create array of category names to search
+          const categoryNames = [category.name, ...subcategories.map(sub => sub.name)];
 
-            // Create array of category names to search (parent + all subcategories)
-            const categoryNames = [category.name];
-            if (subcategories) {
-              categoryNames.push(...subcategories.map(sub => sub.name));
-            }
-
-            // Count items in parent category and all its subcategories
-            const { count, error: countError } = await supabase
-              .from('jewellery_items')
-              .select('*', { count: 'exact', head: true })
-              .in('category', categoryNames);
-            
-            if (countError) {
-              console.warn(`Error counting items for ${category.name}:`, countError);
-              counts[category.name] = 0;
-            } else {
-              counts[category.name] = count || 0;
-            }
+          // Count items in parent category and all its subcategories
+          const { count, error: countError } = await supabase
+            .from('jewellery_items')
+            .select('*', { count: 'exact', head: true })
+            .in('category', categoryNames);
+          
+          if (countError) {
+            console.warn(`Error counting items for ${category.name}:`, countError);
+            counts[category.name] = 0;
+          } else {
+            counts[category.name] = count || 0;
           }
-          setItemCounts(counts);
         }
+        setItemCounts(counts);
       } catch (error) {
-        console.error('Error loading data:', error);
-        setError(error instanceof Error ? error.message : 'Unknown error occurred');
+        console.error('Error loading counts:', error);
       } finally {
-        setLoading(false);
+        setLoadingCounts(false);
       }
     };
 
-    loadData();
-  }, []);
+    loadCounts();
+  }, [topLevelCategories, loadingCategories]); // Rerun if the categories update
 
-  if (loading) {
+  if (loadingCategories || loadingCounts) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -99,7 +78,7 @@ export function HomePage() {
           <p className="text-xl text-gray-600">Discover our curated collection of fine Indian jewellery</p>
         </div>
 
-        {categories.length === 0 ? (
+        {topLevelCategories.length === 0 ? (
           <div className="text-center py-12">
             <Sparkles className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-medium text-gray-900 mb-2">No categories found</h3>
@@ -113,7 +92,7 @@ export function HomePage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-            {categories.map((category) => (
+            {topLevelCategories.map((category) => (
               <CategoryCard
                 key={category.id}
                 category={category}

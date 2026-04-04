@@ -1,8 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, X, Gem, Crown } from 'lucide-react';
-import { JewelleryItem } from '../types';
-import { calculateJewelleryPriceSync, getPriceBreakdown } from '../lib/goldPrice';
-import { useClickOutside } from '../hooks/useClickOutside.ts'
+import { JewelleryItem, DiamondQuality } from '../types';
+import { calculateJewelleryPriceSync, getPriceBreakdown, formatCurrency, formatDiamondSummary } from '../lib/goldPrice';
+import { useClickOutside } from '../hooks/useClickOutside';
+import { useGoldPrice } from '../hooks/useGoldPrice';
+import { useAdminSettings } from '../hooks/useAdminSettings';
+import { getAvailableDiamondQualities, getDiamondsForQuality } from '../utils/diamondUtils';
+import { GOLD_QUALITIES } from '../constants/jewellery';
 
 interface JewelleryCardProps {
   item: JewelleryItem;
@@ -11,50 +15,51 @@ interface JewelleryCardProps {
 const JewelleryCard: React.FC<JewelleryCardProps> = ({ item }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showModal, setShowModal] = useState(false);
-  const [selectedDiamondQuality, setSelectedDiamondQuality] = useState<string>('');
   const [selectedGoldQuality, setSelectedGoldQuality] = useState<string>('14K');
+  
   const { ref: diamondRef, isOpen: showDiamond, setIsOpen: setDiamond } = useClickOutside<HTMLDivElement>();
   const { ref: goldRef, isOpen: showGold, setIsOpen: setGold } = useClickOutside<HTMLDivElement>();
 
-  const images = item.images || [];
-  const hasDiamonds = item.diamonds && Object.keys(item.diamonds).length > 0;
-  const diamondQualities = useMemo(() => hasDiamonds ? Object.keys(item.diamonds) : [], [hasDiamonds, item.diamonds]);
+  // Fetch live prices and settings automatically
+  const { goldPrice } = useGoldPrice();
+  const { fallbackGoldPrice, gstRate, overrideLiveGoldPrice } = useAdminSettings();
+  const effectiveGoldPrice = overrideLiveGoldPrice ? fallbackGoldPrice : goldPrice;
 
-  // Initialize selected diamond quality
+  const images = item.image_url || [];
+
+  const availableDiamondQualities = useMemo(() => getAvailableDiamondQualities(item), [item]);
+
+  const hasDiamonds = availableDiamondQualities.length > 0;
+  
+  const [selectedDiamondQuality, setSelectedDiamondQuality] = useState<DiamondQuality | null>(
+    hasDiamonds ? availableDiamondQualities[0] : null
+  );
+
+  // Re-sync if item changes
   useEffect(() => {
-    if (hasDiamonds && diamondQualities.length > 0 && !selectedDiamondQuality) {
-      setSelectedDiamondQuality(diamondQualities[0]);
+    if (hasDiamonds && !selectedDiamondQuality) {
+      setSelectedDiamondQuality(availableDiamondQualities[0]);
     }
-  }, [hasDiamonds, diamondQualities, selectedDiamondQuality]);
+  }, [hasDiamonds, availableDiamondQualities, selectedDiamondQuality]);
 
-  const nextImage = () => {
-    setCurrentImageIndex((prev) => (prev + 1) % images.length);
-  };
+  const nextImage = () => setCurrentImageIndex((prev) => (prev + 1) % images.length);
+  const prevImage = () => setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
 
-  const prevImage = () => {
-    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
-  };
+  // Helper to extract the correct diamond array for calculation
+  const diamondsData = getDiamondsForQuality(item, selectedDiamondQuality);;
 
-  const currentPrice = calculateJewelleryPriceSync(item, selectedDiamondQuality, selectedGoldQuality);
-  const priceBreakdown = getPriceBreakdown(item, selectedDiamondQuality, selectedGoldQuality);
-
-  const goldQualityOptions = [
-    { value: '14K', label: '14K Gold', purity: '58.3%' },
-    { value: '18K', label: '18K Gold', purity: '75.0%' },
-    { value: '24K', label: '24K Gold', purity: '100%' }
-  ];
+  // Use the updated pricing functions
+  const currentPrice = calculateJewelleryPriceSync(
+    item.base_price, item.gold_weight, selectedGoldQuality, diamondsData, item.making_charges_per_gram, effectiveGoldPrice, gstRate
+  );
+  
+  const priceBreakdown = getPriceBreakdown(
+    item.base_price, item.gold_weight, selectedGoldQuality, diamondsData, item.making_charges_per_gram, effectiveGoldPrice, gstRate
+  );
 
   const getSelectedGoldLabel = () => {
-    const option = goldQualityOptions.find(opt => opt.value === selectedGoldQuality);
+    const option = GOLD_QUALITIES.find(opt => opt.value === selectedGoldQuality);
     return option ? option.label : selectedGoldQuality;
-  };
-
-  const getDiamondSummary = (quality: string) => {
-    if (!item.diamonds || !item.diamonds[quality]) return '';
-    const diamonds = item.diamonds[quality];
-    const totalCarats = diamonds.reduce((sum, d) => sum + d.carat_weight, 0);
-    const count = diamonds.length;
-    return `${totalCarats.toFixed(2)}ct (${count} ${count === 1 ? 'diamond' : 'diamonds'})`;
   };
 
   return (
@@ -129,7 +134,7 @@ const JewelleryCard: React.FC<JewelleryCardProps> = ({ item }) => {
               
               {showGold && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                  {goldQualityOptions.map((option) => (
+                  {GOLD_QUALITIES.map((option) => (
                     <button
                       key={option.value}
                       onClick={() => {
@@ -169,7 +174,7 @@ const JewelleryCard: React.FC<JewelleryCardProps> = ({ item }) => {
                 
                 {showDiamond && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                    {diamondQualities.map((quality) => (
+                    {availableDiamondQualities.map((quality) => (
                       <button
                         key={quality}
                         onClick={() => {
@@ -182,7 +187,9 @@ const JewelleryCard: React.FC<JewelleryCardProps> = ({ item }) => {
                       >
                         <div className="flex flex-col">
                           <span className="font-medium">{quality}</span>
-                          <span className="text-xs text-gray-500">{getDiamondSummary(quality)}</span>
+                          <span className="text-xs text-gray-500">
+                            {formatDiamondSummary(getDiamondsData(quality).diamonds)}
+                          </span>
                         </div>
                       </button>
                     ))}
@@ -196,7 +203,7 @@ const JewelleryCard: React.FC<JewelleryCardProps> = ({ item }) => {
           <div className="border-t pt-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-2xl font-bold text-gray-900">
-                ₹{currentPrice.toLocaleString('en-IN')}
+                {formatCurrency(currentPrice)}
               </span>
             </div>
             
@@ -204,37 +211,26 @@ const JewelleryCard: React.FC<JewelleryCardProps> = ({ item }) => {
             <div className="text-xs text-gray-500 space-y-1">
               <div className="flex justify-between">
                 <span>Gold ({selectedGoldQuality}):</span>
-                <span>₹{priceBreakdown.goldCost.toLocaleString('en-IN')}</span>
+                <span>{formatCurrency(priceBreakdown.goldValue)}</span>
               </div>
               {hasDiamonds && priceBreakdown.diamondCost > 0 && (
                 <div className="flex justify-between">
                   <span>Diamonds ({selectedDiamondQuality}):</span>
-                  <span>₹{priceBreakdown.diamondCost.toLocaleString('en-IN')}</span>
+                  <span>{formatCurrency(priceBreakdown.diamondCost)}</span>
                 </div>
               )}
               <div className="flex justify-between">
                 <span>Making Charges:</span>
-                <span>₹{priceBreakdown.makingCharges.toLocaleString('en-IN')}</span>
+                <span>{formatCurrency(priceBreakdown.makingCharges)}</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Dropdown Overlay */}
-      {(showDiamond || showGold) && (
-          <div 
-            className="fixed inset-0 z-30" 
-            onClick={() => {
-              setDiamond(false);
-              setGold(false);
-            }}
-          />
-      )}
-
       {/* Image Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-60">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
           <div className="relative max-w-4xl max-h-full p-4">
             <button
               onClick={() => setShowModal(false)}

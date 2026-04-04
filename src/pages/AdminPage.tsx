@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Category, JewelleryItem } from '../types';
+import { JewelleryItem } from '../types';
 import { AdminLogin } from '../components/AdminLogin';
 import { AdminItemsTab } from '../components/admin/AdminItemsTab';
 import { AdminCategoriesTab } from '../components/admin/AdminCategoriesTab';
@@ -9,12 +9,13 @@ import { LogOut, Shield, Folder, Package, Settings } from 'lucide-react';
 import { formatCurrency } from '../lib/goldPrice';
 import { useGoldPrice } from '../hooks/useGoldPrice';
 import { useAdminSettings } from '../hooks/useAdminSettings';
+import { useCategories } from '../hooks/useCategories';
 
 export function AdminPage() {
+  const { categories, refetchCategories } = useCategories();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<JewelleryItem[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [activeTab, setActiveTab] = useState<'items' | 'categories' | 'settings'>('items');
   
   const { goldPrice } = useGoldPrice();
@@ -45,7 +46,6 @@ export function AdminPage() {
       await supabase.auth.signOut();
       setIsAuthenticated(false);
       setItems([]);
-      setCategories([]);
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -53,20 +53,21 @@ export function AdminPage() {
 
   const loadData = async () => {
     try {
-      const [itemsResponse, categoriesResponse] = await Promise.all([
-        supabase.from('jewellery_items').select('*').order('created_at', { ascending: false }),
-        supabase.from('categories').select('*').order('name')
-      ]);
+      // We only need to fetch items now! Categories are handled by the hook.
+      const { data } = await supabase
+        .from('jewellery_items')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-      if (itemsResponse.data) setItems(itemsResponse.data);
-      if (categoriesResponse.data) setCategories(categoriesResponse.data);
+      if (data) setItems(data);
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Error loading items:', error);
     }
   };
 
   const handleCategoriesChange = () => {
-    loadData();
+    // When an admin adds/edits a category, tell the hook to fetch fresh data
+    refetchCategories(); 
   };
 
   const effectiveGoldPrice = overrideLiveGoldPrice ? fallbackGoldPrice : goldPrice;

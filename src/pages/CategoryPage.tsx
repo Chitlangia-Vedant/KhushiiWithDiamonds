@@ -1,20 +1,25 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { JewelleryItem } from '../types';
 import JewelleryCard from '../components/JewelleryCard';
-import { Search, Filter, Sparkles, ChevronRight } from 'lucide-react';
+import { Search, Filter, Sparkles } from 'lucide-react';
 import { useCategories } from '../hooks/useCategories';
+import { useNavigate } from 'react-router-dom';
+import { CategoryFilter } from '../components/CategoryFilter';
+import { getValidCategoryNames } from '../utils/categoryUtils';
 
 
 export function CategoryPage() {
   const { categoryName } = useParams<{ categoryName: string }>();
+  const navigate = useNavigate();
   const { categories, getSubcategories, loadingCategories } = useCategories();  const [items, setItems] = useState<JewelleryItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(true);
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('name');
-  const currentCategory = categories.find(cat => cat.name === categoryName) || null;
+  const currentCategory = categories.find(c => c.name === categoryName);
+  const activeCategoryId = currentCategory ? currentCategory.id : 'All';
   const subcategories = currentCategory ? getSubcategories(currentCategory.id) : [];
 
   useEffect(() => {
@@ -50,39 +55,20 @@ export function CategoryPage() {
   fetchItems();
 }, [categoryName, categories, loadingCategories]);
 
-  const filteredItems = useMemo(() => {
-    // ALWAYS make a copy of the array before sorting to avoid mutating state!
-    let filtered = [...items];
-
-    // 1. Filter by subcategory
-    if (selectedSubcategory !== 'all') {
-      if (selectedSubcategory === 'main') {
-        filtered = filtered.filter(item => item.category === categoryName);
+  const handleCategorySelect = (categoryId: string) => {
+      if (categoryId === 'All') {
+        navigate('/category/All');
       } else {
-        filtered = filtered.filter(item => item.category === selectedSubcategory);
+        const selectedCat = categories.find(c => c.id === categoryId);
+        if (selectedCat) navigate(`/category/${selectedCat.name}`);
       }
-    }
+    };
 
-    // 2. Filter by search term
-    if (searchTerm) {
-      const lowerSearch = searchTerm.toLowerCase();
-      filtered = filtered.filter(item =>
-        item.name.toLowerCase().includes(lowerSearch) ||
-        item.description.toLowerCase().includes(lowerSearch)
-      );
-    }
-
-    // 3. Sort items and return the final array
-    return filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'name': return a.name.localeCompare(b.name);
-        case 'price_low': return a.base_price - b.base_price;
-        case 'price_high': return b.base_price - a.base_price;
-        case 'newest': return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        default: return 0;
-      }
-    });
-  }, [items, selectedSubcategory, searchTerm, sortBy, categoryName]);
+  const filteredItems = items.filter(item => {
+    if (activeCategoryId === 'All') return true;
+    const validNames = getValidCategoryNames(activeCategoryId, categories);
+    return validNames.includes(item.category);
+  });
 
   if (loadingCategories || loadingItems) {
     return (
@@ -91,11 +77,6 @@ export function CategoryPage() {
       </div>
     );
   }
-
-  // Count items for each filter option
-  const mainCategoryCount = items.filter(item => item.category === categoryName).length;
-  const getSubcategoryCount = (subcategoryName: string) => 
-    items.filter(item => item.category === subcategoryName).length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -107,52 +88,12 @@ export function CategoryPage() {
         )}
       </div>
 
-      {/* Subcategory Filter */}
-      {subcategories.length > 0 && (
-        <div className="mb-6">
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setSelectedSubcategory('all')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  selectedSubcategory === 'all'
-                    ? 'bg-yellow-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                All ({items.length})
-              </button>
-              <button
-                onClick={() => setSelectedSubcategory('main')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  selectedSubcategory === 'main'
-                    ? 'bg-yellow-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {categoryName} Only ({mainCategoryCount})
-              </button>
-              {subcategories.map((subcategory) => {
-                const count = getSubcategoryCount(subcategory.name);
-                return (
-                  <button
-                    key={subcategory.id}
-                    onClick={() => setSelectedSubcategory(subcategory.name)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1 ${
-                      selectedSubcategory === subcategory.name
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    <ChevronRight className="h-3 w-3" />
-                    <span>{subcategory.name} ({count})</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Universal Category Filter */}
+      <CategoryFilter 
+        categories={categories}
+        activeCategoryId={activeCategoryId}
+        onSelect={handleCategorySelect}
+      />
 
       {/* Search and Sort Controls */}
       <div className="flex flex-col sm:flex-row gap-4 mb-8">

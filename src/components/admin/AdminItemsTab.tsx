@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { JewelleryItem } from '../../types';
-import { Plus, Filter, Home, ChevronRight } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { JewelleryForm } from './JewelleryForm';
 import { AdminTableRow } from './AdminTableRow';
 import { deleteDriveImages } from '../../utils/uploadUtils';
 import { useCategories } from '../../hooks/useCategories';
+import { CategoryFilter } from '../CategoryFilter';
+import { getValidCategoryNames } from '../../utils/categoryUtils';
 
 export function AdminItemsTab() {
   const { categories } = useCategories();
@@ -73,48 +75,10 @@ export function AdminItemsTab() {
     }
   };
 
-  // 1. Calculate the Breadcrumb Trail for the UI
-  const getBreadcrumbs = (categoryId: string) => {
-    if (categoryId === 'All') return [];
-    const trail = [];
-    let currentId: string | null = categoryId;
-    while (currentId) {
-      const cat = categories.find(c => c.id === currentId);
-      if (cat) {
-        trail.unshift(cat); // Push to the front of the array
-        currentId = cat.parent_id;
-      } else {
-        break;
-      }
-    }
-    return trail;
-  };
-
-  // 2. Recursively find ALL descendant names (so "Rings" shows level 3, 4, 5+ rings)
-  const getValidCategoryNames = (categoryId: string): string[] => {
-    const parentCat = categories.find(c => c.id === categoryId);
-    if (!parentCat) return [];
-
-    let names = [parentCat.name];
-    const children = categories.filter(c => c.parent_id === categoryId);
-
-    children.forEach(child => {
-      names = [...names, ...getValidCategoryNames(child.id)];
-    });
-
-    return names;
-  };
-
-  // Derived states for rendering
-  const breadcrumbs = getBreadcrumbs(activeCategoryId);
-  const currentChildren = activeCategoryId === 'All'
-    ? categories.filter(c => !c.parent_id) // Top-level categories
-    : categories.filter(c => c.parent_id === activeCategoryId); // Direct subcategories
-
   // Filter the items using the recursive names array
   const filteredItems = items.filter(item => {
     if (activeCategoryId === 'All') return true;
-    const validNames = getValidCategoryNames(activeCategoryId);
+    const validNames = getValidCategoryNames(activeCategoryId, categories);
     return validNames.includes(item.category);
   });
 
@@ -131,52 +95,11 @@ export function AdminItemsTab() {
         </button>
       </div>
 
-      {/* --- NEW: Infinite Depth Filter UI --- */}
-      <div className="mb-6 flex flex-col space-y-3 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-        
-        {/* Row 1: Breadcrumb Path */}
-        <div className="flex items-center space-x-2 text-sm text-gray-600 overflow-x-auto pb-1 scrollbar-hide">
-          <button
-            onClick={() => setActiveCategoryId('All')}
-            className={`flex items-center space-x-1 font-medium transition-colors hover:text-yellow-600 ${activeCategoryId === 'All' ? 'text-gray-900 font-bold' : ''}`}
-          >
-            <Home className="h-4 w-4" />
-            <span className="whitespace-nowrap">All Items</span>
-          </button>
-
-          {breadcrumbs.map((bc) => (
-            <React.Fragment key={bc.id}>
-              <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
-              <button
-                onClick={() => setActiveCategoryId(bc.id)}
-                className={`font-medium whitespace-nowrap transition-colors hover:text-yellow-600 ${activeCategoryId === bc.id ? 'text-gray-900 font-bold' : ''}`}
-              >
-                {bc.name}
-              </button>
-            </React.Fragment>
-          ))}
-        </div>
-
-        {/* Row 2: Contextual Drill-Down Pills */}
-        {currentChildren.length > 0 && (
-          <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-hide border-t border-gray-100 pt-3">
-            {activeCategoryId !== 'All' && (
-              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider mr-2 whitespace-nowrap flex-shrink-0">
-                Subcategories:
-              </span>
-            )}
-            {currentChildren.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCategoryId(cat.id)}
-                className="px-4 py-1.5 rounded-full whitespace-nowrap text-sm font-medium bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-100 transition-colors shadow-sm"
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      <CategoryFilter 
+        categories={categories} 
+        activeCategoryId={activeCategoryId} 
+        onSelect={setActiveCategoryId} 
+      />
 
       {/* Table Component */}
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">

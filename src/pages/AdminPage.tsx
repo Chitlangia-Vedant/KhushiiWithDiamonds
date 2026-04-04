@@ -87,106 +87,93 @@ export function AdminPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-5 space-y-4 lg:space-y-0">
+    // Reduced vertical padding from py-8 to py-4 sm:py-6
+    <div className="max-w-[95rem] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+      
+      {/* --- UNIFIED SINGLE-ROW APP BAR --- */}
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center bg-white p-2 sm:p-3 rounded-xl shadow-sm mb-6 border border-gray-100 gap-4">
         
-        {/* 1. Clickable Storefront Branding */}
-        <Link to="/" className="group flex flex-col hover:opacity-80 transition-opacity">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900 group-hover:text-yellow-600 transition-colors">
-            KhushiiWithDiamonds
-          </h1>
-          <p className="text-[10px] sm:text-xs font-semibold text-yellow-600 uppercase tracking-widest mt-0.5">
-            Premium Indian Jewellery
-          </p>
-        </Link>
+        {/* LEFT SIDE: Branding & Navigation Tabs */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 w-full xl:w-auto">
+          {/* Shortened Brand Name */}
+          <Link to="/" className="text-xl font-black text-gray-900 hover:text-yellow-600 transition-colors tracking-tight px-2">
+            KWD<span className="text-yellow-600">Admin</span>
+          </Link>
 
-        {/* 2. Controls & Status Container */}
-        <div className="flex flex-wrap items-center gap-3 md:gap-4">
+          {/* Integrated Tabs */}
+          <div className="flex space-x-1 sm:border-l sm:border-gray-200 sm:pl-6 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+            {[
+              { key: 'items', icon: Package, label: `Items (${items.length})` },
+              { key: 'categories', icon: Folder, label: `Categories (${categories.length})` },
+              { key: 'settings', icon: Settings, label: 'Settings' }
+            ].map(({ key, icon: Icon, label }) => (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key as 'items' | 'categories' | 'settings')}
+                className={`px-3 py-1.5 rounded-md flex items-center space-x-1.5 text-sm font-medium whitespace-nowrap transition-colors ${
+                  activeTab === key
+                    ? 'bg-yellow-50 text-yellow-700'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* RIGHT SIDE: Tools, Status, & Logout */}
+        <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-between xl:justify-end border-t xl:border-t-0 border-gray-100 pt-3 xl:pt-0">
           
-          {/* Global Quality Selectors */}
-          <div className="flex items-center space-x-2 border-r border-gray-200 pr-3 md:pr-4">
+          {/* Micro Quality Selectors */}
+          <div className="flex items-center bg-gray-50 rounded-md p-1 border border-gray-200">
             <select
               value={globalGoldPurity}
               onChange={(e) => setGlobalGoldPurity(e.target.value)}
-              className="text-xs border-none bg-yellow-50 text-yellow-800 rounded-md py-1 pl-2 pr-6 focus:ring-0 cursor-pointer font-medium"
+              className="text-xs bg-transparent text-gray-700 border-none py-0.5 pl-2 pr-6 focus:ring-0 cursor-pointer font-medium"
             >
-              {GOLD_QUALITIES.map((gold) => (
-                <option key={gold.value} value={gold.value}>{gold.value}</option>
-              ))}
+              {GOLD_QUALITIES.map((gold) => <option key={gold.value} value={gold.value}>{gold.value}</option>)}
             </select>
-
-            <div className="flex items-center space-x-1 bg-blue-50 rounded-md pl-2">
-              <Sparkles className="h-3 w-3 text-blue-500" />
-              <select
-                value={globalDiamondQuality}
-                onChange={(e) => setGlobalDiamondQuality(e.target.value as DiamondQuality)}
-                className="text-xs border-none bg-transparent text-blue-800 py-1 pl-1 pr-6 focus:ring-0 cursor-pointer font-medium"
-              >
-                {DIAMOND_QUALITIES.map((quality) => (
-                  <option key={quality} value={quality}>{quality}</option>
-                ))}
-              </select>
-            </div>
+            
+            <div className="w-px h-4 bg-gray-300 mx-1"></div>
+            
+            <Sparkles className="h-3 w-3 text-blue-500 ml-1" />
+            <select
+              value={globalDiamondQuality}
+              onChange={(e) => setGlobalDiamondQuality(e.target.value as DiamondQuality)}
+              className="text-xs bg-transparent text-gray-700 border-none py-0.5 pl-1 pr-6 focus:ring-0 cursor-pointer font-medium"
+            >
+              {DIAMOND_QUALITIES.map((quality) => <option key={quality} value={quality}>{quality}</option>)}
+            </select>
           </div>
 
-          {/* Pricing Status */}
-          <div className="flex items-center space-x-3 text-xs md:text-sm text-gray-600">
-            <div>
-              Gold: <span className={`font-semibold ${overrideLiveGoldPrice ? 'text-orange-600' : 'text-yellow-600'}`}>
-                {formatCurrency(effectiveGoldPrice)}/g
-              </span>
-            </div>
-            <div>
-              GST: <span className="font-semibold text-green-600">{Math.round(gstRate * 100)}%</span>
-            </div>
+          {/* Live Pricing Stats */}
+          <div className="flex items-center space-x-3 text-[11px] sm:text-xs font-medium px-2">
+            <span className={overrideLiveGoldPrice ? 'text-orange-600' : 'text-gray-600'} title="Current Gold Price">
+              Gold: ₹{effectiveGoldPrice.toLocaleString('en-IN')}/g
+            </span>
+            <span className="text-gray-300">|</span>
+            <span className="text-gray-600" title="Current GST Rate">
+              GST: {Math.round(gstRate * 100)}%
+            </span>
           </div>
 
-          {/* Logout Button (Shrunk slightly) */}
+          {/* Icon-Only Logout Button */}
           <button
             onClick={handleLogout}
-            className="bg-gray-800 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-lg hover:bg-gray-900 flex items-center space-x-2 text-sm"
+            title="Sign Out"
+            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors ml-auto xl:ml-2"
           >
-            <LogOut className="h-4 w-4" />
-            <span className="hidden sm:inline">Sign Out</span>
+            <LogOut className="h-4 w-4 md:h-5 md:w-5" />
           </button>
         </div>
-      </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="flex space-x-1 mb-4">
-        {[
-          { key: 'items', icon: Package, label: `Items (${items.length})` },
-          { key: 'categories', icon: Folder, label: `Categories (${categories.length})` },
-          { key: 'settings', icon: Settings, label: 'Settings' }
-        ].map(({ key, icon: Icon, label }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key as 'items' | 'categories' | 'settings')}
-            className={`px-4 py-2 rounded-lg flex items-center space-x-2 ${
-              activeTab === key
-                ? 'bg-yellow-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            <Icon className="h-5 w-5" />
-            <span>{label}</span>
-          </button>
-        ))}
       </div>
 
-      {/* Tab Content */}
-      {activeTab === 'items' && (
-        <AdminItemsTab />
-      )}
-
-      {activeTab === 'categories' && (
-        <AdminCategoriesTab 
-          items={items}
-        />
-      )}
-
+      {/* --- TAB CONTENT STARTS IMMEDIATELY HERE --- */}
+      {activeTab === 'items' && <AdminItemsTab />}
+      {activeTab === 'categories' && <AdminCategoriesTab items={items} />}
       {activeTab === 'settings' && (
         <AdminSettingsTab 
           fallbackGoldPrice={fallbackGoldPrice}

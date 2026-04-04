@@ -31,7 +31,7 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-lg border-b-2 border-yellow-400">
+      <header className="sticky top-0 z-50 bg-white shadow-lg border-b-2 border-yellow-400">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center space-x-2">

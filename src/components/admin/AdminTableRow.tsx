@@ -95,9 +95,12 @@ const totalCost = calculateJewelleryPriceSync(
         <div className="space-y-1">
           <div>Making: {formatCurrency(item.making_charges_per_gram)}/g</div>
           <div>Base: {formatCurrency(item.base_price)}</div>
-          {diamondsData.diamonds.length > 0 && (
-            <div>Diamonds: {formatCurrency(diamondsData.diamonds.reduce((sum, d) => sum + (d.carat * d.cost_per_carat), 0))}</div>
+          
+          {/* THE FIX: We first check if diamondsData exists AND if it has the diamonds array */}
+          {diamondsData && diamondsData.diamonds && diamondsData.diamonds.length > 0 && (
+            <div>Diamonds: {formatCurrency(diamondsData.diamonds.reduce((sum: any, d: any) => sum + (d.carat * d.cost_per_carat), 0))}</div>
           )}
+          
         </div>
       </td>
 

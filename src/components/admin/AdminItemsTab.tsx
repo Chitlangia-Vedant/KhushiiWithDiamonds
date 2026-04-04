@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { JewelleryItem } from '../../types';
-import { Plus } from 'lucide-react';
+import { Plus, Filter, Home, ChevronRight } from 'lucide-react';
 import { JewelleryForm } from './JewelleryForm';
 import { AdminTableRow } from './AdminTableRow';
 import { deleteDriveImages } from '../../utils/uploadUtils';
@@ -12,8 +12,7 @@ export function AdminItemsTab() {
   const [items, setItems] = useState<JewelleryItem[]>([]);
   
   // --- NEW: Hierarchical Filter States ---
-  const [selectedParentId, setSelectedParentId] = useState<string | 'All'>('All');
-  const [selectedSubCategoryName, setSelectedSubCategoryName] = useState<string | 'All'>('All');
+  const [activeCategoryId, setActiveCategoryId] = useState<string | 'All'>('All');
   
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingItem, setEditingItem] = useState<JewelleryItem | null>(null);
@@ -74,30 +73,49 @@ export function AdminItemsTab() {
     }
   };
 
-  // --- NEW: Hierarchical Filtering Logic ---
-  // 1. Compute active categories
-  const topLevelCategories = categories.filter(c => !c.parent_id);
-  const activeSubcategories = selectedParentId === 'All' 
-    ? [] 
-    : categories.filter(c => c.parent_id === selectedParentId);
+  // 1. Calculate the Breadcrumb Trail for the UI
+  const getBreadcrumbs = (categoryId: string) => {
+    if (categoryId === 'All') return [];
+    const trail = [];
+    let currentId: string | null = categoryId;
+    while (currentId) {
+      const cat = categories.find(c => c.id === currentId);
+      if (cat) {
+        trail.unshift(cat); // Push to the front of the array
+        currentId = cat.parent_id;
+      } else {
+        break;
+      }
+    }
+    return trail;
+  };
 
-  // 2. Filter the items smartly
+  // 2. Recursively find ALL descendant names (so "Rings" shows level 3, 4, 5+ rings)
+  const getValidCategoryNames = (categoryId: string): string[] => {
+    const parentCat = categories.find(c => c.id === categoryId);
+    if (!parentCat) return [];
+
+    let names = [parentCat.name];
+    const children = categories.filter(c => c.parent_id === categoryId);
+
+    children.forEach(child => {
+      names = [...names, ...getValidCategoryNames(child.id)];
+    });
+
+    return names;
+  };
+
+  // Derived states for rendering
+  const breadcrumbs = getBreadcrumbs(activeCategoryId);
+  const currentChildren = activeCategoryId === 'All'
+    ? categories.filter(c => !c.parent_id) // Top-level categories
+    : categories.filter(c => c.parent_id === activeCategoryId); // Direct subcategories
+
+  // Filter the items using the recursive names array
   const filteredItems = items.filter(item => {
-    // If "All Items" is selected, show absolutely everything
-    if (selectedParentId === 'All') return true;
-
-    const parentCat = categories.find(c => c.id === selectedParentId);
-    if (!parentCat) return true;
-
-    // If a specific subcategory is clicked (e.g., "Engagement Rings")
-    if (selectedSubCategoryName !== 'All') {
-      return item.category === selectedSubCategoryName;
-    } 
-    
-    // If "All [Parent]" is clicked (e.g., "All Rings")
-    // Show items matching the parent name OR any of its subcategories!
-    const validCategoryNames = [parentCat.name, ...activeSubcategories.map(c => c.name)];
-    return validCategoryNames.includes(item.category);
+    if (activeCategoryId === 'All') return true;
+    const validNames = getValidCategoryNames(activeCategoryId);
+    return validNames.includes(item.category);
   });
 
   return (
@@ -113,49 +131,45 @@ export function AdminItemsTab() {
         </button>
       </div>
 
-      {/* --- NEW: Hierarchical Category Filter UI --- */}
-      <div className="mb-6 flex flex-col space-y-3">
-        {/* Top Level Categories */}
-        <div className="flex items-center space-x-2 overflow-x-auto pb-2 scrollbar-hide">
+      {/* --- NEW: Infinite Depth Filter UI --- */}
+      <div className="mb-6 flex flex-col space-y-3 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+        
+        {/* Row 1: Breadcrumb Path */}
+        <div className="flex items-center space-x-2 text-sm text-gray-600 overflow-x-auto pb-1 scrollbar-hide">
           <button
-            onClick={() => { setSelectedParentId('All'); setSelectedSubCategoryName('All'); }}
-            className={`px-4 py-1.5 rounded-full whitespace-nowrap text-sm font-medium transition-colors ${
-              selectedParentId === 'All' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
+            onClick={() => setActiveCategoryId('All')}
+            className={`flex items-center space-x-1 font-medium transition-colors hover:text-yellow-600 ${activeCategoryId === 'All' ? 'text-gray-900 font-bold' : ''}`}
           >
-            All Items
+            <Home className="h-4 w-4" />
+            <span className="whitespace-nowrap">All Items</span>
           </button>
-          {topLevelCategories.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => { setSelectedParentId(cat.id); setSelectedSubCategoryName('All'); }}
-              className={`px-4 py-1.5 rounded-full whitespace-nowrap text-sm font-medium transition-colors ${
-                selectedParentId === cat.id ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {cat.name}
-            </button>
+
+          {breadcrumbs.map((bc) => (
+            <React.Fragment key={bc.id}>
+              <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+              <button
+                onClick={() => setActiveCategoryId(bc.id)}
+                className={`font-medium whitespace-nowrap transition-colors hover:text-yellow-600 ${activeCategoryId === bc.id ? 'text-gray-900 font-bold' : ''}`}
+              >
+                {bc.name}
+              </button>
+            </React.Fragment>
           ))}
         </div>
 
-        {/* Subcategories (Only renders if the selected parent has children) */}
-        {activeSubcategories.length > 0 && (
-          <div className="flex items-center space-x-2 overflow-x-auto pb-2 scrollbar-hide pt-1 border-t border-gray-100">
-            <button
-              onClick={() => setSelectedSubCategoryName('All')}
-              className={`px-4 py-1.5 rounded-full whitespace-nowrap text-sm font-medium transition-colors ${
-                selectedSubCategoryName === 'All' ? 'bg-yellow-600 text-white' : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
-              }`}
-            >
-              All {categories.find(c => c.id === selectedParentId)?.name}
-            </button>
-            {activeSubcategories.map((cat) => (
+        {/* Row 2: Contextual Drill-Down Pills */}
+        {currentChildren.length > 0 && (
+          <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-hide border-t border-gray-100 pt-3">
+            {activeCategoryId !== 'All' && (
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider mr-2 whitespace-nowrap flex-shrink-0">
+                Subcategories:
+              </span>
+            )}
+            {currentChildren.map((cat) => (
               <button
                 key={cat.id}
-                onClick={() => setSelectedSubCategoryName(cat.name)}
-                className={`px-4 py-1.5 rounded-full whitespace-nowrap text-sm font-medium transition-colors ${
-                  selectedSubCategoryName === cat.name ? 'bg-yellow-600 text-white' : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
-                }`}
+                onClick={() => setActiveCategoryId(cat.id)}
+                className="px-4 py-1.5 rounded-full whitespace-nowrap text-sm font-medium bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-100 transition-colors shadow-sm"
               >
                 {cat.name}
               </button>

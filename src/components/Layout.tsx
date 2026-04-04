@@ -175,7 +175,15 @@ export function Layout({ children }: LayoutProps) {
               {topLevelCategories.map((category) => {
                 const subcategories = getSubcategories(category.id);
                 const hasSubcats = subcategories.length > 0;
-                const isActive = location.pathname.includes(category.name);
+                
+                // 1. EXACT MATCH FIX: Only highlight if it perfectly matches the category or its subcategories!
+                const decodedPath = decodeURIComponent(location.pathname);
+                const isExactMatch = decodedPath === `/category/${category.name}`;
+                const isSubcategoryMatch = subcategories.some(sub => 
+                  decodedPath === `/category/${sub.name}` || 
+                  getSubcategories(sub.id).some(subSub => decodedPath === `/category/${subSub.name}`)
+                );
+                const isActive = isExactMatch || isSubcategoryMatch;
 
                 return (
                   <div key={category.id} className="relative group h-full flex items-center">
@@ -189,14 +197,21 @@ export function Layout({ children }: LayoutProps) {
                       {hasSubcats && <ChevronDown className="h-3.5 w-3.5 transition-transform group-hover:rotate-180" />}
                     </Link>
 
-                    {/* Multi-Level Mega-Menu Dropdown (PC) */}
+                    {/* 2. DYNAMIC WIDTH FIX: No more empty space! Width now perfectly hugs the columns. */}
                     {hasSubcats && (
-                      <div className="absolute left-1/2 -translate-x-1/2 top-full w-max min-w-[500px] max-w-[800px] bg-white shadow-xl border-t-2 border-yellow-500 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                        <div className="p-6 grid grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
+                      <div className="absolute left-1/2 -translate-x-1/2 top-full w-max min-w-[200px] max-w-[900px] bg-white shadow-xl border-t-2 border-yellow-500 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        
+                        {/* Dynamic Grid: 1 column if 1 subcategory, 2 if 2, 3 if 3+ */}
+                        <div className={`p-6 grid gap-x-10 gap-y-6 ${
+                          subcategories.length >= 3 ? 'grid-cols-3' : 
+                          subcategories.length === 2 ? 'grid-cols-2' : 
+                          'grid-cols-1'
+                        }`}>
+                          
                           {subcategories.map((sub) => {
                             const subSubcats = getSubcategories(sub.id);
                             return (
-                              <div key={sub.id} className="flex flex-col">
+                              <div key={sub.id} className="flex flex-col min-w-[140px]">
                                 {/* Level 2: Column Headers */}
                                 <Link
                                   to={`/category/${sub.name}`}

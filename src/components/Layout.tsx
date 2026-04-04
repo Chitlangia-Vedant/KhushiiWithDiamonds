@@ -21,7 +21,6 @@ export function Layout({ children }: LayoutProps) {
 
   const navigation = [
     { name: 'Home', path: '/' },
-    { name: 'Admin', path: '/admin' },
   ];
 
   // The universal handler for when a customer clicks a category anywhere in the header

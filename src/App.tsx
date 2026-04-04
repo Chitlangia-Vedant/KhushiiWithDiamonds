@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { HomePage } from './pages/HomePage';
 import { CategoryPage } from './pages/CategoryPage';
@@ -48,19 +48,33 @@ class ErrorBoundary extends React.Component<
   }
 }
 
+const StorefrontZone = () => {
+  return (
+    <Layout>
+      <Outlet /> {/* This tells React Router where to put the Home or Category page */}
+    </Layout>
+  );
+};
+
 function App() {
   return (
     <ErrorBoundary>
-      {/* --- NEW: Wrap your Router and Layout in the QualityProvider --- */}
       <QualityProvider>
         <Router>
-          <Layout>
-            <Routes>
+          <Routes>
+            
+            {/* --- SECURE ADMIN ZONE --- */}
+            {/* Because this is NOT inside StorefrontZone, it will completely hide the public Header/Footer! */}
+            {/* Your AdminPage already handles the Supabase Auth lock securely. */}
+            <Route path="/admin/*" element={<AdminPage />} />
+
+            {/* --- PUBLIC STOREFRONT ZONE --- */}
+            <Route element={<StorefrontZone />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/category/:categoryName" element={<CategoryPage />} />
-              <Route path="/admin" element={<AdminPage />} />
-            </Routes>
-          </Layout>
+            </Route>
+
+          </Routes>
         </Router>
       </QualityProvider>
     </ErrorBoundary>

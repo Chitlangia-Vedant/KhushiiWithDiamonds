@@ -83,9 +83,13 @@ export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
                 {globalDiamondQuality !== globalDiamondQuality && <span className="text-red-500 ml-0.5" title="Global quality not available for this item">*</span>}
               </span>
             </div>
+            {/* THE NEW CARAT DISPLAY LOGIC: */}
             {diamondsData.diamonds.length > 0 && (
-              <div className="text-xs text-blue-600 mt-1">
-                {diamondsData.diamonds.length} slots configured
+              <div 
+                className="text-xs text-blue-600 mt-1 truncate max-w-[150px]" 
+                title={diamondsData.diamonds.map((d: any) => `${d.carat}ct`).join(' + ')}
+              >
+                {diamondsData.diamonds.map((d: any) => `${d.carat}ct`).join(' + ')}
               </div>
             )}
           </div>

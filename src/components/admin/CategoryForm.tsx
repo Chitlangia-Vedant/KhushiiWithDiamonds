@@ -20,6 +20,9 @@ export function CategoryForm({ editingCategory, onSubmit, onCancel }: CategoryFo
   });
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
 
+  // This allows infinite nesting, but prevents a category from being its own parent!
+  const validParents = categories.filter(cat => cat.id !== editingCategory?.id);
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
@@ -95,21 +98,29 @@ export function CategoryForm({ editingCategory, onSubmit, onCancel }: CategoryFo
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Parent Category</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Parent Category
+            </label>
             <select
-              value={categoryFormData.parent_id}
+              value={categoryFormData.parent_id || ''}
               onChange={(e) => setCategoryFormData({ ...categoryFormData, parent_id: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
               disabled={uploading}
             >
-              <option value="">None (Top-level category)</option>
-              {topLevelCategories.map((cat) => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
+              <option value="">None (Top Level Category)</option>
+              
+              {/* --- NEW: Loop through validParents instead of topLevelCategories --- */}
+              {validParents.map((cat) => {
+                // Optional UI Bonus: If this category has a parent itself, add a visual dash so the admin knows it's a subcategory!
+                const prefix = cat.parent_id ? '└─ ' : '';
+                return (
+                  <option key={cat.id} value={cat.id}>
+                    {prefix}{cat.name}
+                  </option>
+                );
+              })}
+              
             </select>
-            <p className="text-xs text-gray-500 mt-1">
-              Leave empty to create a top-level category, or select a parent to create a subcategory.
-            </p>
           </div>
 
           <div>

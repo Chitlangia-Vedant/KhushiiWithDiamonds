@@ -93,21 +93,21 @@ const handleDelete = async (id: string) => {
 
 return (
     <>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
         <h2 className="text-2xl font-bold text-gray-900">Jewellery Items</h2>
           <button
             onClick={() => setShowAddForm(true)}
-            className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 flex items-center space-x-2"
+            className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 flex items-center justify-center space-x-2 w-full sm:w-auto shadow-sm"
           >
             <Plus className="h-5 w-5" />
             <span>Add New Item</span>
           </button>
       </div>
 
-      <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+      <div className="md:bg-white md:shadow-lg rounded-lg md:overflow-hidden">
+        <div className="overflow-x-hidden md:overflow-x-auto pb-32 md:pb-0">
+          <table className="min-w-full md:divide-y md:divide-gray-200 block md:table">
+            <thead className="hidden md:table-header-group bg-gray-50">
               <tr>
                 {['Item', 'Category', 'Images', 'Specifications', 'Diamond Quality', 'Cost Components (₹)', 'Total Cost (₹)', 'Actions'].map(header => (
                   <th key={header} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -116,7 +116,7 @@ return (
                 ))}
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-transparent md:bg-white md:divide-y md:divide-gray-200 block md:table-row-group">
               {items.map((item) => (
                 <AdminTableRow 
                   key={item.id}
@@ -139,5 +139,5 @@ return (
         />
       )}
     </>
-  );
+  );  
 }

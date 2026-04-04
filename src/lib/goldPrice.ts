@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
-import { Diamond, DiamondQuality, JewelleryItem } from '../types/index';
-import { DIAMOND_QUALITIES } from '../constants/jewellery'
+import { Diamond, DiamondQuality } from '../types/index';
+
 
 const GOLD_API_KEY = import.meta.env.VITE_GOLD_API_KEY || '9886e90c5c52f1a75a3ca50daccd91d4';
 const GOLD_API_URL = `https://api.metalpriceapi.com/v1/latest?api_key=${GOLD_API_KEY}&base=INR&currencies=XAU`;
@@ -76,32 +76,6 @@ export const getCurrentGoldPrice = async (overrideLivePrice?: boolean): Promise<
 
 const purityMultipliers = {
   '14K': 0.600, '18K': 0.780, '24K': 1.000
-};
-
-// Helper function to get all diamonds from an item
-export const getAllDiamondsFromItem = (item: Partial<JewelleryItem>): { diamonds: Diamond[], quality: DiamondQuality | null } => {
-  const allDiamonds: Diamond[] = [];
-  let quality: DiamondQuality | null = null;
-
-  // Map the strict qualities to their database column names
-  const qualityKeys: Record<DiamondQuality, keyof JewelleryItem> = {
-    'Lab Grown': 'diamonds_lab_grown',
-    'GH/VS-SI': 'diamonds_gh_vs_si',
-    'FG/VVS-SI': 'diamonds_fg_vvs_si',
-    'EF/VVS': 'diamonds_ef_vvs'
-  };
-
-  // Loop through your single source of truth
-  DIAMOND_QUALITIES.forEach((q) => {
-    const diamonds = item[qualityKeys[q]] as Diamond[] | undefined;
-    
-    if (diamonds && diamonds.length > 0) {
-      allDiamonds.push(...diamonds);
-      quality = quality ? null : q; // If a quality is already set, it becomes null (mixed)
-    }
-  });
-
-  return { diamonds: allDiamonds, quality };
 };
 
 // Updated function to handle multiple diamond qualities

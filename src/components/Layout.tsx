@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Gem, Menu, X, ChevronDown, ChevronRight } from 'lucide-react';
-import { Category } from '../types';
-import { useClickOutside } from '../hooks/useClickOutside';
-import { useCategories } from '../hooks/useCategories';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Gem, Menu, X } from 'lucide-react';
+import { CategoryDropdown } from './CategoryDropdown';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,83 +9,18 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { ref: dropdownRef, isOpen: isCategoryDropdownOpen, setIsOpen: setIsCategoryDropdownOpen } = useClickOutside<HTMLDivElement>(false);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const location = useLocation();
+  const navigate = useNavigate(); // <-- Added to handle navigation!
 
   const navigation = [
     { name: 'Home', path: '/' },
     { name: 'Admin', path: '/admin' },
   ];
 
-  // Organize categories into hierarchy
-  const { topLevelCategories, getSubcategories } = useCategories();
-
-  const toggleExpanded = (categoryId: string) => {
-    const newExpanded = new Set(expandedCategories);
-    if (newExpanded.has(categoryId)) {
-      newExpanded.delete(categoryId);
-    } else {
-      newExpanded.add(categoryId);
-    }
-    setExpandedCategories(newExpanded);
-  };
-
-  const CategoryMenuItem = ({ category, level = 0, isMobile = false }: { 
-    category: Category; 
-    level?: number; 
-    isMobile?: boolean;
-  }) => {
-    const subcategories = getSubcategories(category.id);
-    const hasSubcategories = subcategories.length > 0;
-    const isExpanded = expandedCategories.has(category.id);
-    const paddingLeft = level * (isMobile ? 16 : 12);
-
-    return (
-      <div key={category.id}>
-        <div className="flex items-center">
-          <Link
-            to={`/category/${category.name}`}
-            onClick={() => {
-              setIsCategoryDropdownOpen(false);
-              setIsMenuOpen(false);
-            }}
-            className={`flex-1 px-4 py-2 text-sm text-gray-700 hover:bg-yellow-50 hover:text-yellow-600 transition-colors ${
-              isMobile ? 'block' : ''
-            }`}
-            style={{ paddingLeft: `${16 + paddingLeft}px` }}
-          >
-            {category.name}
-          </Link>
-          {hasSubcategories && (
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                toggleExpanded(category.id);
-              }}
-              className="p-2 text-gray-400 hover:text-gray-600"
-            >
-              <ChevronRight 
-                className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} 
-              />
-            </button>
-          )}
-        </div>
-        
-        {hasSubcategories && isExpanded && (
-          <div className={isMobile ? 'bg-gray-50' : ''}>
-            {subcategories.map((subcategory) => (
-              <CategoryMenuItem 
-                key={subcategory.id} 
-                category={subcategory} 
-                level={level + 1} 
-                isMobile={isMobile}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    );
+  // The universal handler for when a customer clicks a category anywhere in the header
+  const handleCategorySelect = (_categoryId: string, categoryName: string) => {
+    navigate(`/category/${categoryName}`);
+    setIsMenuOpen(false); // Close the mobile menu if they are on a phone
   };
 
   return (
@@ -118,29 +51,14 @@ export function Layout({ children }: LayoutProps) {
                 </Link>
               ))}
 
-              <div className="relative" ref={dropdownRef}>
-                <button
-                  onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
-                  className="flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-yellow-600 hover:bg-gray-100 transition-colors"
-                >
-                  <span>Categories</span>
-                  <ChevronDown className={`h-4 w-4 transition-transform ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                {isCategoryDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50 max-h-96 overflow-y-auto">
-                    <div className="py-1">
-                      {topLevelCategories.map((category) => (
-                        <CategoryMenuItem key={category.id} category={category} />
-                      ))}
-                      {topLevelCategories.length === 0 && (
-                        <div className="px-4 py-2 text-sm text-gray-500">
-                          No categories available
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+              {/* --- DESKTOP NAV DROPDOWN --- */}
+              <div className="w-48">
+                <CategoryDropdown
+                  valueLabel="Categories"
+                  onSelect={handleCategorySelect}
+                  // We inject custom styling here so it perfectly matches the other nav links!
+                  triggerClassName="flex items-center justify-between w-full px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-yellow-600 hover:bg-gray-100 transition-colors"
+                />
               </div>
             </nav>
 
@@ -153,6 +71,7 @@ export function Layout({ children }: LayoutProps) {
           </div>
         </div>
 
+        {/* --- MOBILE NAV MENU --- */}
         {isMenuOpen && (
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white border-t">
@@ -173,16 +92,11 @@ export function Layout({ children }: LayoutProps) {
 
               <div className="px-3 py-2">
                 <div className="text-base font-medium text-gray-900 mb-2">Categories</div>
-                <div className="space-y-1">
-                  {topLevelCategories.map((category) => (
-                    <CategoryMenuItem key={category.id} category={category} isMobile={true} />
-                  ))}
-                  {topLevelCategories.length === 0 && (
-                    <div className="px-4 py-2 text-sm text-gray-500">
-                      No categories available
-                    </div>
-                  )}
-                </div>
+                {/* On mobile, we let it use the default "form input" styling because it looks great as a large touch target! */}
+                <CategoryDropdown
+                  valueLabel="Browse Categories..."
+                  onSelect={handleCategorySelect}
+                />
               </div>
             </div>
           </div>

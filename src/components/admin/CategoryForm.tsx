@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Category } from '../../types';
-import { Save, X, Upload, FileImage, Loader } from 'lucide-react';
+import { Save, X, Upload, FileImage, Loader } from 'lucide-react'; 
 import { useCategories } from '../../hooks/useCategories';
 import { uploadCategoryImages } from '../../utils/uploadUtils';
+import { CategoryDropdown } from '../CategoryDropdown';
 
 interface CategoryFormProps {
   editingCategory: Category | null;
@@ -11,7 +12,7 @@ interface CategoryFormProps {
 }
 
 export function CategoryForm({ editingCategory, onSubmit, onCancel }: CategoryFormProps) {
-  const { categories, topLevelCategories } = useCategories();
+  const { categories } = useCategories(); 
   const [uploading, setUploading] = useState(false);
   const [categoryFormData, setCategoryFormData] = useState({
     name: editingCategory?.name || '', 
@@ -19,9 +20,6 @@ export function CategoryForm({ editingCategory, onSubmit, onCancel }: CategoryFo
     parent_id: editingCategory?.parent_id || '',
   });
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
-
-  // This allows infinite nesting, but prevents a category from being its own parent!
-  const validParents = categories.filter(cat => cat.id !== editingCategory?.id);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -99,28 +97,21 @@ export function CategoryForm({ editingCategory, onSubmit, onCancel }: CategoryFo
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Parent Category
+              Parent Category (Optional)
             </label>
-            <select
-              value={categoryFormData.parent_id || ''}
-              onChange={(e) => setCategoryFormData({ ...categoryFormData, parent_id: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+            <CategoryDropdown
+              valueLabel={categoryFormData.parent_id 
+                ? categories.find(c => c.id === categoryFormData.parent_id)?.name || 'Unknown'
+                : 'None (Top-level category)'}
+              onSelect={(categoryId) => setCategoryFormData({ ...categoryFormData, parent_id: categoryId })}
+              onClear={() => setCategoryFormData({ ...categoryFormData, parent_id: '' })}
+              clearLabel="None (Top Level Category)"
+              excludeCategoryId={editingCategory?.id}
               disabled={uploading}
-            >
-              <option value="">None (Top Level Category)</option>
-              
-              {/* --- NEW: Loop through validParents instead of topLevelCategories --- */}
-              {validParents.map((cat) => {
-                // Optional UI Bonus: If this category has a parent itself, add a visual dash so the admin knows it's a subcategory!
-                const prefix = cat.parent_id ? '└─ ' : '';
-                return (
-                  <option key={cat.id} value={cat.id}>
-                    {prefix}{cat.name}
-                  </option>
-                );
-              })}
-              
-            </select>
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Leave empty to create a top-level category, or select a parent to create a subcategory.
+            </p>
           </div>
 
           <div>

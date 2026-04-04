@@ -3,10 +3,11 @@ import { JewelleryItem } from '../../types';
 import { DiamondQuality } from '../../constants/jewellery';
 import { Edit, Trash2 } from 'lucide-react';
 import { formatCurrency, calculateJewelleryPriceSync } from '../../lib/goldPrice';
-import { getAvailableDiamondQualities } from '../../utils/diamondUtils';
+import { getAvailableDiamondQualities, getDiamondsForQuality } from '../../utils/diamondUtils';
 import { useGoldPrice } from '../../hooks/useGoldPrice';
 import { useAdminSettings } from '../../hooks/useAdminSettings';
 import { useQualityContext } from '../../context/QualityContext';
+
 
 interface AdminTableRowProps {
   item: JewelleryItem;
@@ -17,7 +18,8 @@ interface AdminTableRowProps {
 export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
     const { goldPrice } = useGoldPrice();
     const { gstRate } = useAdminSettings();
-    const { globalDiamondQuality } = useQualityContext();
+    const { globalDiamondQuality, globalGoldPurity } = useQualityContext(); 
+  
   // Local state just for this specific row!
   const [selectedQuality, setSelectedQuality] = useState<DiamondQuality | null>(null);
   const availableQualities = getAvailableDiamondQualities(item);
@@ -29,10 +31,12 @@ export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
     }
   }, [availableQualities, selectedQuality]);
 
-const diamondsData = (item.diamonds as Record<string, any>)?.[globalDiamondQuality];
+  // FIX 2: Use your safe utility function instead of the broken Record lookup!
+  const diamondsData = getDiamondsForQuality(item, globalDiamondQuality as DiamondQuality);
 
-const totalCost = calculateJewelleryPriceSync(
-    item.base_price, item.gold_weight, '14K',
+  // FIX 3: Use globalGoldPurity instead of hardcoded '14K'
+  const totalCost = calculateJewelleryPriceSync(
+    item.base_price, item.gold_weight, globalGoldPurity,
     diamondsData, item.making_charges_per_gram, goldPrice, gstRate
   );
 

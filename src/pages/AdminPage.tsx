@@ -86,22 +86,23 @@ export function AdminPage() {
   }
 
   return (
-    // Reduced vertical padding from py-8 to py-4 sm:py-6
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+    // 1. Removed max-w from the outer div so the sticky header can stretch 100% wide
+    <div className="pb-8 bg-gray-50 min-h-screen">
       
       {/* --- UNIFIED SINGLE-ROW APP BAR --- */}
-      <div className="sticky top-0 z-50 bg-gray-50 pt-8 pb-4 mb-4 border-b border-gray-200 shadow-sm sm:shadow-none">
-        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center bg-white p-2 sm:p-3 rounded-xl shadow-sm mb-6 border border-gray-100 gap-4">
+      <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm mb-4">
+        {/* 2. The max-w here perfectly centers your header buttons */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 md:py-3 flex flex-wrap items-center justify-between gap-3">
           
           {/* LEFT SIDE: Branding & Navigation Tabs */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 w-full xl:w-auto">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-6">
             {/* Shortened Brand Name */}
-            <Link to="/" className="text-xl font-black text-gray-900 hover:text-yellow-600 transition-colors tracking-tight px-2">
+            <Link to="/" className="text-lg font-black text-gray-900 hover:text-yellow-600 transition-colors tracking-tight">
               KWD<span className="text-yellow-600">Admin</span>
             </Link>
 
             {/* Integrated Tabs */}
-            <div className="flex space-x-1 sm:border-l sm:border-gray-200 sm:pl-6 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+            <div className="flex flex-wrap gap-1 sm:border-l sm:border-gray-200 sm:pl-6">
               {[
                 { key: 'items', icon: Package, label: `Items (${items.length})` },
                 { key: 'categories', icon: Folder, label: `Categories (${categories.length})` },
@@ -110,13 +111,13 @@ export function AdminPage() {
                 <button
                   key={key}
                   onClick={() => setActiveTab(key as 'items' | 'categories' | 'settings')}
-                  className={`px-3 py-1.5 rounded-md flex items-center space-x-1.5 text-sm font-medium whitespace-nowrap transition-colors ${
+                  className={`px-2.5 py-1.5 rounded-md flex items-center space-x-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
                     activeTab === key
                       ? 'bg-yellow-50 text-yellow-700'
-                      : 'text-gray-600 hover:bg-gray-50'
+                      : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-3.5 w-3.5" />
                   <span>{label}</span>
                 </button>
               ))}
@@ -124,27 +125,27 @@ export function AdminPage() {
           </div>
 
           {/* RIGHT SIDE: Tools, Status, & Logout */}
-          <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-between xl:justify-end border-t xl:border-t-0 border-gray-100 pt-3 xl:pt-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 ml-auto">
             
             {/* Micro Quality Selectors */}
             {activeTab === 'items' && (
-              <div className="flex items-center space-x-2 border-r border-gray-200 pr-3 md:pr-4">
+              <div className="flex flex-wrap items-center gap-1.5 border-r border-gray-200 pr-3">
                 <select
                   value={globalGoldPurity}
                   onChange={(e) => setGlobalGoldPurity(e.target.value)}
-                  className="text-xs border-none bg-yellow-50 text-yellow-800 rounded-md py-1 pl-2 pr-6 focus:ring-0 cursor-pointer font-medium"
+                  className="text-[11px] border-none bg-yellow-50 text-yellow-800 rounded py-0.5 pl-1.5 pr-5 focus:ring-0 cursor-pointer font-bold"
                 >
                   {GOLD_QUALITIES.map((gold) => (
                     <option key={gold.value} value={gold.value}>{gold.value}</option>
                   ))}
                 </select>
 
-                <div className="flex items-center space-x-1 bg-blue-50 rounded-md pl-2">
-                  <Sparkles className="h-3 w-3 text-blue-500" />
+                <div className="flex items-center bg-blue-50 rounded pl-1.5 pr-0.5 py-0.5">
+                  <Sparkles className="h-2.5 w-2.5 text-blue-500 mr-1" />
                   <select
                     value={globalDiamondQuality}
                     onChange={(e) => setGlobalDiamondQuality(e.target.value as DiamondQuality)}
-                    className="text-xs border-none bg-transparent text-blue-800 py-1 pl-1 pr-6 focus:ring-0 cursor-pointer font-medium"
+                    className="text-[11px] border-none bg-transparent text-blue-800 p-0 pr-4 focus:ring-0 cursor-pointer font-bold"
                   >
                     {DIAMOND_QUALITIES.map((quality) => (
                       <option key={quality} value={quality}>{quality}</option>
@@ -155,12 +156,12 @@ export function AdminPage() {
             )}
 
             {/* Live Pricing Stats */}
-            <div className="flex items-center space-x-3 text-[11px] sm:text-xs font-medium px-2">
-              <span className={overrideLiveGoldPrice ? 'text-orange-600' : 'text-gray-600'} title="Current Gold Price">
+            <div className="hidden sm:flex items-center space-x-2 text-[10px] sm:text-[11px] font-bold px-1 uppercase tracking-wider">
+              <span className={overrideLiveGoldPrice ? 'text-orange-600' : 'text-gray-500'} title="Current Gold Price">
                 Gold: ₹{effectiveGoldPrice.toLocaleString('en-IN')}/g
               </span>
               <span className="text-gray-300">|</span>
-              <span className="text-gray-600" title="Current GST Rate">
+              <span className="text-gray-500" title="Current GST Rate">
                 GST: {Math.round(gstRate * 100)}%
               </span>
             </div>
@@ -169,9 +170,9 @@ export function AdminPage() {
             <button
               onClick={handleLogout}
               title="Sign Out"
-              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors ml-auto xl:ml-2"
+              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
             >
-              <LogOut className="h-4 w-4 md:h-5 md:w-5" />
+              <LogOut className="h-4 w-4" />
             </button>
           </div>
 
@@ -179,17 +180,20 @@ export function AdminPage() {
       </div>
 
       {/* --- TAB CONTENT STARTS IMMEDIATELY HERE --- */}
-      {activeTab === 'items' && <AdminItemsTab />}
-      {activeTab === 'categories' && <AdminCategoriesTab />}
-      {activeTab === 'settings' && (
-        <AdminSettingsTab 
-          fallbackGoldPrice={fallbackGoldPrice}
-          gstRate={gstRate}
-          goldPrice={goldPrice}
-          overrideLiveGoldPrice={overrideLiveGoldPrice}
-          updateSetting={updateSetting}
-        />
-      )}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* --- TAB CONTENT STARTS IMMEDIATELY HERE --- */}
+        {activeTab === 'items' && <AdminItemsTab />}
+        {activeTab === 'categories' && <AdminCategoriesTab />}
+        {activeTab === 'settings' && (
+          <AdminSettingsTab 
+            fallbackGoldPrice={fallbackGoldPrice}
+            gstRate={gstRate}
+            goldPrice={goldPrice}
+            overrideLiveGoldPrice={overrideLiveGoldPrice}
+            updateSetting={updateSetting}
+          />
+        )}
+      </div>
     </div>
   );
 }

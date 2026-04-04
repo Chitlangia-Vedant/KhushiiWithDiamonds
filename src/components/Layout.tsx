@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Gem, Menu, X } from 'lucide-react';
+import { Gem, Menu, X, Sparkles } from 'lucide-react';
 import { CategoryDropdown } from './CategoryDropdown';
+import { useQualityContext } from '../context/QualityContext';
+import { GOLD_QUALITIES, DIAMOND_QUALITIES } from '../constants/jewellery';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,6 +13,11 @@ export function Layout({ children }: LayoutProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate(); // <-- Added to handle navigation!
+
+  const { 
+    globalGoldPurity, setGlobalGoldPurity, 
+    globalDiamondQuality, setGlobalDiamondQuality 
+  } = useQualityContext();
 
   const navigation = [
     { name: 'Home', path: '/' },
@@ -37,6 +44,43 @@ export function Layout({ children }: LayoutProps) {
             </Link>
 
             <nav className="hidden md:flex items-center space-x-8">
+              {/* --- DYNAMIC GLOBAL QUALITY SELECTORS --- */}
+              {/* Notice the border-r (right border) and padding to separate it from your links */}
+              <div className="flex items-center space-x-3 border-r border-gray-200 pr-6 mr-2">
+                
+                {/* Gold Selector */}
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs font-semibold text-gray-500 uppercase">Gold:</span>
+                  <select 
+                    value={globalGoldPurity}
+                    onChange={(e) => setGlobalGoldPurity(e.target.value)}
+                    className="text-sm border-none bg-yellow-50 text-yellow-800 rounded-md py-1 pl-2 pr-6 focus:ring-0 cursor-pointer font-medium"
+                  >
+                    {GOLD_QUALITIES.map((gold) => (
+                      <option key={gold.value} value={gold.value}>
+                        {gold.value}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* Diamond Selector */}
+                <div className="flex items-center space-x-2">
+                  <Sparkles className="h-3 w-3 text-blue-500" />
+                  <select 
+                    value={globalDiamondQuality}
+                    onChange={(e) => setGlobalDiamondQuality(e.target.value)}
+                    className="text-sm border-none bg-blue-50 text-blue-800 rounded-md py-1 pl-2 pr-6 focus:ring-0 cursor-pointer font-medium"
+                  >
+                    {DIAMOND_QUALITIES.map((quality) => (
+                      <option key={quality} value={quality}>
+                        {quality}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {/* --- END SELECTORS --- */}
               {navigation.map((item) => (
                 <Link
                   key={item.name}

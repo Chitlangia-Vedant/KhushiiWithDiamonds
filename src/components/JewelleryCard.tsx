@@ -1,12 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, X, Gem, Crown } from 'lucide-react';
-import { JewelleryItem, DiamondQuality } from '../types';
-import { calculateJewelleryPriceSync, getPriceBreakdown, formatCurrency, formatDiamondSummary } from '../lib/goldPrice';
-import { useClickOutside } from '../hooks/useClickOutside';
+import React, { useState, useMemo } from 'react';
+import { ChevronLeft, ChevronRight, X, Gem } from 'lucide-react';
+import { JewelleryItem } from '../types';
+import { calculateJewelleryPriceSync, getPriceBreakdown, formatCurrency } from '../lib/goldPrice';
 import { useGoldPrice } from '../hooks/useGoldPrice';
 import { useAdminSettings } from '../hooks/useAdminSettings';
 import { getAvailableDiamondQualities, getDiamondsForQuality } from '../utils/diamondUtils';
-import { GOLD_QUALITIES } from '../constants/jewellery';
+import { useQualityContext } from '../context/QualityContext';
 
 interface JewelleryCardProps {
   item: JewelleryItem;
@@ -15,10 +14,8 @@ interface JewelleryCardProps {
 const JewelleryCard: React.FC<JewelleryCardProps> = ({ item }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showModal, setShowModal] = useState(false);
-  const [selectedGoldQuality, setSelectedGoldQuality] = useState<string>('14K');
   
-  const { ref: diamondRef, isOpen: showDiamond, setIsOpen: setDiamond } = useClickOutside<HTMLDivElement>();
-  const { ref: goldRef, isOpen: showGold, setIsOpen: setGold } = useClickOutside<HTMLDivElement>();
+  const { globalGoldPurity, globalDiamondQuality } = useQualityContext();
 
   // Fetch live prices and settings automatically
   const { goldPrice } = useGoldPrice();
@@ -31,36 +28,20 @@ const JewelleryCard: React.FC<JewelleryCardProps> = ({ item }) => {
 
   const hasDiamonds = availableDiamondQualities.length > 0;
   
-  const [selectedDiamondQuality, setSelectedDiamondQuality] = useState<DiamondQuality | null>(
-    hasDiamonds ? availableDiamondQualities[0] : null
-  );
-
-  // Re-sync if item changes
-  useEffect(() => {
-    if (hasDiamonds && !selectedDiamondQuality) {
-      setSelectedDiamondQuality(availableDiamondQualities[0]);
-    }
-  }, [hasDiamonds, availableDiamondQualities, selectedDiamondQuality]);
-
   const nextImage = () => setCurrentImageIndex((prev) => (prev + 1) % images.length);
   const prevImage = () => setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
 
   // Helper to extract the correct diamond array for calculation
-  const diamondsData = getDiamondsForQuality(item, selectedDiamondQuality);;
+  const diamondsData = getDiamondsForQuality(item, globalDiamondQuality);
 
   // Use the updated pricing functions
   const currentPrice = calculateJewelleryPriceSync(
-    item.base_price, item.gold_weight, selectedGoldQuality, diamondsData, item.making_charges_per_gram, effectiveGoldPrice, gstRate
+    item.base_price, item.gold_weight, globalGoldPurity, diamondsData, item.making_charges_per_gram, effectiveGoldPrice, gstRate
   );
   
   const priceBreakdown = getPriceBreakdown(
-    item.base_price, item.gold_weight, selectedGoldQuality, diamondsData, item.making_charges_per_gram, effectiveGoldPrice, gstRate
+    item.base_price, item.gold_weight, globalGoldPurity, diamondsData, item.making_charges_per_gram, effectiveGoldPrice, gstRate
   );
-
-  const getSelectedGoldLabel = () => {
-    const option = GOLD_QUALITIES.find(opt => opt.value === selectedGoldQuality);
-    return option ? option.label : selectedGoldQuality;
-  };
 
   return (
     <>
@@ -117,87 +98,26 @@ const JewelleryCard: React.FC<JewelleryCardProps> = ({ item }) => {
             <p className="text-gray-600 text-sm mb-4 line-clamp-2">{item.description}</p>
           )}
 
-          {/* Gold Quality Selection */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Gold Quality</label>
-            <div className="relative" ref={goldRef}>
-              <button
-                onClick={() => setGold(!showGold)}
-                className="relative z-40 w-full flex items-center justify-between px-3 py-2 border border-gray-300 rounded-lg bg-white hover:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-colors"
-              >
-                <div className="flex items-center">
-                  <Crown className="w-4 h-4 text-yellow-600 mr-2" />
-                  <span className="text-sm font-medium">{getSelectedGoldLabel()}</span>
-                </div>
-                <ChevronLeft className={`w-4 h-4 text-gray-400 transform transition-transform ${showGold ? '-rotate-90' : 'rotate-180'}`} />
-              </button>
-              
-              {showGold && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                  {GOLD_QUALITIES.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => {
-                        setSelectedGoldQuality(option.value);
-                        setGold(false);
-                      }}
-                      className={`relative z-50 w-full px-3 py-2 text-left hover:bg-yellow-50 focus:outline-none focus:bg-yellow-50 transition-colors first:rounded-t-lg last:rounded-b-lg ${
-                        selectedGoldQuality === option.value ? 'bg-yellow-100 text-yellow-800' : 'text-gray-700'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">{option.label}</span>
-                        <span className="text-xs text-gray-500">{option.purity}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+          <div className="mt-3 flex items-center justify-between">
+          <div className="flex space-x-2">
+            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-yellow-50 text-yellow-800 border border-yellow-100">
+              {globalGoldPurity} Gold
+              {/* Show a red star if it fell back because the global setting wasn't available */}
+              {globalGoldPurity !== globalGoldPurity && <span className="text-red-500 ml-0.5" title="Requested purity not available">*</span>}
+            </span>
+            
+            {globalDiamondQuality && (
+              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-800 border border-blue-100">
+                {globalDiamondQuality}
+                {globalDiamondQuality !== globalDiamondQuality && <span className="text-red-500 ml-0.5" title="Requested quality not available">*</span>}
+              </span>
+            )}
           </div>
-
-          {/* Diamond Quality Selection */}
-          {hasDiamonds && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Diamond Quality</label>
-              <div className="relative" ref={diamondRef}>
-                <button
-                  onClick={() => setDiamond(!showDiamond)}
-                  className="w-full flex items-center justify-between px-3 py-2 border border-gray-300 rounded-lg bg-white hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                >
-                  <div className="flex items-center">
-                    <Gem className="w-4 h-4 text-blue-600 mr-2" />
-                    <span className="text-sm font-medium">{selectedDiamondQuality}</span>
-                  </div>
-                  <ChevronLeft className={`w-4 h-4 text-gray-400 transform transition-transform ${showDiamond ? '-rotate-90' : 'rotate-180'}`} />
-                </button>
-                
-                {showDiamond && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                    {availableDiamondQualities.map((quality) => (
-                      <button
-                        key={quality}
-                        onClick={() => {
-                          setSelectedDiamondQuality(quality);
-                          setDiamond(false);
-                        }}
-                        className={`relative z-50 w-full px-3 py-2 text-left hover:bg-blue-50 focus:outline-none focus:bg-blue-50 transition-colors first:rounded-t-lg last:rounded-b-lg ${
-                          selectedDiamondQuality === quality ? 'bg-blue-100 text-blue-800' : 'text-gray-700'
-                        }`}
-                      >
-                        <div className="flex flex-col">
-                          <span className="font-medium">{quality}</span>
-                          <span className="text-xs text-gray-500">
-                            {formatDiamondSummary(getDiamondsForQuality(item, quality).diamonds)}
-                          </span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          
+          <div className="text-lg font-bold text-gray-900">
+            ₹{currentPrice.toLocaleString('en-IN')}
+          </div>
+        </div>
 
           {/* Price Section */}
           <div className="border-t pt-4">
@@ -210,12 +130,12 @@ const JewelleryCard: React.FC<JewelleryCardProps> = ({ item }) => {
             {/* Price Breakdown */}
             <div className="text-xs text-gray-500 space-y-1">
               <div className="flex justify-between">
-                <span>Gold ({selectedGoldQuality}):</span>
+                <span>Gold ({globalGoldPurity}):</span>
                 <span>{formatCurrency(priceBreakdown.goldValue)}</span>
               </div>
               {hasDiamonds && priceBreakdown.diamondCost > 0 && (
                 <div className="flex justify-between">
-                  <span>Diamonds ({selectedDiamondQuality}):</span>
+                  <span>Diamonds ({globalDiamondQuality}):</span>
                   <span>{formatCurrency(priceBreakdown.diamondCost)}</span>
                 </div>
               )}

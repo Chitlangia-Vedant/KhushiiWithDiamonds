@@ -4,6 +4,7 @@ import { Layout } from './components/Layout';
 import { HomePage } from './pages/HomePage';
 import { CategoryPage } from './pages/CategoryPage';
 import { AdminPage } from './pages/AdminPage';
+import { QualityProvider } from './context/QualityContext';
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component<
@@ -50,15 +51,18 @@ class ErrorBoundary extends React.Component<
 function App() {
   return (
     <ErrorBoundary>
-      <Router>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/category/:categoryName" element={<CategoryPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-          </Routes>
-        </Layout>
-      </Router>
+      {/* --- NEW: Wrap your Router and Layout in the QualityProvider --- */}
+      <QualityProvider>
+        <Router>
+          <Layout>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/category/:categoryName" element={<CategoryPage />} />
+              <Route path="/admin" element={<AdminPage />} />
+            </Routes>
+          </Layout>
+        </Router>
+      </QualityProvider>
     </ErrorBoundary>
   );
 }

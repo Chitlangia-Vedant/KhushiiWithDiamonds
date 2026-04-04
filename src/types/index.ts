@@ -40,6 +40,3 @@ export type AdminSetting = {
   description: string;
   updated_at: string;
 };
-
-// 2. Automatically generate the Type from the Array!
-export type DiamondQuality = typeof DIAMOND_QUALITIES[number];

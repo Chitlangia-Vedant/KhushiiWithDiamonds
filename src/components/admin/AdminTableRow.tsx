@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { JewelleryItem, DiamondQuality } from '../../types';
-import { Edit, Trash2, Gem, ChevronDown } from 'lucide-react';
-import { formatCurrency, calculateJewelleryPriceSync, formatDiamondSummary } from '../../lib/goldPrice';
-import { useClickOutside } from '../../hooks/useClickOutside'; // Import the hook!
-import { getAvailableDiamondQualities, getDiamondsForQuality } from '../../utils/diamondUtils';
+import { JewelleryItem } from '../../types';
+import { DiamondQuality } from '../../constants/jewellery';
+import { Edit, Trash2 } from 'lucide-react';
+import { formatCurrency, calculateJewelleryPriceSync } from '../../lib/goldPrice';
+import { getAvailableDiamondQualities } from '../../utils/diamondUtils';
 import { useGoldPrice } from '../../hooks/useGoldPrice';
 import { useAdminSettings } from '../../hooks/useAdminSettings';
+import { useQualityContext } from '../../context/QualityContext';
 
 interface AdminTableRowProps {
   item: JewelleryItem;
@@ -16,8 +17,8 @@ interface AdminTableRowProps {
 export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
     const { goldPrice } = useGoldPrice();
     const { gstRate } = useAdminSettings();
+    const { globalDiamondQuality } = useQualityContext();
   // Local state just for this specific row!
-  const { ref: dropdownRef, isOpen: isDropdownOpen, setIsOpen: setIsDropdownOpen } = useClickOutside<HTMLDivElement>(false);
   const [selectedQuality, setSelectedQuality] = useState<DiamondQuality | null>(null);
   const availableQualities = getAvailableDiamondQualities(item);
 
@@ -28,9 +29,7 @@ export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
     }
   }, [availableQualities, selectedQuality]);
 
-  const diamondsData = selectedQuality 
-    ? getDiamondsForQuality(item, selectedQuality)
-    : { diamonds: [], quality: null };
+const diamondsData = (item.diamonds as Record<string, any>)?.[globalDiamondQuality];
 
 const totalCost = calculateJewelleryPriceSync(
     item.base_price, item.gold_weight, '14K',
@@ -70,30 +69,19 @@ const totalCost = calculateJewelleryPriceSync(
          <div>Gold: {item.gold_weight}g</div>
       </td>
 
-      {/* 5. Diamond Quality (Hidden on mobile, tablet & small desktop) */}
-      <td className="hidden xl:table-cell px-4 py-4 whitespace-nowrap text-sm text-gray-900 overflow-visible">
-        {availableQualities.length > 0 ? (
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex items-center space-x-1 text-sm bg-blue-50 border border-blue-200 rounded px-2 py-1 hover:bg-blue-100"
-            >
-              <Gem className="h-3 w-3 text-blue-500" />
-              <span className="font-medium">{selectedQuality || availableQualities[0]}</span>
-              <ChevronDown className={`h-3 w-3 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
-            {isDropdownOpen && (
-              <div className="absolute z-50 mt-1 bg-white border border-gray-200 rounded-md shadow-lg min-w-32">
-                {availableQualities.map((quality) => (
-                  <button key={quality} onClick={() => { setSelectedQuality(quality); setIsDropdownOpen(false); }} className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50 text-gray-700">
-                    {quality}
-                  </button>
-                ))}
-              </div>
-            )}
+      {/* 5. Diamond Quality (Clean, Display-Only version) */}
+      <td className="hidden xl:table-cell px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+        {availableQualities.length > 0 && diamondsData ? (
+          <div>
+            <div className="flex items-center space-x-1 text-sm bg-blue-50 border border-blue-100 rounded px-2 py-1 inline-flex">
+              <span className="font-medium text-blue-800">
+                {globalDiamondQuality}
+                {globalDiamondQuality !== globalDiamondQuality && <span className="text-red-500 ml-0.5" title="Global quality not available for this item">*</span>}
+              </span>
+            </div>
             {diamondsData.diamonds.length > 0 && (
               <div className="text-xs text-blue-600 mt-1">
-                {formatDiamondSummary(diamondsData.diamonds, diamondsData.quality)}
+                {diamondsData.diamonds.length} slots configured
               </div>
             )}
           </div>

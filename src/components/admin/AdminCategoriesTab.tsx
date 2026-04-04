@@ -1,20 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Category } from '../../types';
 import { Plus, Edit, Trash2, Image as ImageIcon, ChevronRight, Folder } from 'lucide-react';
 import { CategoryForm } from './CategoryForm';
 import { deleteDriveImages } from '../../utils/uploadUtils';
 import { useCategories } from '../../hooks/useCategories';
+import { getValidCategoryNames } from '../../utils/categoryUtils'; // <-- Import our utility!
 
 export function AdminCategoriesTab() {
-  // Pull topLevelCategories and getSubcategories to build our tree!
   const { categories, topLevelCategories, getSubcategories, refetchCategories } = useCategories();
   
-  // Track which folders are toggled open
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  
+  // --- NEW: State to hold item counts ---
+  const [itemCounts, setItemCounts] = useState<Record<string, number>>({});
+
+  // Fetch all item categories on mount
+  useEffect(() => {
+    loadItemCounts();
+  }, []);
+
+  const loadItemCounts = async () => {
+    try {
+      // We only need to fetch the category column, making this extremely fast!
+      const { data, error } = await supabase.from('jewellery_items').select('category');
+      if (data) {
+        const counts: Record<string, number> = {};
+        data.forEach(item => {
+          counts[item.category] = (counts[item.category] || 0) + 1;
+        });
+        setItemCounts(counts);
+      }
+    } catch (error) {
+      console.error('Error fetching item counts:', error);
+    }
+  };
 
   const resetForm = () => {
     setShowAddForm(false);
@@ -53,38 +75,32 @@ export function AdminCategoriesTab() {
     }
   };
 
-  // --- NEW: Recursive Table Row Component ---
   const CategoryTableRow = ({ category, level = 0 }: { category: Category; level?: number }) => {
     const subcategories = getSubcategories(category.id);
     const hasSubcategories = subcategories.length > 0;
     const isExpanded = expandedCategories.has(category.id);
     
-    // Indent 32px for every level deep we go!
+    // --- NEW: Calculate recursive item count ---
+    // This finds every valid subcategory name under this folder and sums their items!
+    const validNames = getValidCategoryNames(category.id, categories);
+    const totalItems = validNames.reduce((sum, name) => sum + (itemCounts[name] || 0), 0);
+
     const paddingLeft = level * 32;
 
     return (
       <React.Fragment key={category.id}>
         <tr className="hover:bg-gray-50 transition-colors border-b border-gray-100">
           
-          {/* 1. Category Name & Hierarchy Indentation */}
           <td className="px-4 py-3 whitespace-nowrap">
             <div className="flex items-center" style={{ paddingLeft: `${paddingLeft}px` }}>
-              
-              {/* Expand/Collapse Chevron */}
               <div className="w-6 flex-shrink-0 flex items-center justify-center mr-2">
                 {hasSubcategories ? (
-                  <button
-                    onClick={() => toggleExpanded(category.id)}
-                    className="p-1 rounded-md hover:bg-gray-200 text-gray-500 transition-colors"
-                  >
+                  <button onClick={() => toggleExpanded(category.id)} className="p-1 rounded-md hover:bg-gray-200 text-gray-500 transition-colors">
                     <ChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                   </button>
-                ) : (
-                  <span className="w-4"></span> // Spacer for alignment if no children
-                )}
+                ) : <span className="w-4"></span>}
               </div>
 
-              {/* Icon/Image */}
               {category.image_url ? (
                 <img className="h-8 w-8 rounded-lg object-cover border border-gray-200 flex-shrink-0" src={category.image_url} alt="" />
               ) : (
@@ -92,35 +108,53 @@ export function AdminCategoriesTab() {
                   {hasSubcategories ? <Folder className="h-4 w-4 text-blue-500" /> : <ImageIcon className="h-4 w-4 text-gray-300" />}
                 </div>
               )}
-
-              {/* Name */}
               <div className="ml-3 font-semibold text-gray-900 text-sm">{category.name}</div>
             </div>
           </td>
 
-          {/* 2. Meta Info (Hidden on mobile) */}
           <td className="hidden md:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500">
             {hasSubcategories ? (
               <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs font-medium">
-                {subcategories.length} subcategories
+                {subcategories.length} folders
               </span>
-            ) : (
-              <span className="text-gray-400 text-xs italic">-</span>
-            )}
+            ) : <span className="text-gray-400 text-xs italic">-</span>}
           </td>
 
-          {/* 3. Actions */}
+          {/* --- NEW: No. of Jewellery Column --- */}
+          <td className="px-4 py-3 whitespace-nowrap text-sm">
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+              totalItems > 0 ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-gray-50 text-gray-400'
+            }`}>
+              {totalItems} {totalItems === 1 ? 'item' : 'items'}
+            </span>
+          </td>
+
           <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
             <button onClick={() => startEdit(category)} className="text-yellow-600 hover:text-yellow-900 mr-3 p-1">
               <Edit className="h-4 w-4 md:h-5 md:w-5" />
             </button>
-            <button onClick={() => handleDelete(category.id)} className="text-red-600 hover:text-red-900 p-1">
-              <Trash2 className="h-4 w-4 md:h-5 md:w-5" />
-            </button>
+            
+            {/* --- SMART DELETE BUTTON --- */}
+            {hasSubcategories || totalItems > 0 ? (
+              <button 
+                disabled
+                title="Cannot delete: Move or delete all items and subcategories first."
+                className="p-1 text-gray-300 cursor-not-allowed"
+              >
+                <Trash2 className="h-4 w-4 md:h-5 md:w-5" />
+              </button>
+            ) : (
+              <button 
+                onClick={() => handleDelete(category.id)} 
+                title="Delete Category"
+                className="p-1 text-red-600 hover:text-red-900"
+              >
+                <Trash2 className="h-4 w-4 md:h-5 md:w-5" />
+              </button>
+            )}
           </td>
         </tr>
 
-        {/* RECURSION: If this folder is open, immediately render its children right below it! */}
         {hasSubcategories && isExpanded && (
           subcategories.map(sub => (
             <CategoryTableRow key={sub.id} category={sub} level={level + 1} />
@@ -150,18 +184,19 @@ export function AdminCategoriesTab() {
               <tr>
                 <th className="px-10 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Hierarchy Structure</th>
                 <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Contents</th>
+                {/* --- NEW: Header Column --- */}
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">No. of Jewellery</th>
                 <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white">
-              {/* We ONLY map over top-level categories here. The component handles the rest! */}
               {topLevelCategories.map((category) => (
                 <CategoryTableRow key={category.id} category={category} level={0} />
               ))}
               
               {topLevelCategories.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="text-center py-12 text-gray-500">
+                  <td colSpan={4} className="text-center py-12 text-gray-500">
                     No categories found. Click "Add Category" to start building your hierarchy!
                   </td>
                 </tr>

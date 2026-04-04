@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { JewelleryItem, Category, DiamondSlot, DiamondQuality } from '../../types';
 import { Save, X, Loader } from 'lucide-react';
-import { GoogleDriveUploadService } from '../../lib/googleDriveUpload';
 import { JewelleryDetailsSection } from './jewellery-form/JewelleryDetailsSection';
 import { JewelleryImagesSection } from './jewellery-form/JewelleryImagesSection';
 import { GoldSpecificationsSection } from './jewellery-form/GoldSpecificationsSection';
@@ -11,7 +10,7 @@ import { ImagePreviewModal } from './jewellery-form/ImagePreviewModal';
 import { formatCurrency } from '../../lib/goldPrice';
 import { groupDiamondSlotsForDatabase } from '../../utils/diamondUtils';
 import { DIAMOND_QUALITIES } from '../../constants/jewellery'
-import { uploadJewelleryImages } from '../../utils/uploadUtils';
+import { uploadJewelleryImages, deleteJewelleryImages } from '../../utils/uploadUtils';
 
 interface JewelleryFormProps {
   categories: Category[];

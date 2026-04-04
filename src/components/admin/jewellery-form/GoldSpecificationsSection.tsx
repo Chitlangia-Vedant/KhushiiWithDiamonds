@@ -45,13 +45,7 @@ export function GoldSpecificationsSection({
           />
         </div>
       </div>
-      
-      <div className="mt-3 p-3 bg-yellow-100 border border-yellow-300 rounded-md">
-        <p className="text-sm text-yellow-800">
-          <strong>Note:</strong> Gold quality selection has been moved to the customer interface. 
-          Customers can now choose between 14K, 18K, and 24K gold and see live price updates.
-        </p>
-      </div>
+
     </div>
   );
 }

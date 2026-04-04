@@ -1,3 +1,5 @@
+import { DIAMOND_QUALITIES } from '../constants/jewellery';
+
 export type Diamond = {
   carat: number;
   cost_per_carat: number;
@@ -41,8 +43,6 @@ export type AdminSetting = {
   description: string;
   updated_at: string;
 };
-
-export const DIAMOND_QUALITIES = ['Lab Grown', 'GH/VS-SI', 'FG/VVS-SI', 'EF/VVS'] as const;
 
 // 2. Automatically generate the Type from the Array!
 export type DiamondQuality = typeof DIAMOND_QUALITIES[number];

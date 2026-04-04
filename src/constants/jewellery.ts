@@ -1,5 +1,3 @@
-import { DiamondQuality } from '../types';
-
 // Centralized Gold Options
 export const GOLD_QUALITIES = [
   { value: '14K', label: '14K Gold', purity: '58.3%' },
@@ -8,9 +6,9 @@ export const GOLD_QUALITIES = [
 ] as const;
 
 // Centralized Diamond Options
-export const DIAMOND_QUALITIES: DiamondQuality[] = [
+export const DIAMOND_QUALITIES = [
   'Lab Grown',
   'GH/VS-SI',
   'FG/VVS-SI',
   'EF/VVS'
-];
+] as const;

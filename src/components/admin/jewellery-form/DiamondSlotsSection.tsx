@@ -1,7 +1,8 @@
 import React from 'react';
-import { DiamondSlot, DiamondQuality, DIAMOND_QUALITIES } from '../../../types';
+import { DiamondSlot, DiamondQuality } from '../../../types';
 import { Gem, Plus, Trash2 } from 'lucide-react';
 import { formatCurrency } from '../../../lib/goldPrice';
+import { DIAMOND_QUALITIES } from '../../../constants/jewellery';
 
 interface DiamondSlotsSectionProps {
   diamondSlots: DiamondSlot[];

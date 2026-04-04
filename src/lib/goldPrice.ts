@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
-import { Diamond, DiamondQuality, JewelleryItem, DIAMOND_QUALITIES } from '../types/index.ts';
+import { Diamond, DiamondQuality, JewelleryItem } from '../types/index.ts';
+import { DIAMOND_QUALITIES } from '../constants/jewellery'
 
 const GOLD_API_KEY = import.meta.env.VITE_GOLD_API_KEY || '9886e90c5c52f1a75a3ca50daccd91d4';
 const GOLD_API_URL = `https://api.metalpriceapi.com/v1/latest?api_key=${GOLD_API_KEY}&base=INR&currencies=XAU`;

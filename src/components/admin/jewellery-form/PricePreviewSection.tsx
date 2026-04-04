@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { DiamondSlot, DiamondQuality } from '../../../types';
 import { formatCurrency, calculateJewelleryPriceSync } from '../../../lib/goldPrice';
 import { ChevronDown } from 'lucide-react';
+import { DIAMOND_QUALITIES } from '../../../constants/jewellery'
 
 interface PricePreviewSectionProps {
   formData: {
@@ -13,8 +14,6 @@ interface PricePreviewSectionProps {
   goldPrice: number;
   gstRate: number;
 }
-
-const DIAMOND_QUALITY_OPTIONS: DiamondQuality[] = ['Lab Grown', 'GH/VS-SI', 'FG/VVS-SI', 'EF/VVS'];
 
 export function PricePreviewSection({ 
   formData, 
@@ -109,7 +108,7 @@ export function PricePreviewSection({
               
               {showDropdown && (
                 <div className="absolute right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-20 min-w-32">
-                  {DIAMOND_QUALITY_OPTIONS.map((quality) => (
+                  {DIAMOND_QUALITIES.map((quality) => (
                     <button
                       key={quality}
                       type="button"

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Gem, Menu, X, ChevronDown, ChevronRight } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import { Category } from '../types';
+import { useClickOutside } from '../hooks/useClickOutside';
+import { useCategories } from '../hooks/useCategories';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -10,27 +11,9 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const { ref: dropdownRef, isOpen: isCategoryDropdownOpen, setIsOpen: setIsCategoryDropdownOpen } = useClickOutside<HTMLDivElement>(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const location = useLocation();
-
-  useEffect(() => {
-    const loadCategories = async () => {
-      try {
-        const { data } = await supabase
-          .from('categories')
-          .select('*')
-          .order('name');
-        
-        if (data) setCategories(data);
-      } catch (error) {
-        console.error('Error loading categories:', error);
-      }
-    };
-
-    loadCategories();
-  }, []);
 
   const navigation = [
     { name: 'Home', path: '/' },
@@ -38,9 +21,7 @@ export function Layout({ children }: LayoutProps) {
   ];
 
   // Organize categories into hierarchy
-  const topLevelCategories = categories.filter(cat => !cat.parent_id);
-  const getSubcategories = (parentId: string) => 
-    categories.filter(cat => cat.parent_id === parentId);
+  const { topLevelCategories, getSubcategories } = useCategories();
 
   const toggleExpanded = (categoryId: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -137,7 +118,7 @@ export function Layout({ children }: LayoutProps) {
                 </Link>
               ))}
 
-              <div className="relative">
+              <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
                   className="flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-yellow-600 hover:bg-gray-100 transition-colors"
@@ -207,13 +188,6 @@ export function Layout({ children }: LayoutProps) {
           </div>
         )}
       </header>
-
-      {isCategoryDropdownOpen && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setIsCategoryDropdownOpen(false)}
-        />
-      )}
 
       <main className="flex-1">
         {children}

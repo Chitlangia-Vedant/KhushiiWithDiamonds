@@ -30,17 +30,20 @@ export function JewelleryImagesSection({
   };
 
   const removeNewImage = (index: number) => {
-    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+    // Read directly from the selectedImages prop instead of using 'prev'
+    setSelectedImages(selectedImages.filter((_, i) => i !== index));
   };
 
   const removeCurrentImage = (imageUrl: string) => {
-    setCurrentImages(prev => prev.filter(url => url !== imageUrl));
-    setImagesToDelete(prev => [...prev, imageUrl]);
+    // Read directly from the currentImages and imagesToDelete props
+    setCurrentImages(currentImages.filter(url => url !== imageUrl));
+    setImagesToDelete([...imagesToDelete, imageUrl]);
   };
 
   const restoreImage = (imageUrl: string) => {
-    setImagesToDelete(prev => prev.filter(url => url !== imageUrl));
-    setCurrentImages(prev => [...prev, imageUrl]);
+    // Read directly from the currentImages and imagesToDelete props
+    setImagesToDelete(imagesToDelete.filter(url => url !== imageUrl));
+    setCurrentImages([...currentImages, imageUrl]);
   };
 
   return (

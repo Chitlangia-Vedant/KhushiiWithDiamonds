@@ -34,9 +34,6 @@ export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
   const pricing = useItemPrice(item);
   // 2. Figure out which rate is active (just for the display label)
   const isGlobalMakingCharge = item.making_charges_per_gram === -1;
-  
-  // FIX 3: Use globalGoldPurity instead of hardcoded '14K'
-  const totalCost = pricing.total;
 
   return (
     <tr className="hover:bg-gray-50">
@@ -85,37 +82,69 @@ export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
         )}
       </td>
 
-        {/* 6. Cost Components (Hidden on mobile) */}
-      <td className="hidden md:table-cell px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-        <div className="space-y-1">
+      {/* 7. Total Cost (Always visible) */}
+      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 relative">
+        {/* We use 'group' here so the tooltip knows when this specific area is hovered */}
+        <div className="group inline-block cursor-help">
           
-          {/* Making Charges Label & Badge */}
-          <div className="flex items-center space-x-1">
-            <span>Making Total: {formatCurrency(pricing.makingCharges)}</span>
-            {isGlobalMakingCharge ? (
-               <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium">Global</span>
-            ) : (
-               <span className="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded font-medium">Custom</span>
-            )}
+          {/* The visible text. The dashed underline indicates it can be hovered */}
+          <span className="font-bold text-yellow-700 border-b border-dashed border-yellow-400 pb-0.5">
+            {formatCurrency(pricing.total)}
+          </span>
+
+          {/* THE TOOLTIP (Hidden by default, shown on group-hover) */}
+          <div className="absolute z-50 hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-56 bg-white border border-gray-200 shadow-xl rounded-lg p-3 text-xs pointer-events-none">
+            <div className="font-semibold text-gray-800 border-b border-gray-100 pb-1.5 mb-1.5">
+              Price Breakdown
+            </div>
+            
+            <div className="space-y-1">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Gold Value:</span>
+                <span className="font-medium text-gray-900">{formatCurrency(pricing.goldValue)}</span>
+              </div>
+              
+              {pricing.diamondCost > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Diamonds:</span>
+                  <span className="font-medium text-gray-900">{formatCurrency(pricing.diamondCost)}</span>
+                </div>
+              )}
+              
+              {pricing.otherStonesCost > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Other Stones:</span>
+                  <span className="font-medium text-gray-900">{formatCurrency(pricing.otherStonesCost)}</span>
+                </div>
+              )}
+              
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Making:</span>
+                <span className="font-medium text-gray-900 flex items-center space-x-1">
+                  <span>{formatCurrency(pricing.makingCharges)}</span>
+                  {isGlobalMakingCharge ? (
+                    <span className="text-[9px] bg-purple-100 text-purple-700 px-1 py-0.5 rounded font-bold uppercase tracking-wider">Glbl</span>
+                  ) : (
+                    <span className="text-[9px] bg-blue-100 text-blue-700 px-1 py-0.5 rounded font-bold uppercase tracking-wider">Cstm</span>
+                  )}
+                </span>
+              </div>
+              
+              <div className="flex justify-between">
+                <span className="text-gray-500">Base Markup:</span>
+                <span className="font-medium text-gray-900">{formatCurrency(pricing.basePrice)}</span>
+              </div>
+              
+              <div className="flex justify-between text-gray-400 pt-1 mt-1 border-t border-gray-50">
+                <span>GST:</span>
+                <span>{formatCurrency(pricing.gst)}</span>
+              </div>
+            </div>
+
+            {/* Tooltip downward-pointing arrow */}
+            <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-white drop-shadow-sm"></div>
           </div>
           
-          <div>Base: {formatCurrency(pricing.basePrice)}</div>
-          
-          {/* The Diamond math is now completely handled by getPriceBreakdown! */}
-          {pricing.diamondCost > 0 && (
-            <div>Diamonds: {formatCurrency(pricing.diamondCost)}</div>
-          )}
-          
-        </div>
-      </td>
-
-      {/* 7. Total Cost (Always visible) */}
-      <td className="px-4 py-4 whitespace-nowrap">
-        <div className="text-sm md:text-lg font-bold text-green-600">
-          {formatCurrency(totalCost)}
-        </div>
-        <div className="hidden md:block text-xs text-gray-500">
-          Incl. GST & Live Gold
         </div>
       </td>
 

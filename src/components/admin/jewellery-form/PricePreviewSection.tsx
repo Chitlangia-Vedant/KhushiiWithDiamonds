@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { DiamondSlot, JewelleryItem } from '../../../types';
 import { useGoldPrice } from '../../../hooks/useGoldPrice';
 import { useAdminSettings } from '../../../hooks/useAdminSettings';
 import { useQualityContext } from '../../../context/QualityContext';
 import { getPriceBreakdownItem, formatCurrency } from '../../../lib/goldPrice';
+import { DIAMOND_QUALITIES, DiamondQuality } from '../../../constants/jewellery';
 
 interface PricePreviewSectionProps {
   formData: any;
@@ -15,9 +16,15 @@ export function PricePreviewSection({ formData, diamondSlots }: PricePreviewSect
   const { fallbackGoldPrice, overrideLiveGoldPrice, gstRate, globalGoldMakingCharges, diamondBaseCosts, diamondTiers } = useAdminSettings();
   const { globalGoldPurity, globalDiamondQuality } = useQualityContext();
 
+  // Local state for the preview dropdowns
+  const [previewGoldPurity, setPreviewGoldPurity] = useState(globalGoldPurity);
+  const [previewDiamondQuality, setPreviewDiamondQuality] = useState<DiamondQuality>(globalDiamondQuality as DiamondQuality);
+
+  useEffect(() => { setPreviewGoldPurity(globalGoldPurity); }, [globalGoldPurity]);
+  useEffect(() => { setPreviewDiamondQuality(globalDiamondQuality as DiamondQuality); }, [globalDiamondQuality]);
+
   const effectiveGoldPrice = overrideLiveGoldPrice ? fallbackGoldPrice : goldPrice;
 
-  // Build a "mock" item to feed into your master math engine
   const mockItem = {
     base_price: parseFloat(formData.base_price) || 0,
     gold_weight: parseFloat(formData.gold_weight) || 0,
@@ -27,11 +34,10 @@ export function PricePreviewSection({ formData, diamondSlots }: PricePreviewSect
     override_diamond_costs: formData.override_diamond_costs !== false
   } as JewelleryItem;
 
-  // Let the master engine do all the heavy lifting!
   const pricing = getPriceBreakdownItem(
     mockItem,
-    globalGoldPurity,
-    globalDiamondQuality,
+    previewGoldPurity,
+    previewDiamondQuality,
     globalGoldMakingCharges,
     effectiveGoldPrice,
     gstRate,
@@ -41,15 +47,36 @@ export function PricePreviewSection({ formData, diamondSlots }: PricePreviewSect
 
   return (
     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mt-6">
-      <h3 className="text-lg font-semibold text-gray-800 mb-4">Live Price Preview</h3>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 space-y-2 md:space-y-0">
+        <h3 className="text-lg font-semibold text-gray-800">Live Price Preview</h3>
+        <div className="flex space-x-2">
+          <select 
+            value={previewGoldPurity} 
+            onChange={(e) => setPreviewGoldPurity(e.target.value)}
+            className="text-xs border border-gray-300 rounded px-2 py-1 font-medium bg-white focus:ring-1 focus:ring-yellow-500"
+          >
+            {['14K', '18K', '22K', '24K'].map(q => <option key={q} value={q}>{q} Gold</option>)}
+          </select>
+          {diamondSlots.length > 0 && (
+            <select 
+              value={previewDiamondQuality} 
+              onChange={(e) => setPreviewDiamondQuality(e.target.value as DiamondQuality)}
+              className="text-xs border border-gray-300 rounded px-2 py-1 font-medium bg-white focus:ring-1 focus:ring-blue-500"
+            >
+              {DIAMOND_QUALITIES.map(q => <option key={q} value={q}>{q}</option>)}
+            </select>
+          )}
+        </div>
+      </div>
+      
       <div className="space-y-2 text-sm text-gray-600">
         <div className="flex justify-between">
-          <span>Gold Value ({globalGoldPurity}):</span>
+          <span>Gold Value ({previewGoldPurity}):</span>
           <span>{formatCurrency(pricing.goldValue)}</span>
         </div>
         {pricing.diamondCost > 0 && (
           <div className="flex justify-between">
-            <span>Diamond Cost ({globalDiamondQuality}) {mockItem.override_diamond_costs ? '(Manual)' : '(Grid)'}:</span>
+            <span>Diamond Cost ({previewDiamondQuality}) {mockItem.override_diamond_costs ? '(Manual)' : '(Grid)'}:</span>
             <span>{formatCurrency(pricing.diamondCost)}</span>
           </div>
         )}

@@ -41,12 +41,8 @@ export function OtherStonesSection({ otherStones, setOtherStones, uploading }: O
         </button>
       </div>
 
-      {otherStones.length === 0 ? (
-        <div className="text-center py-4 text-gray-500 text-sm">
-          No other stones added. (e.g., Rubies, Emeralds, Sapphires)
-        </div>
-      ) : (
-        <div className="space-y-3">
+      {otherStones.length === 0 ? null : (
+        <div className="space-y-3 mt-3">
           {otherStones.map((stone, index) => (
             <div key={index} className="bg-white border border-emerald-200 rounded-md p-3 flex flex-wrap md:flex-nowrap items-end gap-3">
               <div className="w-full md:w-1/3">

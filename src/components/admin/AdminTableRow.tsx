@@ -85,7 +85,7 @@ export function AdminTableRow({ item, onEdit, onDelete, index, totalRows }: Admi
 
       {/* 4. Specs */}
       <td className="hidden lg:table-cell px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-         <div>Gold: {item.gold_weight}g</div>
+         <div>{item.gold_weight}g</div>
       </td>
 
       {/* 5. Diamonds */}
@@ -180,12 +180,12 @@ export function AdminTableRow({ item, onEdit, onDelete, index, totalRows }: Admi
                 <div className="flex justify-between items-center">
                   <span className="text-gray-500">Making:</span>
                   <span className="font-medium text-gray-900 flex items-center space-x-1">
-                    <span>{formatCurrency(pricing.makingCharges)}</span>
                     {isGlobalMakingCharge ? (
                       <span className="text-[9px] bg-purple-100 text-purple-700 px-1 py-0.5 rounded font-bold uppercase tracking-wider">Glbl</span>
                     ) : (
                       <span className="text-[9px] bg-blue-100 text-blue-700 px-1 py-0.5 rounded font-bold uppercase tracking-wider">Cstm</span>
                     )}
+                    <span>{formatCurrency(pricing.makingCharges)}</span>
                   </span>
                 </div>
                 

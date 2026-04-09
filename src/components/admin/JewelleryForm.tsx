@@ -33,11 +33,11 @@ export function JewelleryForm({
     description: editingItem?.description || '', 
     category: editingItem?.category || '', 
     gold_weight: editingItem?.gold_weight || 0,
-    making_charges_per_gram: editingItem?.making_charges_per_gram || 500, 
+    making_charges_per_gram: editingItem?.making_charges_per_gram ?? -1, 
     base_price: editingItem?.base_price || 0,
     diamonds: editingItem?.diamonds || ([] as DiamondSlot[]), 
     other_stones: editingItem?.other_stones || ([] as StoneSlot[]),
-    override_diamond_costs: editingItem?.override_diamond_costs ?? true,
+    override_diamond_costs: editingItem?.override_diamond_costs ?? false,
   });
 
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
@@ -211,7 +211,7 @@ export function JewelleryForm({
               setOtherStones={(stones) => setFormData({ ...formData, other_stones: stones })}
               uploading={uploading}
             />
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Base Price (₹)</label>
               <input

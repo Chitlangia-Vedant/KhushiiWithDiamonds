@@ -8,10 +8,9 @@ import { DiamondSlotsSection } from './jewellery-form/DiamondSlotsSection';
 import { PricePreviewSection } from './jewellery-form/PricePreviewSection';
 import { ImagePreviewModal } from './jewellery-form/ImagePreviewModal';
 import { formatCurrency } from '../../lib/goldPrice';
-import { DIAMOND_QUALITIES } from '../../constants/jewellery' ;
+import { DIAMOND_QUALITIES } from '../../constants/jewellery';
 import { uploadJewelleryImages, deleteDriveImages, updateJewelleryDriveMetadata } from '../../utils/uploadUtils';
 import { useCategories } from '../../hooks/useCategories';
-
 
 interface JewelleryFormProps {
   editingItem: JewelleryItem | null;
@@ -35,27 +34,14 @@ export function JewelleryForm({
     gold_weight: editingItem?.gold_weight || 0,
     making_charges_per_gram: editingItem?.making_charges_per_gram || 500, 
     base_price: editingItem?.base_price || 0,
-    
-    // --- ADD THESE TWO LINES ---
-    // If editing, load saved diamonds. If new, start with an empty array.
     diamonds: editingItem?.diamonds || ([] as DiamondSlot[]), 
-    
-    // Use ?? instead of || so that if the database explicitly says 'false', it doesn't accidentally become 'true'
     override_diamond_costs: editingItem?.override_diamond_costs ?? true,
   });
 
-  // Initialize diamond slots from editing item
-  const initializeDiamondSlots = (): DiamondSlot[] => {
-    // We just load the exact JSON array straight from the database!
-    return editingItem?.diamonds || [];
-  };
-
-  const [diamondSlots] = useState<DiamondSlot[]>(initializeDiamondSlots());
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [currentImages, setCurrentImages] = useState<string[]>(editingItem?.image_url || []);
   const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
 
-  // Function to generate the detailed description string
   // Function to generate a highly readable, structured description for Google Drive
   const generateItemDescription = (): string => {
     const parts: string[] = [];
@@ -74,22 +60,22 @@ export function JewelleryForm({
     parts.push('');
 
     // 3. DIAMOND SPECIFICATIONS
-    if (diamondSlots.length > 0) {
-      const totalCarats = diamondSlots.reduce((sum, slot) => sum + slot.carat, 0);
+    if (formData.diamonds.length > 0) {
+      const totalCarats = formData.diamonds.reduce((sum, slot) => sum + slot.carat, 0);
       
       parts.push('✦ DIAMOND SPECIFICATIONS ✦');
-      parts.push(`• Total Stones: ${diamondSlots.length}`);
+      parts.push(`• Total Stones: ${formData.diamonds.length}`);
       parts.push(`• Total Weight: ${totalCarats.toFixed(2)} ct`);
       parts.push('');
       
       parts.push('--- Breakdown by Quality Tier ---');
       DIAMOND_QUALITIES.forEach((quality) => {
-        const tierTotalCost = diamondSlots.reduce((sum, slot) => sum + (slot.carat * slot.costs[quality]), 0);
+        const tierTotalCost = formData.diamonds.reduce((sum, slot) => sum + (slot.carat * slot.costs[quality]), 0);
         
         parts.push(`[ ${quality} ] -> Total Tier Cost: ${formatCurrency(tierTotalCost)}`);
         
         // List individual stones under the quality tier
-        diamondSlots.forEach((slot, index) => {
+        formData.diamonds.forEach((slot, index) => {
           const stoneCost = slot.carat * slot.costs[quality];
           parts.push(`  ↳ Stone ${index + 1}: ${slot.carat}ct @ ${formatCurrency(slot.costs[quality])}/ct = ${formatCurrency(stoneCost)}`);
         });
@@ -146,18 +132,17 @@ export function JewelleryForm({
 
       // 4. Combine arrays and clean up diamonds (ignore empty slots)
       const finalImageUrls = [...currentImages, ...newImageUrls];
-      const cleanedDiamonds = diamondSlots.filter(slot => slot.carat > 0);
+      const cleanedDiamonds = formData.diamonds.filter(slot => slot.carat > 0);
 
       // 5. Build final data and submit
       const itemData: Partial<JewelleryItem> = {
         name: formData.name,
-        description: formData.description || null,
+        description: formData.description, // Fixed strict null TypeScript error
         category: formData.category,
         gold_weight: formData.gold_weight,
         making_charges_per_gram: formData.making_charges_per_gram,
         base_price: formData.base_price,
-        diamonds: diamondSlots, // (This was already correct!)
-        // ADD THIS ONE LINE:
+        diamonds: cleanedDiamonds,
         override_diamond_costs: formData.override_diamond_costs
       };
 
@@ -236,7 +221,7 @@ export function JewelleryForm({
 
             <PricePreviewSection
               formData={formData}
-              diamondSlots={diamondSlots}
+              diamondSlots={formData.diamonds}
             />
 
             <div className="flex space-x-4 pt-4">

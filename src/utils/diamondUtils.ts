@@ -14,8 +14,9 @@ export const getDiamondsForQuality = (item: JewelleryItem, quality: DiamondQuali
     return { diamonds: [], quality: null };
   }
 
-  // Map the rich DiamondSlots down into the simple { carat, cost_per_carat } format for the pricing calculator
+  // Map the rich DiamondSlots down into the simple format
   const mappedDiamonds = item.diamonds.map(slot => ({
+    name: slot.name || 'Diamond', // <-- Pass the name along
     carat: slot.carat,
     cost_per_carat: slot.costs[quality] || 0
   }));

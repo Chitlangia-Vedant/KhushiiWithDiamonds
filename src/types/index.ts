@@ -1,11 +1,13 @@
 import { DiamondQuality } from '../constants/jewellery';
 
 export type Diamond = {
+  name?: string;
   carat: number;
   cost_per_carat: number;
 };
 
 export type DiamondSlot = {
+  name?: string;
   carat: number;
   costs: Record<DiamondQuality, number>;
 };

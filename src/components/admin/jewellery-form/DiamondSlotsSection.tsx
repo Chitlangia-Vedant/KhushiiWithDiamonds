@@ -18,13 +18,14 @@ export function DiamondSlotsSection({
   
   const addDiamondSlot = () => {
     const newSlot: DiamondSlot = {
+      name: `Diamond ${diamondSlots.length + 1}`,
       carat: 0,
       costs: { ...DEFAULT_DIAMOND_COSTS }
     };
     setDiamondSlots([...diamondSlots, newSlot]);
   };
 
-  const updateDiamondSlot = (index: number, field: keyof DiamondSlot, value: number) => {
+  const updateDiamondSlot = (index: number, field: keyof DiamondSlot, value: number | string) => {
     const updatedSlots = diamondSlots.map((slot, i) => 
       i === index ? { ...slot, [field]: value } : slot
     );
@@ -84,7 +85,14 @@ export function DiamondSlotsSection({
           {diamondSlots.map((slot, index) => (
             <div key={index} className="bg-white border border-blue-200 rounded-md p-4">
               <div className="flex justify-between items-center mb-3">
-                <h4 className="font-medium text-blue-800">Diamond {index + 1}</h4>
+                <input
+                  type="text"
+                  value={slot.name || ''}
+                  onChange={(e) => updateDiamondSlot(index, 'name', e.target.value)}
+                  className="font-semibold text-blue-800 bg-transparent border-b border-transparent hover:border-blue-200 focus:border-blue-500 focus:outline-none focus:ring-0 px-1 py-0.5 w-1/2 md:w-1/3 transition-colors placeholder-blue-300"
+                  placeholder={`Diamond ${index + 1} (e.g. Center Stone)`}
+                  disabled={uploading}
+                />
                 <button
                   type="button"
                   onClick={() => removeDiamondSlot(index)}

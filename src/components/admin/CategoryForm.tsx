@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Category } from '../../types';
-import { Save, X, Upload, FileImage, Loader } from 'lucide-react'; 
+import { Save, X, Upload, Loader } from 'lucide-react'; 
 import { useCategories } from '../../hooks/useCategories';
 import { uploadCategoryImages } from '../../utils/uploadUtils';
 import { CategoryDropdown } from '../CategoryDropdown';
@@ -25,8 +25,9 @@ export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryF
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
+      // Append new files to existing ones instead of replacing them
       const fileArray = Array.from(files);
-      setSelectedImages(fileArray);
+      setSelectedImages([...selectedImages, ...fileArray]);
     }
   };
 
@@ -84,76 +85,83 @@ export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryF
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-screen overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+      
+      {/* Modal Container: Fixed max height, flex column for sticky sections */}
+      <div className="bg-white rounded-xl w-full max-w-md shadow-2xl flex flex-col max-h-[95vh] relative">
+        
+        {/* --- STICKY HEADER --- */}
+        <div className="flex justify-between items-center p-5 border-b border-gray-200 shrink-0">
+          <h2 className="text-xl font-bold text-gray-800">
             {editingCategory ? 'Edit Category' : 'Add New Category'}
           </h2>
-          <button onClick={onCancel} className="text-gray-500 hover:text-gray-700">
+          <button onClick={onCancel} className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100">
             <X className="h-6 w-6" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Parent Category (Optional)
-            </label>
-            <CategoryDropdown
-              valueLabel={categoryFormData.parent_id 
-                ? categories.find(c => c.id === categoryFormData.parent_id)?.name || 'Unknown'
-                : 'None (Top-level category)'}
-              onSelect={(categoryId) => setCategoryFormData({ ...categoryFormData, parent_id: categoryId })}
-              onClear={() => setCategoryFormData({ ...categoryFormData, parent_id: '' })}
-              clearLabel="None (Top Level Category)"
-              excludeCategoryId={editingCategory?.id}
-              disabled={uploading}
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Leave empty to create a top-level category, or select a parent to create a subcategory.
-            </p>
-          </div>
+        {/* --- SCROLLABLE BODY --- */}
+        <div className="overflow-y-auto p-5 flex-1 custom-scrollbar">
+          <form id="category-form" onSubmit={handleSubmit} className="space-y-5">
+            
+            {/* Parent Category Field */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-1">
+                Parent Category (Optional)
+              </label>
+              <CategoryDropdown
+                valueLabel={categoryFormData.parent_id 
+                  ? categories.find(c => c.id === categoryFormData.parent_id)?.name || 'Unknown'
+                  : 'None (Top-level category)'}
+                onSelect={(categoryId) => setCategoryFormData({ ...categoryFormData, parent_id: categoryId })}
+                onClear={() => setCategoryFormData({ ...categoryFormData, parent_id: '' })}
+                clearLabel="None (Top Level Category)"
+                excludeCategoryId={editingCategory?.id}
+                disabled={uploading}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Leave empty to create a top-level category, or select a parent to create a subcategory.
+              </p>
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-            <input
-              type="text"
-              required
-              value={categoryFormData.name}
-              onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500"
-              placeholder="e.g., Heavy Rings, Light Rings"
-              disabled={uploading}
-            />
-          </div>
+            {/* Name Field */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-1">Name *</label>
+              <input
+                type="text"
+                required
+                value={categoryFormData.name}
+                onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500"
+                placeholder="e.g., Heavy Rings, Light Rings"
+                disabled={uploading}
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea
-              value={categoryFormData.description}
-              onChange={(e) => setCategoryFormData({ ...categoryFormData, description: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500"
-              rows={3}
-              placeholder="Brief description of the category"
-              disabled={uploading}
-            />
-          </div>
+            {/* Description Field */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-1">Description</label>
+              <textarea
+                value={categoryFormData.description}
+                onChange={(e) => setCategoryFormData({ ...categoryFormData, description: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500"
+                rows={3}
+                placeholder="Brief description of the category"
+                disabled={uploading}
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Category Images
-            </label>
-            <div className="space-y-3">
-              <div className="flex items-center justify-center w-full">
-                <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <Upload className="w-8 h-8 mb-2 text-gray-500" />
-                    <p className="mb-2 text-sm text-gray-500">
-                      <span className="font-semibold">Click to upload</span> category images
-                    </p>
-                    <p className="text-xs text-gray-500">PNG, JPG, JPEG (MAX. 10MB each)</p>
-                  </div>
+            {/* Images Grid Section */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-2">
+                Category Images
+              </label>
+              
+              <div className="grid grid-cols-3 gap-3">
+                {/* Upload Button (Acts as a grid item) */}
+                <label className={`flex flex-col items-center justify-center aspect-square border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                  <Upload className="w-6 h-6 text-gray-400 mb-1" />
+                  <span className="text-xs text-gray-500 font-medium">Add Photo</span>
                   <input
                     type="file"
                     multiple
@@ -163,72 +171,66 @@ export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryF
                     disabled={uploading}
                   />
                 </label>
+
+                {/* New Images Previews (Side-by-side with upload button) */}
+                {selectedImages.map((file, index) => (
+                  <div key={index} className="relative group aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-green-200">
+                    <img 
+                      src={URL.createObjectURL(file)} 
+                      alt={`New ${index + 1}`} 
+                      className="w-full h-full object-cover" 
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => removeImage(index)} 
+                      className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 shadow-md" 
+                      disabled={uploading}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
               </div>
 
-              {/* Display selected images */}
-              {selectedImages.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-700">Selected Images:</p>
-                  <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {selectedImages.map((file, index) => (
-                      <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded-md">
-                        <div className="flex items-center space-x-2">
-                          <FileImage className="h-4 w-4 text-blue-500" />
-                          <span className="text-sm text-gray-700 truncate">{file.name}</span>
-                          <span className="text-xs text-gray-500">
-                            ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeImage(index)}
-                          className="text-red-500 hover:text-red-700"
-                          disabled={uploading}
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <p className="text-xs text-gray-500">
-                Images will be uploaded to: <code>WebCatalog(DO NOT EDIT)/</code>
-                <br />
-                File names will be based on the category name.
-              </p>
+              <div className="mt-2 text-xs text-gray-500 bg-gray-50 p-2 rounded border border-gray-100">
+                <p>Images will be uploaded to: <code>WebCatalog(DO NOT EDIT)/</code></p>
+                <p>File names will be based on the category name.</p>
+              </div>
             </div>
-          </div>
 
-          <div className="flex space-x-4 pt-4">
-            <button
-              type="submit"
-              disabled={uploading}
-              className="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {uploading ? (
-                <>
-                  <Loader className="h-4 w-4 animate-spin" />
-                  <span>Uploading...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4" />
-                  <span>{editingCategory ? 'Update' : 'Add'} Category</span>
-                </>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={onCancel}
-              disabled={uploading}
-              className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
+          </form>
+        </div>
+
+        {/* --- STICKY FOOTER --- */}
+        <div className="p-5 border-t border-gray-200 bg-gray-50 rounded-b-xl flex justify-end space-x-3 shrink-0">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={uploading}
+            className="px-4 py-2 text-gray-700 font-medium rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="category-form"
+            disabled={uploading}
+            className="bg-yellow-600 text-white px-5 py-2 rounded-md hover:bg-yellow-700 font-medium flex items-center space-x-2 transition-colors disabled:opacity-70 shadow-sm"
+          >
+            {uploading ? (
+              <>
+                <Loader className="h-4 w-4 animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                <span>{editingCategory ? 'Update' : 'Add'} Category</span>
+              </>
+            )}
+          </button>
+        </div>
+
       </div>
     </div>
   );

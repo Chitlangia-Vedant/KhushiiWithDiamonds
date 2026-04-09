@@ -70,7 +70,7 @@ export function AdminSettingsTab({
   const isChanged = 
     settingsFormData.fallback_gold_price !== fallbackGoldPrice.toString() ||
     settingsFormData.gst_rate !== (gstRate * 100).toString() ||
-    settingsFormData.override_live_gold_price !== overrideLiveGoldPrice;
+    settingsFormData.override_live_gold_price !== overrideLiveGoldPrice||
     settingsFormData.gold_making_charges !== globalGoldMakingCharges.toString();
 
   return (

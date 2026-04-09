@@ -83,17 +83,20 @@ export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
       </td>
 
       {/* 7. Total Cost (Always visible) */}
-      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 relative">
-        {/* We use 'group' here so the tooltip knows when this specific area is hovered */}
-        <div className="group inline-block cursor-help">
+      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+        {/* Changed to 'relative inline-flex' so the tooltip anchors to the right edge of the text */}
+        <div className="group relative inline-flex items-center cursor-help">
           
-          {/* The visible text. The dashed underline indicates it can be hovered */}
           <span className="font-bold text-yellow-700 border-b border-dashed border-yellow-400 pb-0.5">
             {formatCurrency(pricing.total)}
           </span>
 
-          {/* THE TOOLTIP (Hidden by default, shown on group-hover) */}
-          <div className="absolute z-50 hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-56 bg-white border border-gray-200 shadow-xl rounded-lg p-3 text-xs pointer-events-none">
+          {/* THE TOOLTIP (Pops to the RIGHT to avoid table top/bottom clipping) */}
+          <div className="absolute z-50 hidden group-hover:block left-full top-1/2 transform -translate-y-1/2 ml-3 w-56 bg-white border border-gray-200 shadow-xl rounded-lg p-3 text-xs pointer-events-none">
+            
+            {/* Tooltip left-pointing arrow */}
+            <div className="absolute right-full top-1/2 transform -translate-y-1/2 border-[6px] border-transparent border-r-white"></div>
+
             <div className="font-semibold text-gray-800 border-b border-gray-100 pb-1.5 mb-1.5">
               Price Breakdown
             </div>
@@ -140,9 +143,6 @@ export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
                 <span>{formatCurrency(pricing.gst)}</span>
               </div>
             </div>
-
-            {/* Tooltip downward-pointing arrow */}
-            <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-white drop-shadow-sm"></div>
           </div>
           
         </div>

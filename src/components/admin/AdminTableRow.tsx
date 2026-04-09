@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { JewelleryItem } from '../../types';
 import { DiamondQuality } from '../../constants/jewellery';
 import { Edit, Trash2 } from 'lucide-react';
-import { formatCurrency, calculateJewelleryPriceSync } from '../../lib/goldPrice';
+import { formatCurrency, calculateJewelleryPriceSync, getPriceBreakdown} from '../../lib/goldPrice';
 import { getAvailableDiamondQualities, getDiamondsForQuality } from '../../utils/diamondUtils';
 import { useGoldPrice } from '../../hooks/useGoldPrice';
 import { useAdminSettings } from '../../hooks/useAdminSettings';
@@ -16,6 +16,7 @@ interface AdminTableRowProps {
 }
 
 export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
+  const { globalGoldMakingCharges } = useAdminSettings();
     const { goldPrice } = useGoldPrice();
     const { gstRate } = useAdminSettings();
     const { globalDiamondQuality, globalGoldPurity } = useQualityContext(); 
@@ -24,7 +25,7 @@ export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
   const [selectedQuality, setSelectedQuality] = useState<DiamondQuality | null>(null);
   const availableQualities = getAvailableDiamondQualities(item);
 
-  // Initialize selected quality on mount
+    // Initialize selected quality on mount
   useEffect(() => {
     if (availableQualities.length > 0 && !selectedQuality) {
       setSelectedQuality(availableQualities[0]);
@@ -33,6 +34,20 @@ export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
 
   // FIX 2: Use your safe utility function instead of the broken Record lookup!
   const diamondsData = getDiamondsForQuality(item, globalDiamondQuality as DiamondQuality);
+
+  const pricing = getPriceBreakdown(
+    item.base_price,
+    item.gold_weight,
+    globalGoldPurity, // from your QualityContext
+    diamondsData,
+    globalGoldMakingCharges, // from useAdminSettings hook
+    item.making_charges_per_gram,
+    goldPrice // from useGoldPrice hook
+  );
+
+  // 2. Figure out which rate is active (just for the display label)
+  const isGlobalMakingCharge = item.making_charges_per_gram === -1;
+  const activeRatePerGram = isGlobalMakingCharge ? globalGoldMakingCharges : item.making_charges_per_gram;
 
   // FIX 3: Use globalGoldPurity instead of hardcoded '14K'
   const totalCost = calculateJewelleryPriceSync(
@@ -87,15 +102,25 @@ export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
         )}
       </td>
 
-      {/* 6. Cost Components (Hidden on mobile) */}
+        {/* 6. Cost Components (Hidden on mobile) */}
       <td className="hidden md:table-cell px-4 py-4 whitespace-nowrap text-sm text-gray-900">
         <div className="space-y-1">
-          <div>Making: {formatCurrency(item.making_charges_per_gram)}/g</div>
-          <div>Base: {formatCurrency(item.base_price)}</div>
           
-          {/* THE FIX: We first check if diamondsData exists AND if it has the diamonds array */}
-          {diamondsData && diamondsData.diamonds && diamondsData.diamonds.length > 0 && (
-            <div>Diamonds: {formatCurrency(diamondsData.diamonds.reduce((sum: any, d: any) => sum + (d.carat * d.cost_per_carat), 0))}</div>
+          {/* Making Charges Label & Badge */}
+          <div className="flex items-center space-x-1">
+            <span>Making: {formatCurrency(activeRatePerGram)}/g</span>
+            {isGlobalMakingCharge ? (
+               <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium">Global</span>
+            ) : (
+               <span className="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded font-medium">Custom</span>
+            )}
+          </div>
+          
+          <div>Base: {formatCurrency(pricing.basePrice)}</div>
+          
+          {/* The Diamond math is now completely handled by getPriceBreakdown! */}
+          {pricing.diamondCost > 0 && (
+            <div>Diamonds: {formatCurrency(pricing.diamondCost)}</div>
           )}
           
         </div>

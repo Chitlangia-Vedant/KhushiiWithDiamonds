@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useClickOutside } from '../../hooks/useClickOutside';
 import { JewelleryItem } from '../../types';
 import { DiamondQuality } from '../../constants/jewellery';
 import { Edit, Trash2 } from 'lucide-react';
@@ -34,6 +35,9 @@ export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
   const pricing = useItemPrice(item);
   // 2. Figure out which rate is active (just for the display label)
   const isGlobalMakingCharge = item.making_charges_per_gram === -1;
+
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const popoverRef = useClickOutside(() => setShowBreakdown(false));
 
   return (
     <tr className="hover:bg-gray-50">
@@ -84,66 +88,76 @@ export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
 
       {/* 7. Total Cost (Always visible) */}
       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-        {/* Changed to 'relative inline-flex' so the tooltip anchors to the right edge of the text */}
-        <div className="group relative inline-flex items-center cursor-help">
+        
+        {/* Attach the ref to the parent container */}
+        <div className="relative inline-flex items-center" ref={popoverRef as React.RefObject<HTMLDivElement>}>
           
-          <span className="font-bold text-yellow-700 border-b border-dashed border-yellow-400 pb-0.5">
+          {/* Changed from <span> to <button> for accessibility and clickability */}
+          <button 
+            onClick={() => setShowBreakdown(!showBreakdown)}
+            className="font-bold text-yellow-700 border-b border-dashed border-yellow-400 pb-0.5 cursor-pointer focus:outline-none hover:text-yellow-800 transition-colors"
+          >
             {formatCurrency(pricing.total)}
-          </span>
+          </button>
 
-          {/* THE TOOLTIP (Pops to the RIGHT to avoid table top/bottom clipping) */}
-          <div className="absolute z-50 hidden group-hover:block left-full top-1/2 transform -translate-y-1/2 ml-3 w-56 bg-white border border-gray-200 shadow-xl rounded-lg p-3 text-xs pointer-events-none">
+          {/* THE POPOVER (Only renders if showBreakdown is true) */}
+          {showBreakdown && (
+            <div className="absolute z-50 hidden group-hover:block left-full bottom-0 translate-y-1 ml-3 w-56 bg-white border border-gray-200 shadow-xl rounded-lg p-3 text-xs pointer-events-none">
             
-            {/* Tooltip left-pointing arrow */}
-            <div className="absolute right-full top-1/2 transform -translate-y-1/2 border-[6px] border-transparent border-r-white"></div>
+            {/* Tooltip left-pointing arrow (Pushed to the bottom to align with the text) */}
+              <div className="absolute right-full bottom-3 border-[6px] border-transparent border-r-white"></div>
 
-            <div className="font-semibold text-gray-800 border-b border-gray-100 pb-1.5 mb-1.5">
-              Price Breakdown
-            </div>
-            
-            <div className="space-y-1">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Gold Value:</span>
-                <span className="font-medium text-gray-900">{formatCurrency(pricing.goldValue)}</span>
+              <div className="font-semibold text-gray-800 border-b border-gray-100 pb-1.5 mb-1.5 flex justify-between items-center">
+                <span>Price Breakdown</span>
+                {/* Optional: Add a subtle close 'x' hint */}
+                <span className="text-gray-400 text-[10px] font-normal">Esc to close</span>
               </div>
               
-              {pricing.diamondCost > 0 && (
+              {/* ... Your exact same breakdown content goes here ... */}
+              <div className="space-y-1">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Diamonds:</span>
-                  <span className="font-medium text-gray-900">{formatCurrency(pricing.diamondCost)}</span>
+                  <span className="text-gray-500">Gold Value:</span>
+                  <span className="font-medium text-gray-900">{formatCurrency(pricing.goldValue)}</span>
                 </div>
-              )}
-              
-              {pricing.otherStonesCost > 0 && (
+                
+                {pricing.diamondCost > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Diamonds:</span>
+                    <span className="font-medium text-gray-900">{formatCurrency(pricing.diamondCost)}</span>
+                  </div>
+                )}
+                
+                {pricing.otherStonesCost > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Other Stones:</span>
+                    <span className="font-medium text-gray-900">{formatCurrency(pricing.otherStonesCost)}</span>
+                  </div>
+                )}
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500">Making:</span>
+                  <span className="font-medium text-gray-900 flex items-center space-x-1">
+                    <span>{formatCurrency(pricing.makingCharges)}</span>
+                    {isGlobalMakingCharge ? (
+                      <span className="text-[9px] bg-purple-100 text-purple-700 px-1 py-0.5 rounded font-bold uppercase tracking-wider">Glbl</span>
+                    ) : (
+                      <span className="text-[9px] bg-blue-100 text-blue-700 px-1 py-0.5 rounded font-bold uppercase tracking-wider">Cstm</span>
+                    )}
+                  </span>
+                </div>
+                
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Other Stones:</span>
-                  <span className="font-medium text-gray-900">{formatCurrency(pricing.otherStonesCost)}</span>
+                  <span className="text-gray-500">Base Markup:</span>
+                  <span className="font-medium text-gray-900">{formatCurrency(pricing.basePrice)}</span>
                 </div>
-              )}
-              
-              <div className="flex justify-between items-center">
-                <span className="text-gray-500">Making:</span>
-                <span className="font-medium text-gray-900 flex items-center space-x-1">
-                  <span>{formatCurrency(pricing.makingCharges)}</span>
-                  {isGlobalMakingCharge ? (
-                    <span className="text-[9px] bg-purple-100 text-purple-700 px-1 py-0.5 rounded font-bold uppercase tracking-wider">Glbl</span>
-                  ) : (
-                    <span className="text-[9px] bg-blue-100 text-blue-700 px-1 py-0.5 rounded font-bold uppercase tracking-wider">Cstm</span>
-                  )}
-                </span>
-              </div>
-              
-              <div className="flex justify-between">
-                <span className="text-gray-500">Base Markup:</span>
-                <span className="font-medium text-gray-900">{formatCurrency(pricing.basePrice)}</span>
-              </div>
-              
-              <div className="flex justify-between text-gray-400 pt-1 mt-1 border-t border-gray-50">
-                <span>GST:</span>
-                <span>{formatCurrency(pricing.gst)}</span>
+                
+                <div className="flex justify-between text-gray-400 pt-1 mt-1 border-t border-gray-50">
+                  <span>GST:</span>
+                  <span>{formatCurrency(pricing.gst)}</span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
           
         </div>
       </td>

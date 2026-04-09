@@ -32,11 +32,15 @@ export function AdminTableRow({ item, onEdit, onDelete, index, totalRows }: Admi
   const pricing = useItemPrice(item);
   const isGlobalMakingCharge = item.making_charges_per_gram === -1;
 
-  // --- DUAL-ACTION STATE LOGIC ---
-  // 1. The "Click to Lock" state handled by your hook
-  const { ref: popoverRef, isVisible: isLocked, setIsVisible: setIsLocked } = useClickOutside(false);
-  // 2. The "Hover to View" state
-  const [isHovered, setIsHovered] = useState(false);
+// --- DUAL-ACTION STATE LOGIC ---
+  // 1. The "Click to Lock" state (managed natively by React)
+  const [isLocked, setIsLocked] = useState(false);
+  
+  // 2. The click-outside hook (closes the lock when you click away)
+  const popoverRef = useClickOutside(() => setIsLocked(false));
+  
+  // 3. The "Hover to View" state
+  const [isHovered, setIsHovered] = useState(false)
 
   // Show the popover if it is EITHER hovered OR locked
   const showPopover = isHovered || isLocked;

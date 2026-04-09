@@ -199,7 +199,9 @@ export const calculateJewelleryPriceSyncItem = (
   diamondQuality: DiamondQuality | null,
   globalGoldMakingCharges: number,
   goldPricePerGram: number,
-  gstRate: number = 0.18
+  gstRate: number = 0.18,
+  diamondBaseCosts?: Record<string, number>, // <-- ADD THIS
+  diamondTiers?: DiamondPricingTier[]
 ): number => {
   // We can just use the breakdown function to keep the math DRY!
   return getPriceBreakdownItem(
@@ -208,7 +210,9 @@ export const calculateJewelleryPriceSyncItem = (
     diamondQuality, 
     globalGoldMakingCharges, 
     goldPricePerGram, 
-    gstRate
+    gstRate,
+    diamondBaseCosts, // <-- ADD THIS
+    diamondTiers
   ).total;
 };
 

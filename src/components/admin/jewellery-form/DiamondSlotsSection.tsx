@@ -8,12 +8,16 @@ interface DiamondSlotsSectionProps {
   diamondSlots: DiamondSlot[];
   setDiamondSlots: (slots: DiamondSlot[]) => void;
   uploading: boolean;
+  overrideDiamondCosts?: boolean; // <-- ADD THIS
+  setOverrideDiamondCosts: (override: boolean) => void; // <-- ADD THIS
 }
 
 export function DiamondSlotsSection({ 
   diamondSlots, 
   setDiamondSlots, 
-  uploading 
+  uploading,
+  overrideDiamondCosts, // <-- ADD THIS
+  setOverrideDiamondCosts
 }: DiamondSlotsSectionProps) {
   
   const addDiamondSlot = () => {
@@ -120,8 +124,8 @@ export function DiamondSlotsSection({
                 <input
                   type="checkbox"
                   id="overrideDiamondPricing"
-                  checked={formData.override_diamond_costs !== false} // Defaults to true
-                  onChange={(e) => setFormData({ ...formData, override_diamond_costs: e.target.checked })}
+                  checked={overrideDiamondCosts !== false} // <-- FIX THIS
+                  onChange={(e) => setOverrideDiamondCosts(e.target.checked)} // <-- FIX THIS
                   className="h-4 w-4 text-purple-600 rounded"
                 />
                 <label htmlFor="overrideDiamondPricing" className="text-sm font-semibold text-purple-900 cursor-pointer">
@@ -129,7 +133,7 @@ export function DiamondSlotsSection({
                 </label>
               </div>
               {/* Cost per Carat for each Quality */}
-              {formData.override_diamond_costs !== false ? (
+              {overrideDiamondCosts !== false ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {DIAMOND_QUALITIES.map((quality) => (
                   <div key={quality}>

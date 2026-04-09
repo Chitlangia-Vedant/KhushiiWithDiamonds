@@ -35,6 +35,13 @@ export function JewelleryForm({
     gold_weight: editingItem?.gold_weight || 0,
     making_charges_per_gram: editingItem?.making_charges_per_gram || 500, 
     base_price: editingItem?.base_price || 0,
+    
+    // --- ADD THESE TWO LINES ---
+    // If editing, load saved diamonds. If new, start with an empty array.
+    diamonds: editingItem?.diamonds || ([] as DiamondSlot[]), 
+    
+    // Use ?? instead of || so that if the database explicitly says 'false', it doesn't accidentally become 'true'
+    override_diamond_costs: editingItem?.override_diamond_costs ?? true,
   });
 
   // Initialize diamond slots from editing item
@@ -43,7 +50,7 @@ export function JewelleryForm({
     return editingItem?.diamonds || [];
   };
 
-  const [diamondSlots, setDiamondSlots] = useState<DiamondSlot[]>(initializeDiamondSlots());
+  const [diamondSlots] = useState<DiamondSlot[]>(initializeDiamondSlots());
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [currentImages, setCurrentImages] = useState<string[]>(editingItem?.image_url || []);
   const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
@@ -197,9 +204,11 @@ export function JewelleryForm({
             />
 
             <DiamondSlotsSection
-              diamondSlots={diamondSlots}
-              setDiamondSlots={setDiamondSlots}
+              diamondSlots={formData.diamonds}
+              setDiamondSlots={(slots) => setFormData({ ...formData, diamonds: slots })}
               uploading={uploading}
+              overrideDiamondCosts={formData.override_diamond_costs}
+              setOverrideDiamondCosts={(val) => setFormData({ ...formData, override_diamond_costs: val })}
             />
 
             <div>

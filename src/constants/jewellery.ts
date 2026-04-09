@@ -8,18 +8,13 @@ export const GOLD_QUALITIES = [
 export const DEFAULT_MAKING_CHARGES = 500;
 
 // Centralized Diamond Options
-export const DIAMOND_QUALITIES = [
-  'Lab Grown',
-  'GH/VS-SI',
-  'FG/VVS-SI',
-  'EF/VVS'
-] as const;
-
+export const DIAMOND_QUALITIES = ['EF/VVS', 'FG/VVS-SI', 'GH/VS-SI', 'Lab Grown'] as const;
 export type DiamondQuality = typeof DIAMOND_QUALITIES[number];
 
+// Update default costs to match
 export const DEFAULT_DIAMOND_COSTS: Record<DiamondQuality, number> = {
-  'Lab Grown': 15000,
-  'GH/VS-SI': 25000,
-  'FG/VVS-SI': 35000,
-  'EF/VVS': 50000
+  'EF/VVS': 0,
+  'FG/VVS-SI': 0,
+  'GH/VS-SI': 0,
+  'Lab Grown': 0
 };

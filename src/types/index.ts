@@ -21,6 +21,7 @@ export type JewelleryItem = {
   gold_weight: number;
   diamonds: DiamondSlot[];
   making_charges_per_gram: number;
+  override_diamond_costs?: boolean;
   base_price: number;
   created_at: string;
   updated_at: string;
@@ -41,4 +42,14 @@ export type AdminSetting = {
   setting_value: string;
   description: string;
   updated_at: string;
+};
+
+export type DiamondPricingTier = {
+  id?: string;
+  min_carat: number;
+  max_carat: number;
+  ef_vvs_offset: number;
+  fg_vvs_si_offset: number;
+  gh_vs_si_offset: number;
+  lab_grown_offset: number;
 };

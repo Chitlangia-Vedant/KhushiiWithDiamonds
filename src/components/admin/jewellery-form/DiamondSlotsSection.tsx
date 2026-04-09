@@ -116,8 +116,20 @@ export function DiamondSlotsSection({
                   disabled={uploading}
                 />
               </div>
-
+              <div className="flex items-center space-x-2 bg-purple-50 p-3 rounded-md border border-purple-200 mb-4">
+                <input
+                  type="checkbox"
+                  id="overrideDiamondPricing"
+                  checked={formData.override_diamond_costs !== false} // Defaults to true
+                  onChange={(e) => setFormData({ ...formData, override_diamond_costs: e.target.checked })}
+                  className="h-4 w-4 text-purple-600 rounded"
+                />
+                <label htmlFor="overrideDiamondPricing" className="text-sm font-semibold text-purple-900 cursor-pointer">
+                  Override Global Pricing (Set Custom Manual Costs)
+                </label>
+              </div>
               {/* Cost per Carat for each Quality */}
+              {formData.override_diamond_costs !== false ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {DIAMOND_QUALITIES.map((quality) => (
                   <div key={quality}>
@@ -140,6 +152,11 @@ export function DiamondSlotsSection({
                   </div>
                 ))}
               </div>
+              ) : (
+              <div className="mt-2 text-sm text-purple-600 bg-purple-50 p-2 rounded italic">
+                Costs will be calculated automatically based on the Universal Pricing Grid.
+              </div>
+              )}
             </div>
           ))}
           

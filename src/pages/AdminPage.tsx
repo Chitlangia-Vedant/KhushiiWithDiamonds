@@ -6,7 +6,8 @@ import { AdminLogin } from '../components/AdminLogin';
 import { AdminItemsTab } from '../components/admin/AdminItemsTab';
 import { AdminCategoriesTab } from '../components/admin/AdminCategoriesTab';
 import { AdminSettingsTab } from '../components/admin/AdminSettingsTab';
-import { LogOut, Shield, Folder, Package, Settings, Sparkles } from 'lucide-react';
+import { AdminDiamondsTab } from '../components/admin/AdminDiamondsTab';
+import { LogOut, Shield, Folder, Package, Settings, Sparkles, Gem } from 'lucide-react';
 import { useGoldPrice } from '../hooks/useGoldPrice';
 import { useAdminSettings } from '../hooks/useAdminSettings';
 import { useCategories } from '../hooks/useCategories';
@@ -19,10 +20,19 @@ export function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<JewelleryItem[]>([]);
-  const [activeTab, setActiveTab] = useState<'items' | 'categories' | 'settings'>('items');
+  const [activeTab, setActiveTab] = useState<'items' | 'categories' | 'settings'| 'diamonds'>('items');
   
   const { goldPrice } = useGoldPrice();
-  const { fallbackGoldPrice, gstRate, overrideLiveGoldPrice, globalGoldMakingCharges, updateSetting } = useAdminSettings();
+  const { 
+      fallbackGoldPrice, 
+      gstRate, 
+      overrideLiveGoldPrice, 
+      globalGoldMakingCharges, 
+      updateSetting,
+      diamondBaseCosts,    // <-- Grab it here!
+      diamondTiers,        // <-- Grab it here!
+      saveDiamondPricing   // <-- Grab it here!
+    } = useAdminSettings();
 
   useEffect(() => {
     checkAuthStatus();
@@ -106,7 +116,8 @@ export function AdminPage() {
               {[
                 { key: 'items', icon: Package, label: `Items (${items.length})` },
                 { key: 'categories', icon: Folder, label: `Categories (${categories.length})` },
-                { key: 'settings', icon: Settings, label: 'Settings' }
+                { key: 'settings', icon: Settings, label: 'Settings' },
+                { key: 'diamonds', icon: Gem, label: 'Diamond Pricing' }
               ].map(({ key, icon: Icon, label }) => (
                 <button
                   key={key}
@@ -193,6 +204,9 @@ export function AdminPage() {
             globalGoldMakingCharges={globalGoldMakingCharges} // <-- NEW
             updateSetting={updateSetting}
           />
+        )}
+        {activeTab === 'diamonds' && (
+          <AdminDiamondsTab initialBaseCosts={diamondBaseCosts} initialTiers={diamondTiers} saveDiamondPricing={saveDiamondPricing} />
         )}
       </div>
     </div>

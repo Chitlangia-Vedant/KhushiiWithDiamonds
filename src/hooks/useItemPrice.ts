@@ -6,11 +6,20 @@ import { JewelleryItem } from '../types';
 
 export function useItemPrice(item: JewelleryItem) {
   const { goldPrice } = useGoldPrice();
-  const { globalGoldMakingCharges } = useAdminSettings();
+  
+  // 1. Grab the diamond grid variables!
+  const { globalGoldMakingCharges, diamondBaseCosts, diamondTiers } = useAdminSettings();
   const { globalGoldPurity, globalDiamondQuality } = useQualityContext();
 
-  // Returns the RAW object, exactly like you suggested!
+  // 2. Pass them to the breakdown function
   return getPriceBreakdownItem(
-    item, globalGoldPurity, globalDiamondQuality, globalGoldMakingCharges, goldPrice
+    item, 
+    globalGoldPurity, 
+    globalDiamondQuality, 
+    globalGoldMakingCharges, 
+    goldPrice, 
+    0.18, 
+    diamondBaseCosts, // <-- Added
+    diamondTiers      // <-- Added
   );
 }

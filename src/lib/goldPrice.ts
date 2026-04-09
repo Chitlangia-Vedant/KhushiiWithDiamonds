@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Diamond, JewelleryItem } from '../types/index';
+import { Diamond, JewelleryItem, DiamondPricingTier } from '../types/index';
 import { DiamondQuality } from '../constants/jewellery';
 
 
@@ -149,14 +149,36 @@ export const getPriceBreakdownItem = (
   diamondQuality: DiamondQuality | null,
   globalGoldMakingCharges: number, 
   goldPricePerGram: number,
-  gstRate: number = 0.18
+  gstRate: number = 0.18,
+  diamondBaseCosts?: Record<string, number>, // Pass these in from your hook!
+  diamondTiers?: DiamondPricingTier[]
 ) => {
-  // 1. Map the diamonds into the flat array expected by the base function
-  const mappedDiamonds = item.diamonds?.map(slot => ({
-    name: slot.name || 'Diamond',
-    carat: slot.carat,
-    cost_per_carat: diamondQuality && slot.costs ? (slot.costs[diamondQuality] || 0) : 0
-  })) || [];
+  const getOffsetKey = (q: string): keyof DiamondPricingTier => {
+    if (q === 'Lab Grown') return 'lab_grown_offset';
+    if (q === 'GH/VS-SI') return 'gh_vs_si_offset';
+    if (q === 'FG/VVS-SI') return 'fg_vvs_si_offset';
+    return 'ef_vvs_offset'; 
+  };
+
+  const mappedDiamonds = item.diamonds?.map(slot => {
+    let cost_per_carat = 0;
+    const isOverride = item.override_diamond_costs !== false; 
+
+    if (isOverride) {
+      // Manual mode
+      cost_per_carat = diamondQuality && slot.costs ? (slot.costs[diamondQuality] || 0) : 0;
+    } else if (diamondBaseCosts && diamondTiers && diamondQuality) {
+      // Grid Mode
+      const baseCost = diamondBaseCosts[diamondQuality] || 0;
+      const matchingTier = diamondTiers.find(t => slot.carat >= t.min_carat && slot.carat <= t.max_carat);
+      const offsetKey = getOffsetKey(diamondQuality);
+      const offset = matchingTier ? (Number(matchingTier[offsetKey]) || 0) : 0;
+      
+      cost_per_carat = baseCost + offset;
+    }
+
+    return { name: slot.name || 'Diamond', carat: slot.carat, cost_per_carat };
+  }) || [];
 
   // 2. Pass everything into the master math engine!
   return getPriceBreakdown(

@@ -1,6 +1,6 @@
 import React from 'react';
 import { DiamondSlot } from '../../../types';
-import { Gem, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { formatCurrency } from '../../../lib/goldPrice';
 import { DIAMOND_QUALITIES, DEFAULT_DIAMOND_COSTS, DiamondQuality } from '../../../constants/jewellery';
 
@@ -24,63 +24,62 @@ export function DiamondSlotsSection({
   const removeDiamondSlot = (index: number) => setDiamondSlots(diamondSlots.filter((_, i) => i !== index));
 
   return (
-    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-      <div className="flex justify-between items-center mb-2">
-        <h3 className="text-md font-semibold text-blue-800 flex items-center">
-          <Gem className="h-4 w-4 mr-2" /> Diamond Configuration
+    <div className="bg-white border border-gray-200 rounded-lg p-4">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider flex items-center">
+          <span className="w-2 h-2 bg-blue-400 rounded-full mr-2"></span> Diamond Config
         </h3>
-        <button type="button" onClick={addDiamondSlot} disabled={uploading} className="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 flex items-center space-x-1 text-xs">
-          <Plus className="h-3 w-3" /> <span>Add Diamond</span>
+        <button type="button" onClick={addDiamondSlot} disabled={uploading} className="text-blue-600 hover:text-blue-800 flex items-center text-xs font-semibold">
+          <Plus className="h-3 w-3 mr-1" /> Add Diamond
         </button>
       </div>
 
       {diamondSlots.length > 0 && (
-        <div className="space-y-3 mt-3">
+        <div className="space-y-4">
           {diamondSlots.map((slot, index) => (
-            <div key={index} className="bg-white border border-blue-200 rounded p-3">
-              <div className="flex justify-between items-center mb-2">
-                <input
-                  type="text" value={slot.name || ''} onChange={(e) => updateDiamondSlot(index, 'name', e.target.value)}
-                  className="font-semibold text-blue-800 text-sm bg-transparent border-b border-transparent hover:border-blue-200 focus:border-blue-500 focus:outline-none focus:ring-0 px-1 w-1/2 md:w-1/3"
-                  placeholder={`Diamond ${index + 1}`} disabled={uploading}
-                />
-                <button type="button" onClick={() => removeDiamondSlot(index)} className="text-red-500 hover:text-red-700 p-1" disabled={uploading}><Trash2 className="h-4 w-4" /></button>
+            <div key={index} className="border border-gray-100 bg-gray-50/50 rounded p-3">
+              
+              {/* PRIMARY ROW: Name, Carat, Toggle, Delete */}
+              <div className="flex flex-wrap md:flex-nowrap items-end gap-3">
+                <div className="flex-grow">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Name</label>
+                  <input type="text" value={slot.name || ''} onChange={(e) => updateDiamondSlot(index, 'name', e.target.value)} className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 text-sm" placeholder="e.g. Center Stone" disabled={uploading} />
+                </div>
+                <div className="w-24">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Carat</label>
+                  <input type="number" step="0.01" value={slot.carat} onChange={(e) => updateDiamondSlot(index, 'carat', parseFloat(e.target.value) || 0)} className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 text-sm" disabled={uploading} />
+                </div>
+                <div className="w-auto flex items-center mb-2 px-2">
+                  <input type="checkbox" id={`override-${index}`} checked={overrideDiamondCosts !== false} onChange={(e) => setOverrideDiamondCosts(e.target.checked)} className="h-3.5 w-3.5 text-gray-800 rounded border-gray-300" />
+                  <label htmlFor={`override-${index}`} className="text-xs text-gray-600 ml-1.5 cursor-pointer whitespace-nowrap">Manual Cost</label>
+                </div>
+                <button type="button" onClick={() => removeDiamondSlot(index)} className="mb-2 text-gray-400 hover:text-red-500"><Trash2 className="h-4 w-4" /></button>
               </div>
 
-              <div className="mb-3">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Carat Weight</label>
-                <input type="number" step="0.01" value={slot.carat} onChange={(e) => updateDiamondSlot(index, 'carat', parseFloat(e.target.value) || 0)} className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500" disabled={uploading} />
-              </div>
-
-              <div className="flex items-center space-x-2 bg-purple-50 px-2 py-1.5 rounded border border-purple-200 mb-2">
-                <input type="checkbox" id="overrideDiamondPricing" checked={overrideDiamondCosts !== false} onChange={(e) => setOverrideDiamondCosts(e.target.checked)} className="h-3 w-3 text-purple-600 rounded" />
-                <label htmlFor="overrideDiamondPricing" className="text-xs font-semibold text-purple-900 cursor-pointer">Override Global Pricing</label>
-              </div>
-
+              {/* OVERRIDE GRID (Only visible if manually entering costs) */}
               {overrideDiamondCosts !== false && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 pt-3 border-t border-gray-200">
                   {DIAMOND_QUALITIES.map((quality) => (
                     <div key={quality}>
-                      <label className="block text-[10px] font-medium text-gray-600 mb-0.5">{quality} (₹/ct)</label>
-                      <input type="number" value={slot.costs[quality]} onChange={(e) => updateDiamondCost(index, quality, parseFloat(e.target.value) || 0)} className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500" disabled={uploading} />
+                      <label className="block text-[10px] text-gray-500 mb-0.5">{quality} (₹/ct)</label>
+                      <input type="number" value={slot.costs[quality]} onChange={(e) => updateDiamondCost(index, quality, parseFloat(e.target.value) || 0)} className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-gray-400" disabled={uploading} />
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* THE NEW BREAKDOWN BAR FOR EACH DIAMOND */}
+              {/* BREAKDOWN */}
               {slot.carat > 0 && pricing?.diamonds?.[index] && (
-                <div className="mt-3 text-xs font-medium text-blue-800 bg-blue-100/50 border border-blue-200 p-2 rounded flex justify-between">
-                  <span>Price ({previewDiamondQuality}):</span>
-                  <span>{slot.carat}ct × {formatCurrency(pricing.diamonds[index].cost_per_carat)}/ct = {formatCurrency(slot.carat * pricing.diamonds[index].cost_per_carat)}</span>
+                <div className="mt-3 text-[11px] text-gray-500 flex justify-end">
+                  <span className="font-semibold text-gray-700 mr-1">{previewDiamondQuality}:</span> {slot.carat}ct × {formatCurrency(pricing.diamonds[index].cost_per_carat)} = {formatCurrency(slot.carat * pricing.diamonds[index].cost_per_carat)}
                 </div>
               )}
             </div>
           ))}
           
-          {/* THE NEW SECTION TOTAL BAR */}
-          <div className="bg-blue-100 border border-blue-300 rounded px-3 py-2 flex justify-between text-sm font-bold text-blue-900 mt-3">
-            <span>Total Diamond Cost ({previewDiamondQuality}):</span> 
+          {/* TOTAL */}
+          <div className="pt-2 border-t border-gray-200 flex justify-between text-xs font-bold text-gray-800">
+            <span>Total Diamonds ({previewDiamondQuality}):</span> 
             <span>{formatCurrency(pricing?.diamondCost || 0)}</span>
           </div>
         </div>

@@ -18,20 +18,20 @@ export function PricePreviewSection({
 }: PricePreviewSectionProps) {
 
   return (
-    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mt-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 space-y-2 md:space-y-0">
-        <h3 className="text-lg font-semibold text-gray-800">Live Price Preview</h3>
+    <div className="border border-gray-200 rounded-lg p-5 mt-6 bg-white shadow-sm">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-4 pb-3 border-b border-gray-100 gap-3">
+        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Final Preview</h3>
         <div className="flex space-x-2">
           <select 
             value={previewGoldPurity} onChange={(e) => setPreviewGoldPurity(e.target.value)}
-            className="text-xs border border-gray-300 rounded px-2 py-1 font-medium bg-white focus:ring-1 focus:ring-yellow-500"
+            className="text-xs border border-gray-300 rounded px-2 py-1 font-medium bg-gray-50 focus:ring-0 cursor-pointer"
           >
             {['14K', '18K', '22K', '24K'].map(q => <option key={q} value={q}>{q} Gold</option>)}
           </select>
           {mockItem.diamonds.length > 0 && (
             <select 
               value={previewDiamondQuality} onChange={(e) => setPreviewDiamondQuality(e.target.value as DiamondQuality)}
-              className="text-xs border border-gray-300 rounded px-2 py-1 font-medium bg-white focus:ring-1 focus:ring-blue-500"
+              className="text-xs border border-gray-300 rounded px-2 py-1 font-medium bg-gray-50 focus:ring-0 cursor-pointer"
             >
               {DIAMOND_QUALITIES.map(q => <option key={q} value={q}>{q}</option>)}
             </select>
@@ -39,42 +39,33 @@ export function PricePreviewSection({
         </div>
       </div>
       
-      <div className="space-y-2 text-sm text-gray-600">
-        <div className="flex justify-between">
-          <span>Gold Value ({previewGoldPurity}):</span>
-          <span>{formatCurrency(pricing.goldValue)}</span>
-        </div>
+      <div className="space-y-1.5 text-sm text-gray-600">
+        <div className="flex justify-between"><span>Gold Value:</span> <span className="font-medium text-gray-900">{formatCurrency(pricing.goldValue)}</span></div>
+        
         {pricing.diamondCost > 0 && (
           <div className="flex justify-between">
-            <span>Diamond Cost ({previewDiamondQuality}) {mockItem.override_diamond_costs ? '(Manual)' : '(Grid)'}:</span>
-            <span>{formatCurrency(pricing.diamondCost)}</span>
+            <span>Diamonds {mockItem.override_diamond_costs ? '(Manual)' : '(Grid)'}:</span> 
+            <span className="font-medium text-gray-900">{formatCurrency(pricing.diamondCost)}</span>
           </div>
         )}
+        
         {pricing.otherStonesCost > 0 && (
-          <div className="flex justify-between">
-            <span>Other Stones:</span>
-            <span>{formatCurrency(pricing.otherStonesCost)}</span>
-          </div>
+          <div className="flex justify-between"><span>Other Stones:</span> <span className="font-medium text-gray-900">{formatCurrency(pricing.otherStonesCost)}</span></div>
         )}
-        <div className="flex justify-between">
-          <span>Making Charges:</span>
-          <span>{formatCurrency(pricing.makingCharges)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span>Base Markup:</span>
-          <span>{formatCurrency(pricing.basePrice)}</span>
-        </div>
-        <div className="flex justify-between text-gray-400 border-t pt-2 mt-2">
-          <span>Subtotal:</span>
-          <span>{formatCurrency(pricing.subtotal)}</span>
+        
+        <div className="flex justify-between"><span>Making Charges:</span> <span className="font-medium text-gray-900">{formatCurrency(pricing.makingCharges)}</span></div>
+        <div className="flex justify-between"><span>Base Price:</span> <span className="font-medium text-gray-900">{formatCurrency(pricing.basePrice)}</span></div>
+        
+        <div className="flex justify-between text-gray-400 pt-2 mt-2 border-t border-gray-50">
+          <span>Subtotal:</span> <span>{formatCurrency(pricing.subtotal)}</span>
         </div>
         <div className="flex justify-between text-gray-400">
-          <span>GST ({(gstRate * 100).toFixed(0)}%):</span>
-          <span>{formatCurrency(pricing.gst)}</span>
+          <span>GST ({(gstRate * 100).toFixed(0)}%):</span> <span>{formatCurrency(pricing.gst)}</span>
         </div>
-        <div className="flex justify-between font-bold text-gray-900 text-lg border-t pt-2 mt-2">
-          <span>Final Total:</span>
-          <span className="text-yellow-600">{formatCurrency(pricing.total)}</span>
+        
+        <div className="flex justify-between font-bold text-lg pt-3 mt-3 border-t border-gray-200">
+          <span className="text-gray-900">Total</span>
+          <span className="text-gray-900">{formatCurrency(pricing.total)}</span>
         </div>
       </div>
     </div>

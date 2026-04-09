@@ -79,35 +79,6 @@ const purityMultipliers = {
   '14K': 0.600, '18K': 0.780, '24K': 1.000
 };
 
-// Updated function to handle multiple diamond qualities
-export const calculateJewelleryPriceSync = (
-  basePrice: number,
-  goldWeight: number,
-  goldQuality: string,
-  diamondsData: { diamonds: Diamond[], quality: DiamondQuality | null },
-  globalGoldMakingCharges: number,
-  makingChargesPerGram: number,
-  goldPricePerGram: number,
-  gstRate: number = 0.18
-): number => {
-  const purity = purityMultipliers[goldQuality as keyof typeof purityMultipliers] || 0.583;
-  const goldValue = goldWeight * goldPricePerGram * purity;
-  
-  const totalDiamondCost = diamondsData.diamonds.reduce((total, diamond) => {
-    return total + (diamond.carat * diamond.cost_per_carat);
-  }, 0);
-  
-  const effectiveMakingCharges = makingChargesPerGram === -1 
-    ? globalGoldMakingCharges 
-    : makingChargesPerGram;
-
-  const makingCharges = goldWeight * effectiveMakingCharges;
-  const subtotal = goldValue + totalDiamondCost + makingCharges + basePrice;
-  
-  return subtotal * (1 + gstRate);
-};
-
-
 export const getPriceBreakdown = (
   basePrice: number,
   goldWeight: number,
@@ -145,9 +116,60 @@ export const getPriceBreakdown = (
   };
 };
 
+export const calculateJewelleryPriceSync = (
+  basePrice: number,
+  goldWeight: number,
+  goldQuality: string,
+  diamondsData: { diamonds: Diamond[], quality: DiamondQuality | null },
+  globalGoldMakingCharges: number,
+  makingChargesPerGram: number,
+  goldPricePerGram: number,
+  gstRate: number = 0.18
+): number => {
+  // THE FIX: Let the breakdown function do all the heavy lifting!
+  return getPriceBreakdown(
+    basePrice, 
+    goldWeight, 
+    goldQuality, 
+    diamondsData, 
+    globalGoldMakingCharges, 
+    makingChargesPerGram, 
+    goldPricePerGram, 
+    gstRate
+  ).total;
+};
+
 // ------------------------------------------------------------------
 // 2. FULL ITEM FUNCTIONS (Best for Storefront & Tables)
 // ------------------------------------------------------------------
+
+export const getPriceBreakdownItem = (
+  item: JewelleryItem, 
+  goldQuality: string,
+  diamondQuality: DiamondQuality | null,
+  globalGoldMakingCharges: number, 
+  goldPricePerGram: number,
+  gstRate: number = 0.18
+) => {
+  // 1. Map the diamonds into the flat array expected by the base function
+  const mappedDiamonds = item.diamonds?.map(slot => ({
+    name: slot.name || 'Diamond',
+    carat: slot.carat,
+    cost_per_carat: diamondQuality && slot.costs ? (slot.costs[diamondQuality] || 0) : 0
+  })) || [];
+
+  // 2. Pass everything into the master math engine!
+  return getPriceBreakdown(
+    item.base_price,
+    item.gold_weight,
+    goldQuality,
+    { diamonds: mappedDiamonds, quality: diamondQuality },
+    globalGoldMakingCharges,
+    item.making_charges_per_gram,
+    goldPricePerGram,
+    gstRate
+  );
+};
 
 export const calculateJewelleryPriceSyncItem = (
   item: JewelleryItem,
@@ -166,49 +188,6 @@ export const calculateJewelleryPriceSyncItem = (
     goldPricePerGram, 
     gstRate
   ).total;
-};
-
-
-export const getPriceBreakdownItem = (
-  item: JewelleryItem, 
-  goldQuality: string,
-  diamondQuality: DiamondQuality | null,
-  globalGoldMakingCharges: number, 
-  goldPricePerGram: number,
-  gstRate: number = 0.18
-) => {
-  const purity = purityMultipliers[goldQuality as keyof typeof purityMultipliers] || 0.583;
-  const goldValue = item.gold_weight * goldPricePerGram * purity;
-  
-  // Map the diamonds dynamically
-  const mappedDiamonds = item.diamonds?.map(slot => ({
-    name: slot.name || 'Diamond',
-    carat: slot.carat,
-    cost_per_carat: diamondQuality && slot.costs ? (slot.costs[diamondQuality] || 0) : 0
-  })) || [];
-
-  const totalDiamondCost = mappedDiamonds.reduce((total, diamond) => {
-    return total + (diamond.carat * diamond.cost_per_carat);
-  }, 0);
-  
-  const effectiveMakingCharges = item.making_charges_per_gram === -1 
-    ? globalGoldMakingCharges 
-    : item.making_charges_per_gram;
-
-  const makingCharges = item.gold_weight * effectiveMakingCharges;
-  const subtotal = goldValue + totalDiamondCost + makingCharges + item.base_price;
-  const gst = subtotal * gstRate;
-
-  return { 
-    goldValue, 
-    diamondCost: totalDiamondCost, 
-    makingCharges, 
-    basePrice: item.base_price, 
-    subtotal, 
-    gst, 
-    total: subtotal + gst,
-    diamonds: mappedDiamonds 
-  };
 };
 
 export const formatCurrency = (amount: number): string => 

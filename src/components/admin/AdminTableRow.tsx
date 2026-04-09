@@ -35,16 +35,7 @@ export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
   // FIX 2: Use your safe utility function instead of the broken Record lookup!
   const diamondsData = getDiamondsForQuality(item, globalDiamondQuality as DiamondQuality);
 
-  const pricing = getPriceBreakdown(
-    item.base_price,
-    item.gold_weight,
-    globalGoldPurity, // from your QualityContext
-    diamondsData,
-    globalGoldMakingCharges, // from useAdminSettings hook
-    item.making_charges_per_gram,
-    goldPrice // from useGoldPrice hook
-  );
-
+  const pricing = useItemPrice(item);
   // 2. Figure out which rate is active (just for the display label)
   const isGlobalMakingCharge = item.making_charges_per_gram === -1;
   const activeRatePerGram = isGlobalMakingCharge ? globalGoldMakingCharges : item.making_charges_per_gram;

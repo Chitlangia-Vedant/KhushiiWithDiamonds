@@ -1,6 +1,7 @@
 import React from 'react';
 import { DiamondSlot } from '../../../types';
 import { Gem, Plus, Trash2 } from 'lucide-react';
+import { formatCurrency } from '../../../lib/goldPrice';
 import { DIAMOND_QUALITIES, DEFAULT_DIAMOND_COSTS, DiamondQuality } from '../../../constants/jewellery';
 
 interface DiamondSlotsSectionProps {
@@ -9,17 +10,18 @@ interface DiamondSlotsSectionProps {
   uploading: boolean;
   overrideDiamondCosts?: boolean;
   setOverrideDiamondCosts: (override: boolean) => void;
+  pricing?: any;
+  previewDiamondQuality?: string;
 }
 
 export function DiamondSlotsSection({ 
-  diamondSlots, setDiamondSlots, uploading, overrideDiamondCosts, setOverrideDiamondCosts
+  diamondSlots, setDiamondSlots, uploading, overrideDiamondCosts, setOverrideDiamondCosts, pricing, previewDiamondQuality
 }: DiamondSlotsSectionProps) {
   
   const addDiamondSlot = () => setDiamondSlots([...diamondSlots, { name: `Diamond ${diamondSlots.length + 1}`, carat: 0, costs: { ...DEFAULT_DIAMOND_COSTS } }]);
   const updateDiamondSlot = (index: number, field: keyof DiamondSlot, value: number | string) => setDiamondSlots(diamondSlots.map((slot, i) => i === index ? { ...slot, [field]: value } : slot));
   const updateDiamondCost = (index: number, quality: DiamondQuality, cost: number) => setDiamondSlots(diamondSlots.map((slot, i) => i === index ? { ...slot, costs: { ...slot.costs, [quality]: cost } } : slot));
   const removeDiamondSlot = (index: number) => setDiamondSlots(diamondSlots.filter((_, i) => i !== index));
-  const getTotalCarats = () => diamondSlots.reduce((total, slot) => total + slot.carat, 0);
 
   return (
     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
@@ -56,7 +58,7 @@ export function DiamondSlotsSection({
               </div>
 
               {overrideDiamondCosts !== false && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
                   {DIAMOND_QUALITIES.map((quality) => (
                     <div key={quality}>
                       <label className="block text-[10px] font-medium text-gray-600 mb-0.5">{quality} (₹/ct)</label>
@@ -65,11 +67,21 @@ export function DiamondSlotsSection({
                   ))}
                 </div>
               )}
+
+              {/* THE NEW BREAKDOWN BAR FOR EACH DIAMOND */}
+              {slot.carat > 0 && pricing?.diamonds?.[index] && (
+                <div className="mt-3 text-xs font-medium text-blue-800 bg-blue-100/50 border border-blue-200 p-2 rounded flex justify-between">
+                  <span>Price ({previewDiamondQuality}):</span>
+                  <span>{slot.carat}ct × {formatCurrency(pricing.diamonds[index].cost_per_carat)}/ct = {formatCurrency(slot.carat * pricing.diamonds[index].cost_per_carat)}</span>
+                </div>
+              )}
             </div>
           ))}
           
-          <div className="bg-blue-100 border border-blue-300 rounded px-3 py-1.5 flex justify-between text-xs font-medium text-blue-800">
-            <span>Total Diamond Weight:</span> <span>{getTotalCarats().toFixed(2)} carats</span>
+          {/* THE NEW SECTION TOTAL BAR */}
+          <div className="bg-blue-100 border border-blue-300 rounded px-3 py-2 flex justify-between text-sm font-bold text-blue-900 mt-3">
+            <span>Total Diamond Cost ({previewDiamondQuality}):</span> 
+            <span>{formatCurrency(pricing?.diamondCost || 0)}</span>
           </div>
         </div>
       )}

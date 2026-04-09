@@ -1,49 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { DiamondSlot, JewelleryItem } from '../../../types';
-import { useGoldPrice } from '../../../hooks/useGoldPrice';
-import { useAdminSettings } from '../../../hooks/useAdminSettings';
-import { useQualityContext } from '../../../context/QualityContext';
-import { getPriceBreakdownItem, formatCurrency } from '../../../lib/goldPrice';
+import React from 'react';
+import { JewelleryItem } from '../../../types';
+import { formatCurrency } from '../../../lib/goldPrice';
 import { DIAMOND_QUALITIES, DiamondQuality } from '../../../constants/jewellery';
 
 interface PricePreviewSectionProps {
-  formData: any;
-  diamondSlots: DiamondSlot[];
+  mockItem: JewelleryItem;
+  pricing: any;
+  gstRate: number;
+  previewGoldPurity: string;
+  setPreviewGoldPurity: (val: string) => void;
+  previewDiamondQuality: DiamondQuality;
+  setPreviewDiamondQuality: (val: DiamondQuality) => void;
 }
 
-export function PricePreviewSection({ formData, diamondSlots }: PricePreviewSectionProps) {
-  const { goldPrice } = useGoldPrice();
-  const { fallbackGoldPrice, overrideLiveGoldPrice, gstRate, globalGoldMakingCharges, diamondBaseCosts, diamondTiers } = useAdminSettings();
-  const { globalGoldPurity, globalDiamondQuality } = useQualityContext();
-
-  // Local state for the preview dropdowns
-  const [previewGoldPurity, setPreviewGoldPurity] = useState(globalGoldPurity);
-  const [previewDiamondQuality, setPreviewDiamondQuality] = useState<DiamondQuality>(globalDiamondQuality as DiamondQuality);
-
-  useEffect(() => { setPreviewGoldPurity(globalGoldPurity); }, [globalGoldPurity]);
-  useEffect(() => { setPreviewDiamondQuality(globalDiamondQuality as DiamondQuality); }, [globalDiamondQuality]);
-
-  const effectiveGoldPrice = overrideLiveGoldPrice ? fallbackGoldPrice : goldPrice;
-
-  const mockItem = {
-    base_price: parseFloat(formData.base_price) || 0,
-    gold_weight: parseFloat(formData.gold_weight) || 0,
-    making_charges_per_gram: parseFloat(formData.making_charges_per_gram) || -1,
-    diamonds: diamondSlots,
-    other_stones: formData.other_stones,
-    override_diamond_costs: formData.override_diamond_costs !== false
-  } as JewelleryItem;
-
-  const pricing = getPriceBreakdownItem(
-    mockItem,
-    previewGoldPurity,
-    previewDiamondQuality,
-    globalGoldMakingCharges,
-    effectiveGoldPrice,
-    gstRate,
-    diamondBaseCosts,
-    diamondTiers
-  );
+export function PricePreviewSection({ 
+  mockItem, pricing, gstRate, previewGoldPurity, setPreviewGoldPurity, previewDiamondQuality, setPreviewDiamondQuality 
+}: PricePreviewSectionProps) {
 
   return (
     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mt-6">
@@ -51,16 +23,14 @@ export function PricePreviewSection({ formData, diamondSlots }: PricePreviewSect
         <h3 className="text-lg font-semibold text-gray-800">Live Price Preview</h3>
         <div className="flex space-x-2">
           <select 
-            value={previewGoldPurity} 
-            onChange={(e) => setPreviewGoldPurity(e.target.value)}
+            value={previewGoldPurity} onChange={(e) => setPreviewGoldPurity(e.target.value)}
             className="text-xs border border-gray-300 rounded px-2 py-1 font-medium bg-white focus:ring-1 focus:ring-yellow-500"
           >
             {['14K', '18K', '22K', '24K'].map(q => <option key={q} value={q}>{q} Gold</option>)}
           </select>
-          {diamondSlots.length > 0 && (
+          {mockItem.diamonds.length > 0 && (
             <select 
-              value={previewDiamondQuality} 
-              onChange={(e) => setPreviewDiamondQuality(e.target.value as DiamondQuality)}
+              value={previewDiamondQuality} onChange={(e) => setPreviewDiamondQuality(e.target.value as DiamondQuality)}
               className="text-xs border border-gray-300 rounded px-2 py-1 font-medium bg-white focus:ring-1 focus:ring-blue-500"
             >
               {DIAMOND_QUALITIES.map(q => <option key={q} value={q}>{q}</option>)}

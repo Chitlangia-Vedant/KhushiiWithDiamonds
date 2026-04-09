@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { JewelleryItem, DiamondSlot, StoneSlot } from '../../types';
 import { Save, X, Loader } from 'lucide-react';
 import { JewelleryDetailsSection } from './jewellery-form/JewelleryDetailsSection';
@@ -7,11 +7,16 @@ import { GoldSpecificationsSection } from './jewellery-form/GoldSpecificationsSe
 import { DiamondSlotsSection } from './jewellery-form/DiamondSlotsSection';
 import { PricePreviewSection } from './jewellery-form/PricePreviewSection';
 import { ImagePreviewModal } from './jewellery-form/ImagePreviewModal';
-import { formatCurrency } from '../../lib/goldPrice';
-import { DIAMOND_QUALITIES } from '../../constants/jewellery';
+import { formatCurrency, getPriceBreakdownItem } from '../../lib/goldPrice';
+import { DIAMOND_QUALITIES, DiamondQuality } from '../../constants/jewellery';
 import { uploadJewelleryImages, deleteDriveImages, updateJewelleryDriveMetadata } from '../../utils/uploadUtils';
 import { useCategories } from '../../hooks/useCategories';
 import { OtherStonesSection } from './jewellery-form/OtherStonesSection';
+
+// --- ADD THESE NEW IMPORTS ---
+import { useGoldPrice } from '../../hooks/useGoldPrice';
+import { useAdminSettings } from '../../hooks/useAdminSettings';
+import { useQualityContext } from '../../context/QualityContext';
 
 interface JewelleryFormProps {
   editingItem: JewelleryItem | null;
@@ -19,14 +24,22 @@ interface JewelleryFormProps {
   onCancel: () => void;
 }
 
-export function JewelleryForm({ 
-  editingItem, 
-  onSubmit, 
-  onCancel 
-}: JewelleryFormProps) {
+export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryFormProps) {
   const { categories } = useCategories();
   const [uploading, setUploading] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  // --- LIFTED MATH ENGINE & STATE ---
+  const { goldPrice } = useGoldPrice();
+  const { fallbackGoldPrice, overrideLiveGoldPrice, gstRate, globalGoldMakingCharges, diamondBaseCosts, diamondTiers } = useAdminSettings();
+  const { globalGoldPurity, globalDiamondQuality } = useQualityContext();
+
+  const [previewGoldPurity, setPreviewGoldPurity] = useState(globalGoldPurity);
+  const [previewDiamondQuality, setPreviewDiamondQuality] = useState<DiamondQuality>(globalDiamondQuality as DiamondQuality);
+
+  // Ensure dropdowns stay synced if global context loads late
+  useEffect(() => { setPreviewGoldPurity(globalGoldPurity); }, [globalGoldPurity]);
+  useEffect(() => { setPreviewDiamondQuality(globalDiamondQuality as DiamondQuality); }, [globalDiamondQuality]);
 
   const [formData, setFormData] = useState({
     name: editingItem?.name || '', 
@@ -43,6 +56,22 @@ export function JewelleryForm({
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [currentImages, setCurrentImages] = useState<string[]>(editingItem?.image_url || []);
   const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
+
+  // --- CALCULATE LIVE PRICING TO PASS DOWN TO SECTIONS ---
+  const effectiveGoldPrice = overrideLiveGoldPrice ? fallbackGoldPrice : goldPrice;
+  const mockItem = {
+    base_price: parseFloat(formData.base_price?.toString() || '0'),
+    gold_weight: parseFloat(formData.gold_weight?.toString() || '0'),
+    making_charges_per_gram: parseFloat(formData.making_charges_per_gram?.toString() || '-1'),
+    diamonds: formData.diamonds,
+    other_stones: formData.other_stones,
+    override_diamond_costs: formData.override_diamond_costs !== false
+  } as JewelleryItem;
+
+  const pricing = getPriceBreakdownItem(
+    mockItem, previewGoldPurity, previewDiamondQuality, globalGoldMakingCharges, 
+    effectiveGoldPrice, gstRate, diamondBaseCosts, diamondTiers
+  );
 
   // Function to generate a highly readable, structured description for Google Drive
   const generateItemDescription = (): string => {
@@ -193,22 +222,18 @@ export function JewelleryForm({
             />
 
             <GoldSpecificationsSection
-              formData={formData}
-              setFormData={setFormData}
-              uploading={uploading}
+              formData={formData} setFormData={setFormData} uploading={uploading}
+              pricing={pricing} previewGoldPurity={previewGoldPurity} // <-- NEW
             />
 
             <DiamondSlotsSection
-              diamondSlots={formData.diamonds}
-              setDiamondSlots={(slots) => setFormData({ ...formData, diamonds: slots })}
-              uploading={uploading}
-              overrideDiamondCosts={formData.override_diamond_costs}
-              setOverrideDiamondCosts={(val) => setFormData({ ...formData, override_diamond_costs: val })}
+              diamondSlots={formData.diamonds} setDiamondSlots={(slots) => setFormData({ ...formData, diamonds: slots })}
+              uploading={uploading} overrideDiamondCosts={formData.override_diamond_costs} setOverrideDiamondCosts={(val) => setFormData({ ...formData, override_diamond_costs: val })}
+              pricing={pricing} previewDiamondQuality={previewDiamondQuality} // <-- NEW
             />
             
             <OtherStonesSection
-              otherStones={formData.other_stones}
-              setOtherStones={(stones) => setFormData({ ...formData, other_stones: stones })}
+              otherStones={formData.other_stones} setOtherStones={(stones) => setFormData({ ...formData, other_stones: stones })}
               uploading={uploading}
             />
 
@@ -230,8 +255,9 @@ export function JewelleryForm({
             </div>
 
             <PricePreviewSection
-              formData={formData}
-              diamondSlots={formData.diamonds}
+              mockItem={mockItem} pricing={pricing} gstRate={gstRate} // <-- NEW
+              previewGoldPurity={previewGoldPurity} setPreviewGoldPurity={setPreviewGoldPurity} 
+              previewDiamondQuality={previewDiamondQuality} setPreviewDiamondQuality={setPreviewDiamondQuality}
             />
 
             <div className="flex space-x-4 pt-4">

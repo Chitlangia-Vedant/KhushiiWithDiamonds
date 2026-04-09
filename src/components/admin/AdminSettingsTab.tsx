@@ -71,6 +71,7 @@ export function AdminSettingsTab({
     settingsFormData.fallback_gold_price !== fallbackGoldPrice.toString() ||
     settingsFormData.gst_rate !== (gstRate * 100).toString() ||
     settingsFormData.override_live_gold_price !== overrideLiveGoldPrice;
+    settingsFormData.gold_making_charges !== globalGoldMakingCharges.toString();
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">

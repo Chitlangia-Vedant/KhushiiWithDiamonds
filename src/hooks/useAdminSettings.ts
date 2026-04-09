@@ -67,18 +67,38 @@ export function useAdminSettings() {
   const saveDiamondPricing = async (baseCosts: Record<string, number>, tiers: DiamondPricingTier[]) => {
     try {
       const baseCostUpserts = Object.entries(baseCosts).map(([quality, cost]) => ({
-        setting_key: `${quality}_base_costs`, setting_value: cost.toString()
+        setting_key: `${quality}_base_costs`, 
+        setting_value: cost.toString()
       }));
-      await supabase.from('admin_settings').upsert(baseCostUpserts);
-      await supabase.from('diamond_pricing_tiers').delete().neq('min_carat', -1);
+      
+      // FIX 1: Added the onConflict parameter so Supabase knows how to overwrite!
+      const { error: baseError } = await supabase
+        .from('admin_settings')
+        .upsert(baseCostUpserts, { onConflict: 'setting_key' });
+        
+      if (baseError) throw baseError;
+
+      const { error: deleteError } = await supabase
+        .from('diamond_pricing_tiers')
+        .delete()
+        .neq('min_carat', -1);
+        
+      if (deleteError) throw deleteError;
       
       if (tiers.length > 0) {
         const cleanTiers = tiers.map(({ id, ...rest }) => rest);
-        await supabase.from('diamond_pricing_tiers').insert(cleanTiers);
+        const { error: insertError } = await supabase
+          .from('diamond_pricing_tiers')
+          .insert(cleanTiers);
+          
+        if (insertError) throw insertError;
       }
+      
       await loadSettings(); 
       return true;
     } catch (err) {
+      // FIX 2: Actually log the error so you can see it in F12 Developer Tools
+      console.error('Error saving diamond grid:', err);
       return false;
     }
   };

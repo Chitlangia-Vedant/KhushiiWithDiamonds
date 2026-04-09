@@ -149,10 +149,16 @@ export function JewelleryForm({
       const cleanedDiamonds = diamondSlots.filter(slot => slot.carat > 0);
 
       // 5. Build final data and submit
-      const itemData = {
-        ...formData,
-        diamonds: cleanedDiamonds, // Just pass the JSON array directly!
-        description: formData.description,
+      const itemData: Partial<JewelleryItem> = {
+        name: formData.name,
+        description: formData.description || null,
+        category: formData.category,
+        gold_weight: formData.gold_weight,
+        making_charges_per_gram: formData.making_charges_per_gram,
+        base_price: formData.base_price,
+        diamonds: diamondSlots, // (This was already correct!)
+        // ADD THIS ONE LINE:
+        override_diamond_costs: formData.override_diamond_costs
       };
 
       await onSubmit(itemData, finalImageUrls);

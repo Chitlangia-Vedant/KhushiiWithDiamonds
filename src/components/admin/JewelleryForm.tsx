@@ -192,14 +192,10 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
 
   return (
     <>
-      {/* 1. We move the scrolling (overflow-y-auto) to the black overlay itself! */}
-      <div className="fixed inset-0 z-50 bg-black/60 overflow-y-auto backdrop-blur-sm">
-        
-        {/* 2. min-h-screen ensures it centers on large screens, but lets it stretch naturally on small screens */}
-        <div className="flex min-h-screen items-center justify-center p-4 py-12 sm:p-6">
-          
-          {/* 3. The white box no longer restricts its own height. It just grows! */}
-          <div className="bg-white rounded-xl p-5 sm:p-8 w-full max-w-5xl shadow-2xl relative">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 sm:p-6">
+        {/* FIX: Changed max-h-screen to max-h-[90vh] so it never clips off the bottom! */}
+        <div className="bg-white rounded-lg p-5 sm:p-6 w-full max-w-5xl max-h-[90vh] overflow-y-auto pb-8">
+          <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold">
               {editingItem ? 'Edit Item' : 'Add New Item'}
             </h2>
@@ -208,7 +204,7 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <JewelleryDetailsSection
               formData={formData}
               setFormData={setFormData}

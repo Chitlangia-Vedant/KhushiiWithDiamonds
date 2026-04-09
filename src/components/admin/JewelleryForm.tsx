@@ -190,105 +190,125 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
     }
   };
 
-  return (
+return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 sm:p-6">
-        {/* FIX: Changed max-h-screen to max-h-[90vh] so it never clips off the bottom! */}
-        <div className="bg-white rounded-lg p-5 sm:p-6 w-full max-w-5xl max-h-[90vh] overflow-y-auto pb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">
+      {/* 1. Fixed overlay, no more overall page scrolling */}
+      <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+        
+        {/* 2. Modal Container: Fixed max height, flex column for sticky sections */}
+        <div className="bg-white rounded-xl w-full max-w-6xl shadow-2xl flex flex-col max-h-[95vh] relative">
+          
+          {/* --- STICKY HEADER --- */}
+          <div className="flex justify-between items-center p-5 sm:px-8 sm:py-5 border-b border-gray-200 shrink-0">
+            <h2 className="text-xl font-bold text-gray-800">
               {editingItem ? 'Edit Item' : 'Add New Item'}
             </h2>
-            <button onClick={onCancel} className="text-gray-500 hover:text-gray-700">
+            <button onClick={onCancel} className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100">
               <X className="h-6 w-6" />
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <JewelleryDetailsSection
-              formData={formData}
-              setFormData={setFormData}
-              categories={categories}
-              uploading={uploading}
-            />
+          {/* --- SCROLLABLE BODY --- */}
+          <div className="overflow-y-auto p-5 sm:p-8 flex-1 custom-scrollbar">
+            {/* Split into 2 columns on desktop (lg breakpoint) */}
+            <form id="jewellery-form" onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              
+              {/* LEFT COLUMN: Basics & Visuals */}
+              <div className="space-y-6">
+                <JewelleryDetailsSection
+                  formData={formData}
+                  setFormData={setFormData}
+                  categories={categories}
+                  uploading={uploading}
+                />
 
-            <JewelleryImagesSection
-              selectedImages={selectedImages}
-              setSelectedImages={setSelectedImages}
-              currentImages={currentImages}
-              setCurrentImages={setCurrentImages}
-              imagesToDelete={imagesToDelete}
-              setImagesToDelete={setImagesToDelete}
-              uploading={uploading}
-            />
+                <JewelleryImagesSection
+                  selectedImages={selectedImages}
+                  setSelectedImages={setSelectedImages}
+                  currentImages={currentImages}
+                  setCurrentImages={setCurrentImages}
+                  imagesToDelete={imagesToDelete}
+                  setImagesToDelete={setImagesToDelete}
+                  uploading={uploading}
+                />
+                
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <label className="block text-sm font-semibold text-gray-800 mb-1">Base Price (₹)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={formData.base_price}
+                    onChange={(e) => setFormData({ ...formData, base_price: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500 bg-white"
+                    placeholder="Design complexity, additional stones, etc."
+                    disabled={uploading}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    *Misc costs (Gold, diamond, and making charges calculated separately)
+                  </p>
+                </div>
+              </div>
 
-            <GoldSpecificationsSection
-              formData={formData} setFormData={setFormData} uploading={uploading}
-              pricing={pricing} previewGoldPurity={previewGoldPurity} // <-- NEW
-            />
+              {/* RIGHT COLUMN: Materials & Calculations */}
+              <div className="space-y-6">
+                <GoldSpecificationsSection
+                  formData={formData} setFormData={setFormData} uploading={uploading}
+                  pricing={pricing} previewGoldPurity={previewGoldPurity}
+                />
 
-            <DiamondSlotsSection
-              diamondSlots={formData.diamonds} setDiamondSlots={(slots) => setFormData({ ...formData, diamonds: slots })}
-              uploading={uploading} overrideDiamondCosts={formData.override_diamond_costs} setOverrideDiamondCosts={(val) => setFormData({ ...formData, override_diamond_costs: val })}
-              pricing={pricing} previewDiamondQuality={previewDiamondQuality} // <-- NEW
-            />
-            
-            <OtherStonesSection
-              otherStones={formData.other_stones} setOtherStones={(stones) => setFormData({ ...formData, other_stones: stones })}
-              uploading={uploading}
-            />
+                <DiamondSlotsSection
+                  diamondSlots={formData.diamonds} setDiamondSlots={(slots) => setFormData({ ...formData, diamonds: slots })}
+                  uploading={uploading} overrideDiamondCosts={formData.override_diamond_costs} setOverrideDiamondCosts={(val) => setFormData({ ...formData, override_diamond_costs: val })}
+                  pricing={pricing} previewDiamondQuality={previewDiamondQuality}
+                />
+                
+                <OtherStonesSection
+                  otherStones={formData.other_stones} setOtherStones={(stones) => setFormData({ ...formData, other_stones: stones })}
+                  uploading={uploading}
+                />
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Base Price (₹)</label>
-              <input
-                type="number"
-                step="0.01"
-                required
-                value={formData.base_price}
-                onChange={(e) => setFormData({ ...formData, base_price: parseFloat(e.target.value) || 0 })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500"
-                placeholder="Design complexity, additional stones, etc."
-                disabled={uploading}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                *Additional costs like design complexity, other stones, etc. (Gold, diamond, and making charges calculated separately)
-              </p>
-            </div>
+                <PricePreviewSection
+                  mockItem={mockItem} pricing={pricing} gstRate={gstRate}
+                  previewGoldPurity={previewGoldPurity} setPreviewGoldPurity={setPreviewGoldPurity} 
+                  previewDiamondQuality={previewDiamondQuality} setPreviewDiamondQuality={setPreviewDiamondQuality}
+                />
+              </div>
 
-            <PricePreviewSection
-              mockItem={mockItem} pricing={pricing} gstRate={gstRate} // <-- NEW
-              previewGoldPurity={previewGoldPurity} setPreviewGoldPurity={setPreviewGoldPurity} 
-              previewDiamondQuality={previewDiamondQuality} setPreviewDiamondQuality={setPreviewDiamondQuality}
-            />
+            </form>
+          </div>
 
-            <div className="flex space-x-4 pt-4">
-              <button
-                type="submit"
-                disabled={uploading}
-                className="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {uploading ? (
-                  <>
-                    <Loader className="h-4 w-4 animate-spin" />
-                    <span>Saving...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4" />
-                    <span>{editingItem ? 'Update' : 'Add'} Item</span>
-                  </>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={onCancel}
-                disabled={uploading}
-                className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+          {/* --- STICKY FOOTER --- */}
+          <div className="p-5 sm:px-8 sm:py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex justify-end space-x-4 shrink-0">
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={uploading}
+              className="px-5 py-2 text-gray-700 font-medium rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            {/* Note the use of the "form" attribute to link the button to the form above */}
+            <button
+              type="submit"
+              form="jewellery-form"
+              disabled={uploading}
+              className="bg-yellow-600 text-white px-6 py-2 rounded-md hover:bg-yellow-700 font-medium flex items-center space-x-2 transition-colors disabled:opacity-70 shadow-sm"
+            >
+              {uploading ? (
+                <>
+                  <Loader className="h-4 w-4 animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  <span>{editingItem ? 'Update Item' : 'Save Item'}</span>
+                </>
+              )}
+            </button>
+          </div>
+
         </div>
       </div>
 

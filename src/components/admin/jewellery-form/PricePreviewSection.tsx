@@ -1,156 +1,78 @@
-import React, { useState } from 'react';
-import { DiamondSlot } from '../../../types';
-import { formatCurrency, calculateJewelleryPriceSync } from '../../../lib/goldPrice';
-import { ChevronDown } from 'lucide-react';
-import { DIAMOND_QUALITIES, DiamondQuality } from '../../../constants/jewellery'
+import React from 'react';
+import { DiamondSlot, JewelleryItem } from '../../../types';
 import { useGoldPrice } from '../../../hooks/useGoldPrice';
 import { useAdminSettings } from '../../../hooks/useAdminSettings';
+import { useQualityContext } from '../../../context/QualityContext';
+import { getPriceBreakdownItem, formatCurrency } from '../../../lib/goldPrice';
 
 interface PricePreviewSectionProps {
-  formData: {
-    base_price: number;
-    gold_weight: number;
-    making_charges_per_gram: number;
-  };
+  formData: any;
   diamondSlots: DiamondSlot[];
 }
 
-export function PricePreviewSection({ 
-  formData, 
-  diamondSlots, 
-}: PricePreviewSectionProps) {
+export function PricePreviewSection({ formData, diamondSlots }: PricePreviewSectionProps) {
   const { goldPrice } = useGoldPrice();
-  const { gstRate } = useAdminSettings();
-  const [selectedQuality, setSelectedQuality] = useState<DiamondQuality>('Lab Grown');
-  const [selectedGoldQuality, setSelectedGoldQuality] = useState('14K');
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [showGoldDropdown, setShowGoldDropdown] = useState(false);
-  
-  const totalDiamondWeight = diamondSlots.reduce((sum, slot) => sum + slot.carat, 0);
-  const shouldShowPreview = formData.gold_weight > 0 || formData.base_price > 0 || totalDiamondWeight > 0;
-  
-  if (!shouldShowPreview) {
-    return null;
-  }
+  const { fallbackGoldPrice, overrideLiveGoldPrice, gstRate, globalGoldMakingCharges, diamondBaseCosts, diamondTiers } = useAdminSettings();
+  const { globalGoldPurity, globalDiamondQuality } = useQualityContext();
 
-  // Convert diamond slots to the format expected by price calculation
-  const convertSlotsToQualityDiamonds = (quality: DiamondQuality) => {
-    return diamondSlots.map(slot => ({
-      carat: slot.carat,
-      cost_per_carat: slot.costs[quality]
-    }));
-  };
+  const effectiveGoldPrice = overrideLiveGoldPrice ? fallbackGoldPrice : goldPrice;
 
-  const diamondsData = {
-    diamonds: convertSlotsToQualityDiamonds(selectedQuality),
-    quality: selectedQuality
-  };
+  // Build a "mock" item to feed into your master math engine
+  const mockItem = {
+    base_price: parseFloat(formData.base_price) || 0,
+    gold_weight: parseFloat(formData.gold_weight) || 0,
+    making_charges_per_gram: parseFloat(formData.making_charges_per_gram) || -1,
+    diamonds: diamondSlots,
+    override_diamond_costs: formData.override_diamond_costs !== false
+  } as JewelleryItem;
 
-  const finalPrice = calculateJewelleryPriceSync(
-    formData.base_price, 
-    formData.gold_weight, 
-    selectedGoldQuality,
-    diamondsData, 
-    formData.making_charges_per_gram, 
-    goldPrice, 
-    gstRate
+  // Let the master engine do all the heavy lifting!
+  const pricing = getPriceBreakdownItem(
+    mockItem,
+    globalGoldPurity,
+    globalDiamondQuality,
+    globalGoldMakingCharges,
+    effectiveGoldPrice,
+    gstRate,
+    diamondBaseCosts,
+    diamondTiers
   );
 
   return (
-    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-      <div className="flex justify-between items-center mb-3">
-        <h4 className="text-sm font-medium text-green-800">Live Price Preview</h4>
-        
-        <div className="flex space-x-2">
-          {/* Gold Quality Selector */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowGoldDropdown(!showGoldDropdown)}
-              className="flex items-center space-x-1 text-sm bg-white border border-yellow-300 rounded px-3 py-1 hover:bg-yellow-50"
-            >
-              <span>{selectedGoldQuality}</span>
-              <ChevronDown className="h-3 w-3" />
-            </button>
-            
-            {showGoldDropdown && (
-              <div className="absolute right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-20 min-w-24">
-                {['14K', '18K', '24K'].map((quality) => (
-                  <button
-                    key={quality}
-                    type="button"
-                    onClick={() => {
-                      setSelectedGoldQuality(quality);
-                      setShowGoldDropdown(false);
-                    }}
-                    className={`block w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${
-                      selectedGoldQuality === quality ? 'bg-yellow-50 text-yellow-600' : 'text-gray-700'
-                    }`}
-                  >
-                    {quality}
-                  </button>
-                ))}
-              </div>
-            )}
+    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mt-6">
+      <h3 className="text-lg font-semibold text-gray-800 mb-4">Live Price Preview</h3>
+      <div className="space-y-2 text-sm text-gray-600">
+        <div className="flex justify-between">
+          <span>Gold Value ({globalGoldPurity}):</span>
+          <span>{formatCurrency(pricing.goldValue)}</span>
+        </div>
+        {pricing.diamondCost > 0 && (
+          <div className="flex justify-between">
+            <span>Diamond Cost ({globalDiamondQuality}) {mockItem.override_diamond_costs ? '(Manual)' : '(Grid)'}:</span>
+            <span>{formatCurrency(pricing.diamondCost)}</span>
           </div>
-
-          {/* Diamond Quality Selector */}
-          {diamondSlots.length > 0 && (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowDropdown(!showDropdown)}
-                className="flex items-center space-x-1 text-sm bg-white border border-blue-300 rounded px-3 py-1 hover:bg-blue-50"
-              >
-                <span>{selectedQuality}</span>
-                <ChevronDown className="h-3 w-3" />
-              </button>
-              
-              {showDropdown && (
-                <div className="absolute right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-20 min-w-32">
-                  {DIAMOND_QUALITIES.map((quality) => (
-                    <button
-                      key={quality}
-                      type="button"
-                      onClick={() => {
-                        setSelectedQuality(quality);
-                        setShowDropdown(false);
-                      }}
-                      className={`block w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${
-                        selectedQuality === quality ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
-                      }`}
-                    >
-                      {quality}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+        )}
+        <div className="flex justify-between">
+          <span>Making Charges:</span>
+          <span>{formatCurrency(pricing.makingCharges)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Base Markup:</span>
+          <span>{formatCurrency(pricing.basePrice)}</span>
+        </div>
+        <div className="flex justify-between text-gray-400 border-t pt-2 mt-2">
+          <span>Subtotal:</span>
+          <span>{formatCurrency(pricing.subtotal)}</span>
+        </div>
+        <div className="flex justify-between text-gray-400">
+          <span>GST ({(gstRate * 100).toFixed(0)}%):</span>
+          <span>{formatCurrency(pricing.gst)}</span>
+        </div>
+        <div className="flex justify-between font-bold text-gray-900 text-lg border-t pt-2 mt-2">
+          <span>Final Total:</span>
+          <span className="text-yellow-600">{formatCurrency(pricing.total)}</span>
         </div>
       </div>
-
-      <div className="text-2xl font-bold text-green-600 mb-2">
-        {formatCurrency(finalPrice)}
-      </div>
-      
-      <div className="space-y-1 text-xs text-green-600">
-        <p>*Including live gold price ({formatCurrency(goldPrice)}/gram, {selectedGoldQuality}) + GST ({Math.round(gstRate * 100)}%)</p>
-        {totalDiamondWeight > 0 && (
-          <p>*Including {diamondSlots.length} diamond{diamondSlots.length > 1 ? 's' : ''} ({totalDiamondWeight.toFixed(2)} total carats) - {selectedQuality}</p>
-        )}
-      </div>
-
-      {/* Dropdown Overlay */}
-      {(showDropdown || showGoldDropdown) && (
-        <div
-          className="fixed inset-0 z-10"
-          onClick={() => {
-            setShowDropdown(false);
-            setShowGoldDropdown(false);
-          }}
-        />
-      )}
     </div>
   );
 }

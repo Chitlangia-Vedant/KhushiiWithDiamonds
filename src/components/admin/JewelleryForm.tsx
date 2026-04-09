@@ -192,8 +192,9 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg p-6 w-full max-w-5xl max-h-screen overflow-y-auto">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 sm:p-6">
+        {/* FIX: Changed max-h-screen to max-h-[90vh] so it never clips off the bottom! */}
+        <div className="bg-white rounded-lg p-5 sm:p-6 w-full max-w-5xl max-h-[90vh] overflow-y-auto pb-8">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold">
               {editingItem ? 'Edit Item' : 'Add New Item'}

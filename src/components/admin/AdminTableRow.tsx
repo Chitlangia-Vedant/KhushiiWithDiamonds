@@ -86,13 +86,12 @@ export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
         )}
       </td>
 
-      {/* 7. Total Cost (Always visible) */}
+      {/* 7. Total Cost (Clickable AND Grows Upwards) */}
       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
         
-        {/* Attach the ref to the parent container */}
+        {/* Attach the click-outside ref to the parent container */}
         <div className="relative inline-flex items-center" ref={popoverRef as React.RefObject<HTMLDivElement>}>
           
-          {/* Changed from <span> to <button> for accessibility and clickability */}
           <button 
             onClick={() => setShowBreakdown(!showBreakdown)}
             className="font-bold text-yellow-700 border-b border-dashed border-yellow-400 pb-0.5 cursor-pointer focus:outline-none hover:text-yellow-800 transition-colors"
@@ -100,20 +99,24 @@ export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
             {formatCurrency(pricing.total)}
           </button>
 
-          {/* THE POPOVER (Only renders if showBreakdown is true) */}
+          {/* THE POPOVER: Controlled by click state, positioned to grow UPWARDS */}
           {showBreakdown && (
-            <div className="absolute z-50 hidden group-hover:block left-full bottom-0 translate-y-1 ml-3 w-56 bg-white border border-gray-200 shadow-xl rounded-lg p-3 text-xs pointer-events-none">
+            /* CSS Logic: left-full (pops right), bottom-0 (anchors to bottom to grow up) */
+            <div className="absolute z-50 left-full bottom-0 translate-y-1 ml-3 w-56 bg-white border border-gray-200 shadow-xl rounded-lg p-3 text-xs shadow-black/5">
             
-            {/* Tooltip left-pointing arrow (Pushed to the bottom to align with the text) */}
+              {/* Tooltip left-pointing arrow: Anchored to the bottom to match the text */}
               <div className="absolute right-full bottom-3 border-[6px] border-transparent border-r-white"></div>
 
               <div className="font-semibold text-gray-800 border-b border-gray-100 pb-1.5 mb-1.5 flex justify-between items-center">
                 <span>Price Breakdown</span>
-                {/* Optional: Add a subtle close 'x' hint */}
-                <span className="text-gray-400 text-[10px] font-normal">Esc to close</span>
+                <button 
+                  onClick={() => setShowBreakdown(false)}
+                  className="text-gray-400 text-[10px] font-normal hover:text-red-500 cursor-pointer focus:outline-none"
+                >
+                  Close
+                </button>
               </div>
               
-              {/* ... Your exact same breakdown content goes here ... */}
               <div className="space-y-1">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Gold Value:</span>

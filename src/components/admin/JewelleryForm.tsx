@@ -49,29 +49,57 @@ export function JewelleryForm({
   const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
 
   // Function to generate the detailed description string
+  // Function to generate a highly readable, structured description for Google Drive
   const generateItemDescription = (): string => {
-    let description = `Name: ${formData.name}\n`;
-    description += `Description: ${formData.description || 'N/A'}\n`;
-    description += `Gold Weight: ${formData.gold_weight}g\n`;
-    description += `Gold Quality: Customer selectable (14K, 18K, 24K)\n`;
-    description += `Making Charges Per Gram: ${formatCurrency(formData.making_charges_per_gram)}/g\n`;
+    const parts: string[] = [];
 
-    // Add diamond information for each quality
+    // 1. HEADER
+    parts.push('=========================================');
+    parts.push(` ITEM: ${formData.name.toUpperCase()}`);
+    parts.push('=========================================');
+    parts.push(`Description: ${formData.description || 'N/A'}`);
+    parts.push('');
+
+    // 2. GOLD SPECIFICATIONS
+    parts.push('✦ GOLD SPECIFICATIONS ✦');
+    parts.push(`• Gold Weight: ${formData.gold_weight}g`);
+    parts.push(`• Making Charges: ${formatCurrency(formData.making_charges_per_gram)} per gram`);
+    parts.push('');
+
+    // 3. DIAMOND SPECIFICATIONS
     if (diamondSlots.length > 0) {
+      const totalCarats = diamondSlots.reduce((sum, slot) => sum + slot.carat, 0);
+      
+      parts.push('✦ DIAMOND SPECIFICATIONS ✦');
+      parts.push(`• Total Stones: ${diamondSlots.length}`);
+      parts.push(`• Total Weight: ${totalCarats.toFixed(2)} ct`);
+      parts.push('');
+      
+      parts.push('--- Breakdown by Quality Tier ---');
       DIAMOND_QUALITIES.forEach((quality) => {
-        description += `${quality} Diamonds:\n`;
+        const tierTotalCost = diamondSlots.reduce((sum, slot) => sum + (slot.carat * slot.costs[quality]), 0);
+        
+        parts.push(`[ ${quality} ] -> Total Tier Cost: ${formatCurrency(tierTotalCost)}`);
+        
+        // List individual stones under the quality tier
         diamondSlots.forEach((slot, index) => {
-          const totalCost = slot.carat * slot.costs[quality];
-          description += `  Diamond ${index + 1}: ${slot.carat}ct, Cost per Carat: ${formatCurrency(slot.costs[quality])}, Total cost: ${formatCurrency(totalCost)}\n`;
+          const stoneCost = slot.carat * slot.costs[quality];
+          parts.push(`  ↳ Stone ${index + 1}: ${slot.carat}ct @ ${formatCurrency(slot.costs[quality])}/ct = ${formatCurrency(stoneCost)}`);
         });
-        const totalCarats = diamondSlots.reduce((sum, slot) => sum + slot.carat, 0);
-        const totalCost = diamondSlots.reduce((sum, slot) => sum + (slot.carat * slot.costs[quality]), 0);
-        description += `  ${quality} Summary: Total Carats: ${totalCarats.toFixed(2)}ct, Total Cost: ${formatCurrency(totalCost)}\n`;
+        parts.push(''); // Add a blank line between quality tiers
       });
+    } else {
+      parts.push('✦ DIAMOND SPECIFICATIONS ✦');
+      parts.push('• No diamonds configured for this item.');
+      parts.push('');
     }
 
-    description += `Base Price: ${formatCurrency(formData.base_price)}\n`;
-    return description;
+    // 4. ADDITIONAL DETAILS
+    parts.push('✦ ADDITIONAL DETAILS ✦');
+    parts.push(`• Base Price (Design/Misc): ${formatCurrency(formData.base_price)}`);
+
+    // Join all the parts together with standard line breaks
+    return parts.join('\n');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

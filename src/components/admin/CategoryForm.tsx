@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { Category } from '../../types';
-import { Save, X, Upload, FileImage, Loader } from 'lucide-react';
+import { Save, X, Upload, FileImage, Loader } from 'lucide-react'; 
 import { useCategories } from '../../hooks/useCategories';
 import { uploadCategoryImages } from '../../utils/uploadUtils';
+import { CategoryDropdown } from '../CategoryDropdown';
 
 interface CategoryFormProps {
   editingCategory: Category | null;
-  onSubmit: (categoryData: Partial<Category>, imageUrls: string[]) => Promise<void>;
+  // CHANGE THIS LINE:
+  onSuccess: () => void;
   onCancel: () => void;
 }
 
-export function CategoryForm({ editingCategory, onSubmit, onCancel }: CategoryFormProps) {
-  const { categories, topLevelCategories } = useCategories();
+export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryFormProps) {
+  const { categories } = useCategories(); 
   const [uploading, setUploading] = useState(false);
   const [categoryFormData, setCategoryFormData] = useState({
     name: editingCategory?.name || '', 
@@ -72,7 +74,7 @@ export function CategoryForm({ editingCategory, onSubmit, onCancel }: CategoryFo
         }
       }
 
-      await onSubmit(categoryFormData, imageUrls);
+      await onSuccess();
     } catch (error) {
       console.error('Error saving category:', error);
       alert('Error saving category. Please check your permissions and try again.');
@@ -95,18 +97,19 @@ export function CategoryForm({ editingCategory, onSubmit, onCancel }: CategoryFo
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Parent Category</label>
-            <select
-              value={categoryFormData.parent_id}
-              onChange={(e) => setCategoryFormData({ ...categoryFormData, parent_id: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500"
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Parent Category (Optional)
+            </label>
+            <CategoryDropdown
+              valueLabel={categoryFormData.parent_id 
+                ? categories.find(c => c.id === categoryFormData.parent_id)?.name || 'Unknown'
+                : 'None (Top-level category)'}
+              onSelect={(categoryId) => setCategoryFormData({ ...categoryFormData, parent_id: categoryId })}
+              onClear={() => setCategoryFormData({ ...categoryFormData, parent_id: '' })}
+              clearLabel="None (Top Level Category)"
+              excludeCategoryId={editingCategory?.id}
               disabled={uploading}
-            >
-              <option value="">None (Top-level category)</option>
-              {topLevelCategories.map((cat) => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </select>
+            />
             <p className="text-xs text-gray-500 mt-1">
               Leave empty to create a top-level category, or select a parent to create a subcategory.
             </p>

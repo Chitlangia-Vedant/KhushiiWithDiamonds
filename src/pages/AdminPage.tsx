@@ -22,7 +22,7 @@ export function AdminPage() {
   const [activeTab, setActiveTab] = useState<'items' | 'categories' | 'settings'>('items');
   
   const { goldPrice } = useGoldPrice();
-  const { fallbackGoldPrice, gstRate, overrideLiveGoldPrice, updateSetting } = useAdminSettings();
+  const { fallbackGoldPrice, gstRate, overrideLiveGoldPrice, globalGoldMakingCharges, updateSetting } = useAdminSettings();
 
   useEffect(() => {
     checkAuthStatus();
@@ -190,6 +190,7 @@ export function AdminPage() {
             gstRate={gstRate}
             goldPrice={goldPrice}
             overrideLiveGoldPrice={overrideLiveGoldPrice}
+            globalGoldMakingCharges={globalGoldMakingCharges} // <-- NEW
             updateSetting={updateSetting}
           />
         )}

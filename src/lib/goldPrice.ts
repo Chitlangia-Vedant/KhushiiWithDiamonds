@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
-import { Diamond, DiamondQuality } from '../types/index';
+import { Diamond } from '../types/index';
+import { DiamondQuality } from '../constants/jewellery';
 
 
 const GOLD_API_KEY = import.meta.env.VITE_GOLD_API_KEY || '9886e90c5c52f1a75a3ca50daccd91d4';
@@ -84,6 +85,7 @@ export const calculateJewelleryPriceSync = (
   goldWeight: number,
   goldQuality: string,
   diamondsData: { diamonds: Diamond[], quality: DiamondQuality | null },
+  globalGoldMakingCharges: number,
   makingChargesPerGram: number,
   goldPricePerGram: number,
   gstRate: number = 0.18
@@ -96,7 +98,11 @@ export const calculateJewelleryPriceSync = (
     return total + (diamond.carat * diamond.cost_per_carat);
   }, 0);
   
-  const makingCharges = goldWeight * makingChargesPerGram;
+  const effectiveMakingCharges = makingChargesPerGram === -1 
+    ? globalGoldMakingCharges 
+    : makingChargesPerGram;
+
+  const makingCharges = goldWeight * effectiveMakingCharges;
   const subtotal = goldValue + totalDiamondCost + makingCharges + basePrice;
   
   return subtotal * (1 + gstRate);
@@ -117,6 +123,7 @@ export const getPriceBreakdown = (
   goldWeight: number,
   goldQuality: string,
   diamondsData: { diamonds: Diamond[], quality: DiamondQuality | null },
+  globalGoldMakingCharges: number, // <-- 1. Added this parameter
   makingChargesPerGram: number,
   goldPricePerGram: number,
   gstRate: number = 0.18
@@ -129,7 +136,14 @@ export const getPriceBreakdown = (
     return total + (diamond.carat * diamond.cost_per_carat);
   }, 0);
   
-  const makingCharges = goldWeight * makingChargesPerGram;
+  // 2. Add the Smart Override Check here!
+  const effectiveMakingCharges = makingChargesPerGram === -1 
+    ? globalGoldMakingCharges 
+    : makingChargesPerGram;
+
+  // 3. Use the effective variable
+  const makingCharges = goldWeight * effectiveMakingCharges;
+  
   const subtotal = goldValue + totalDiamondCost + makingCharges + basePrice;
   const gst = subtotal * gstRate;
 

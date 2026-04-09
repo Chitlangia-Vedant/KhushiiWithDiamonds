@@ -7,6 +7,7 @@ interface AdminSettingsTabProps {
   gstRate: number;
   goldPrice: number;
   overrideLiveGoldPrice: boolean;
+  globalGoldMakingCharges: number; // <-- NEW             
   updateSetting: (key: string, value: string) => Promise<boolean>;
 }
 
@@ -15,6 +16,7 @@ export function AdminSettingsTab({
   gstRate, 
   goldPrice,
   overrideLiveGoldPrice,
+  globalGoldMakingCharges,
   updateSetting 
 }: AdminSettingsTabProps) {
   
@@ -23,6 +25,7 @@ export function AdminSettingsTab({
     fallback_gold_price: fallbackGoldPrice.toString(),
     gst_rate: (gstRate * 100).toString(),
     override_live_gold_price: overrideLiveGoldPrice,
+    gold_making_charges: globalGoldMakingCharges.toString(),
   });
 
   // Keep form synced if external data changes
@@ -31,8 +34,9 @@ export function AdminSettingsTab({
       fallback_gold_price: fallbackGoldPrice.toString(),
       gst_rate: (gstRate * 100).toString(),
       override_live_gold_price: overrideLiveGoldPrice,
+      gold_making_charges: globalGoldMakingCharges.toString(),
     });
-  }, [fallbackGoldPrice, gstRate, overrideLiveGoldPrice]);
+  }, [fallbackGoldPrice, gstRate, overrideLiveGoldPrice, globalGoldMakingCharges]);
 
   const handleSettingsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,8 +50,10 @@ export function AdminSettingsTab({
       const success1 = await updateSetting('fallback_gold_price', fallbackPrice.toString());
       const success2 = await updateSetting('gst_rate', gstDecimal.toString());
       const success3 = await updateSetting('override_live_gold_price', overrideValue);
+      const makingCharges = parseFloat(settingsFormData.gold_making_charges);
+      const success4 = await updateSetting('gold_making_charges_per_gram', makingCharges.toString());
 
-      if (success1 && success2 && success3) {
+      if (success1 && success2 && success3 && success4) {
         alert('Settings updated successfully!');
       } else {
         alert('Error updating some settings. Please try again.');
@@ -111,7 +117,26 @@ export function AdminSettingsTab({
                 Applied globally to the final cost of all jewellery items.
               </p>
             </div>
+
+            {/* NEW: Global Making Charges Block */}
+            <div className="bg-purple-50/50 p-4 rounded-lg border border-purple-100 mt-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Global Gold Making Charges (₹/gram)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                value={settingsFormData.gold_making_charges}
+                onChange={(e) => setSettingsFormData({ ...settingsFormData, gold_making_charges: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500 bg-white"
+              />
+              <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                Applied site-wide to all jewellery items that do NOT have a manual override active.
+              </p>
+            </div>
           </div>
+
 
           <div className="bg-orange-50/50 p-4 rounded-lg border border-orange-100 mt-4">
             <div className="flex items-start">

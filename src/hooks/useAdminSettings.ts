@@ -6,13 +6,14 @@ export function useAdminSettings() {
   const [gstRate, setGstRate] = useState(0.18);
   const [overrideLiveGoldPrice, setOverrideLiveGoldPrice] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [globalGoldMakingCharges, setGlobalGoldMakingCharges] = useState(0); // <-- NEW
 
   const loadSettings = async () => {
     try {
       const { data } = await supabase
         .from('admin_settings')
         .select('setting_key, setting_value')
-        .in('setting_key', ['fallback_gold_price', 'gst_rate', 'override_live_gold_price']);
+        .in('setting_key', ['fallback_gold_price', 'gst_rate', 'override_live_gold_price', 'gold_making_charges_per_gram']);
 
       data?.forEach(setting => {
         if (setting.setting_key === 'fallback_gold_price') {
@@ -21,7 +22,9 @@ export function useAdminSettings() {
           setGstRate(parseFloat(setting.setting_value) || 0.18);
         } else if (setting.setting_key === 'override_live_gold_price') {
           setOverrideLiveGoldPrice(setting.setting_value === 'true');
-        }
+        } else if (setting.setting_key === 'gold_making_charges_per_gram') {
+          setGlobalGoldMakingCharges(parseFloat(setting.setting_value));
+        } // <-- NEW
       });
     } catch (err) {
       console.error('Admin settings fetch error:', err);
@@ -51,6 +54,8 @@ export function useAdminSettings() {
         setOverrideLiveGoldPrice(value === 'true');
       }
 
+      if (key === 'gold_making_charges_per_gram') setGlobalGoldMakingCharges(parseFloat(value)); // <-- NEW
+
       return true;
     } catch (err) {
       console.error('Error updating setting:', err);
@@ -67,6 +72,7 @@ export function useAdminSettings() {
     gstRate, 
     overrideLiveGoldPrice,
     loading, 
+    globalGoldMakingCharges,
     updateSetting, 
     refreshSettings: loadSettings 
   };

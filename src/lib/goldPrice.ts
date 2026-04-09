@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Diamond, JewelleryItem, DiamondPricingTier } from '../types/index';
+import { Diamond, JewelleryItem, DiamondPricingTier, StoneSlot } from '../types/index';
 import { DiamondQuality } from '../constants/jewellery';
 
 
@@ -87,7 +87,8 @@ export const getPriceBreakdown = (
   globalGoldMakingCharges: number,
   makingChargesPerGram: number,
   goldPricePerGram: number,
-  gstRate: number = 0.18
+  gstRate: number = 0.18,
+  otherStones: StoneSlot[] = []
 ) => {
   const purity = purityMultipliers[goldQuality as keyof typeof purityMultipliers] || 0.583;
   const goldValue = goldWeight * goldPricePerGram * purity;
@@ -99,14 +100,16 @@ export const getPriceBreakdown = (
   const effectiveMakingCharges = makingChargesPerGram === -1 
     ? globalGoldMakingCharges 
     : makingChargesPerGram;
-  
+
+  const totalOtherStonesCost = otherStones.reduce((total, stone) => total + (stone.carat * stone.cost_per_carat), 0);
   const makingCharges = goldWeight * effectiveMakingCharges;
-  const subtotal = goldValue + totalDiamondCost + makingCharges + basePrice;
+  const subtotal = goldValue + totalDiamondCost + totalOtherStonesCost + makingCharges + basePrice;
   const gst = subtotal * gstRate;
 
   return { 
     goldValue, 
     diamondCost: totalDiamondCost, 
+    otherStonesCost: totalOtherStonesCost,
     makingCharges, 
     basePrice, 
     subtotal, 
@@ -124,7 +127,8 @@ export const calculateJewelleryPriceSync = (
   globalGoldMakingCharges: number,
   makingChargesPerGram: number,
   goldPricePerGram: number,
-  gstRate: number = 0.18
+  gstRate: number = 0.18,
+  otherStones: StoneSlot[] = []
 ): number => {
   // THE FIX: Let the breakdown function do all the heavy lifting!
   return getPriceBreakdown(
@@ -135,7 +139,8 @@ export const calculateJewelleryPriceSync = (
     globalGoldMakingCharges, 
     makingChargesPerGram, 
     goldPricePerGram, 
-    gstRate
+    gstRate,
+    otherStones
   ).total;
 };
 
@@ -151,7 +156,7 @@ export const getPriceBreakdownItem = (
   goldPricePerGram: number,
   gstRate: number = 0.18,
   diamondBaseCosts?: Record<string, number>, // Pass these in from your hook!
-  diamondTiers?: DiamondPricingTier[]
+  diamondTiers?: DiamondPricingTier[],
 ) => {
   const getOffsetKey = (q: string): keyof DiamondPricingTier => {
     if (q === 'Lab Grown') return 'lab_grown_offset';
@@ -189,7 +194,8 @@ export const getPriceBreakdownItem = (
     globalGoldMakingCharges,
     item.making_charges_per_gram,
     goldPricePerGram,
-    gstRate
+    gstRate,
+    item.other_stones || []
   );
 };
 

@@ -20,6 +20,7 @@ export type JewelleryItem = {
   image_url: string[];
   gold_weight: number;
   diamonds: DiamondSlot[];
+  other_stones?: StoneSlot[];
   making_charges_per_gram: number;
   override_diamond_costs?: boolean;
   base_price: number;
@@ -52,4 +53,10 @@ export type DiamondPricingTier = {
   fg_vvs_si_offset: number;
   gh_vs_si_offset: number;
   lab_grown_offset: number;
+};
+
+export type StoneSlot = {
+  name: string;
+  carat: number;
+  cost_per_carat: number;
 };

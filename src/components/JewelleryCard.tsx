@@ -123,6 +123,12 @@ const JewelleryCard: React.FC<JewelleryCardProps> = ({ item }) => {
                   <span>{formatCurrency(pricing.diamondCost)}</span>
                 </div>
               )}
+              {pricing.otherStonesCost > 0 && (
+                <div className="flex justify-between">
+                  <span>Other Stones:</span>
+                  <span>{formatCurrency(pricing.otherStonesCost)}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span>Making Charges:</span>
                 <span>{formatCurrency(pricing.makingCharges)}</span>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { JewelleryItem, DiamondSlot } from '../../types';
+import { JewelleryItem, DiamondSlot, StoneSlot } from '../../types';
 import { Save, X, Loader } from 'lucide-react';
 import { JewelleryDetailsSection } from './jewellery-form/JewelleryDetailsSection';
 import { JewelleryImagesSection } from './jewellery-form/JewelleryImagesSection';
@@ -11,6 +11,7 @@ import { formatCurrency } from '../../lib/goldPrice';
 import { DIAMOND_QUALITIES } from '../../constants/jewellery';
 import { uploadJewelleryImages, deleteDriveImages, updateJewelleryDriveMetadata } from '../../utils/uploadUtils';
 import { useCategories } from '../../hooks/useCategories';
+import { OtherStonesSection } from './jewellery-form/OtherStonesSection';
 
 interface JewelleryFormProps {
   editingItem: JewelleryItem | null;
@@ -35,6 +36,7 @@ export function JewelleryForm({
     making_charges_per_gram: editingItem?.making_charges_per_gram || 500, 
     base_price: editingItem?.base_price || 0,
     diamonds: editingItem?.diamonds || ([] as DiamondSlot[]), 
+    other_stones: editingItem?.other_stones || ([] as StoneSlot[]),
     override_diamond_costs: editingItem?.override_diamond_costs ?? true,
   });
 
@@ -133,6 +135,7 @@ export function JewelleryForm({
       // 4. Combine arrays and clean up diamonds (ignore empty slots)
       const finalImageUrls = [...currentImages, ...newImageUrls];
       const cleanedDiamonds = formData.diamonds.filter(slot => slot.carat > 0);
+      const cleanedOtherStones = formData.other_stones.filter(stone => stone.carat > 0); // <-- Clean empty stones
 
       // 5. Build final data and submit
       const itemData: Partial<JewelleryItem> = {
@@ -143,6 +146,7 @@ export function JewelleryForm({
         making_charges_per_gram: formData.making_charges_per_gram,
         base_price: formData.base_price,
         diamonds: cleanedDiamonds,
+        other_stones: cleanedOtherStones, 
         override_diamond_costs: formData.override_diamond_costs
       };
 
@@ -201,7 +205,13 @@ export function JewelleryForm({
               overrideDiamondCosts={formData.override_diamond_costs}
               setOverrideDiamondCosts={(val) => setFormData({ ...formData, override_diamond_costs: val })}
             />
-
+            
+            <OtherStonesSection
+              otherStones={formData.other_stones}
+              setOtherStones={(stones) => setFormData({ ...formData, other_stones: stones })}
+              uploading={uploading}
+            />
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Base Price (₹)</label>
               <input

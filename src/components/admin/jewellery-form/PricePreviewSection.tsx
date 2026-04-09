@@ -23,6 +23,7 @@ export function PricePreviewSection({ formData, diamondSlots }: PricePreviewSect
     gold_weight: parseFloat(formData.gold_weight) || 0,
     making_charges_per_gram: parseFloat(formData.making_charges_per_gram) || -1,
     diamonds: diamondSlots,
+    other_stones: formData.other_stones,
     override_diamond_costs: formData.override_diamond_costs !== false
   } as JewelleryItem;
 
@@ -50,6 +51,12 @@ export function PricePreviewSection({ formData, diamondSlots }: PricePreviewSect
           <div className="flex justify-between">
             <span>Diamond Cost ({globalDiamondQuality}) {mockItem.override_diamond_costs ? '(Manual)' : '(Grid)'}:</span>
             <span>{formatCurrency(pricing.diamondCost)}</span>
+          </div>
+        )}
+        {pricing.otherStonesCost > 0 && (
+          <div className="flex justify-between">
+            <span>Other Stones:</span>
+            <span>{formatCurrency(pricing.otherStonesCost)}</span>
           </div>
         )}
         <div className="flex justify-between">

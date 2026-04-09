@@ -2,11 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { JewelleryItem } from '../../types';
 import { DiamondQuality } from '../../constants/jewellery';
 import { Edit, Trash2 } from 'lucide-react';
-import { formatCurrency, calculateJewelleryPriceSync, getPriceBreakdown} from '../../lib/goldPrice';
+import { formatCurrency } from '../../lib/goldPrice';
 import { getAvailableDiamondQualities, getDiamondsForQuality } from '../../utils/diamondUtils';
-import { useGoldPrice } from '../../hooks/useGoldPrice';
-import { useAdminSettings } from '../../hooks/useAdminSettings';
 import { useQualityContext } from '../../context/QualityContext';
+import { useItemPrice } from '../../hooks/useItemPrice';
 
 
 interface AdminTableRowProps {
@@ -16,10 +15,7 @@ interface AdminTableRowProps {
 }
 
 export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
-  const { globalGoldMakingCharges } = useAdminSettings();
-    const { goldPrice } = useGoldPrice();
-    const { gstRate } = useAdminSettings();
-    const { globalDiamondQuality, globalGoldPurity } = useQualityContext(); 
+    const { globalDiamondQuality } = useQualityContext(); 
   
   // Local state just for this specific row!
   const [selectedQuality, setSelectedQuality] = useState<DiamondQuality | null>(null);
@@ -38,13 +34,9 @@ export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
   const pricing = useItemPrice(item);
   // 2. Figure out which rate is active (just for the display label)
   const isGlobalMakingCharge = item.making_charges_per_gram === -1;
-  const activeRatePerGram = isGlobalMakingCharge ? globalGoldMakingCharges : item.making_charges_per_gram;
-
+  
   // FIX 3: Use globalGoldPurity instead of hardcoded '14K'
-  const totalCost = calculateJewelleryPriceSync(
-    item.base_price, item.gold_weight, globalGoldPurity,
-    diamondsData, item.making_charges_per_gram, goldPrice, gstRate
-  );
+  const totalCost = pricing.total;
 
   return (
     <tr className="hover:bg-gray-50">
@@ -99,7 +91,7 @@ export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
           
           {/* Making Charges Label & Badge */}
           <div className="flex items-center space-x-1">
-            <span>Making: {formatCurrency(activeRatePerGram)}/g</span>
+            <span>Making Total: {formatCurrency(pricing.makingCharges)}</span>
             {isGlobalMakingCharge ? (
                <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium">Global</span>
             ) : (

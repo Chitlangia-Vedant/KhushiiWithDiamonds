@@ -116,12 +116,14 @@ export function AdminItemsTab() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredItems.map((item) => (
+              {filteredItems.map((item,index) => (
                 <AdminTableRow 
                   key={item.id}
                   item={item}
                   onEdit={startEdit}
                   onDelete={handleDelete}
+                  index={index}
+                  totalRows={filteredItems.length}
                 />
               ))}
             </tbody>

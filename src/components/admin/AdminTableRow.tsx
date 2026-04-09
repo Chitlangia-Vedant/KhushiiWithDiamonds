@@ -8,45 +8,57 @@ import { getAvailableDiamondQualities, getDiamondsForQuality } from '../../utils
 import { useQualityContext } from '../../context/QualityContext';
 import { useItemPrice } from '../../hooks/useItemPrice';
 
-
 interface AdminTableRowProps {
   item: JewelleryItem;
   onEdit: (item: JewelleryItem) => void;
   onDelete: (id: string) => void;
+  index: number;
+  totalRows: number;
 }
 
-export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
-    const { globalDiamondQuality } = useQualityContext(); 
+export function AdminTableRow({ item, onEdit, onDelete, index, totalRows }: AdminTableRowProps) {
+  const { globalDiamondQuality } = useQualityContext(); 
   
-  // Local state just for this specific row!
   const [selectedQuality, setSelectedQuality] = useState<DiamondQuality | null>(null);
   const availableQualities = getAvailableDiamondQualities(item);
 
-    // Initialize selected quality on mount
   useEffect(() => {
     if (availableQualities.length > 0 && !selectedQuality) {
       setSelectedQuality(availableQualities[0]);
     }
   }, [availableQualities, selectedQuality]);
 
-  // FIX 2: Use your safe utility function instead of the broken Record lookup!
   const diamondsData = getDiamondsForQuality(item, globalDiamondQuality as DiamondQuality);
-
   const pricing = useItemPrice(item);
-  // 2. Figure out which rate is active (just for the display label)
   const isGlobalMakingCharge = item.making_charges_per_gram === -1;
 
-  const [showBreakdown, setShowBreakdown] = useState(false);
-  const popoverRef = useClickOutside(() => setShowBreakdown(false));
+  // --- DUAL-ACTION STATE LOGIC ---
+  // 1. The "Click to Lock" state handled by your hook
+  const { ref: popoverRef, isVisible: isLocked, setIsVisible: setIsLocked } = useClickOutside(false);
+  // 2. The "Hover to View" state
+  const [isHovered, setIsHovered] = useState(false);
+
+  // Show the popover if it is EITHER hovered OR locked
+  const showPopover = isHovered || isLocked;
+
+  // --- DYNAMIC POSITIONING LOGIC ---
+  let popoverPosition = "top-1/2 -translate-y-1/2"; 
+  let arrowPosition = "top-1/2 -translate-y-1/2";   
+
+  if (index === 0) {
+    popoverPosition = "top-0";
+    arrowPosition = "top-3";
+  } else if (index === totalRows - 1) {
+    popoverPosition = "bottom-0";
+    arrowPosition = "bottom-3";
+  }
 
   return (
     <tr className="hover:bg-gray-50">
-      
-      {/* 1. Item Name & Image (Always visible) */}
+      {/* 1. Item Name & Image */}
       <td className="px-4 py-4 whitespace-nowrap">
         <div className="flex items-center">
           <img
-            /* FIX: Changed rounded-full to rounded-lg */
             className="h-10 w-10 md:h-12 md:w-12 rounded-lg object-cover border border-gray-200 flex-shrink-0"
             src={item.image_url[0] || 'https://drive.google.com/thumbnail?id=1KRTxnA-gFSbg6R5EfBhu-y-tAxElt_AO&sz=w625-h340'}
             alt=""
@@ -60,19 +72,19 @@ export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
         </div>
       </td>
 
-      {/* 2. Category (Hidden on mobile) */}
+      {/* 2. Category */}
       <td className="hidden md:table-cell px-4 py-4 whitespace-nowrap">
         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
           {item.category}
         </span>
       </td>
 
-      {/* 4. Specs (Hidden on mobile & tablet) */}
+      {/* 4. Specs */}
       <td className="hidden lg:table-cell px-4 py-4 whitespace-nowrap text-sm text-gray-900">
          <div>Gold: {item.gold_weight}g</div>
       </td>
 
-      {/* 5. Diamonds (Carats Only) */}
+      {/* 5. Diamonds */}
       <td className="hidden xl:table-cell px-4 py-4 whitespace-nowrap text-sm text-gray-900">
         {availableQualities.length > 0 && diamondsData && diamondsData.diamonds.length > 0 ? (
           <span
@@ -86,35 +98,59 @@ export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
         )}
       </td>
 
-      {/* 7. Total Cost (Clickable AND Grows Upwards) */}
+      {/* 7. Total Cost (Dual Action: Hover & Click) */}
       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
         
-        {/* Attach the click-outside ref to the parent container */}
-        <div className="relative inline-flex items-center" ref={popoverRef as React.RefObject<HTMLDivElement>}>
-          
+        {/* We add mouse events to the wrapper so hovering ANYWHERE inside it triggers the popup */}
+        <div 
+          className="relative inline-flex items-center" 
+          ref={popoverRef as React.RefObject<HTMLDivElement>}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
           <button 
-            onClick={() => setShowBreakdown(!showBreakdown)}
-            className="font-bold text-yellow-700 border-b border-dashed border-yellow-400 pb-0.5 cursor-pointer focus:outline-none hover:text-yellow-800 transition-colors"
+            onClick={(e) => {
+              e.preventDefault();
+              if (isLocked) {
+                // If it's already locked, clicking toggles it off AND forces hover off so it hides immediately
+                setIsLocked(false);
+                setIsHovered(false);
+              } else {
+                // Otherwise, lock it!
+                setIsLocked(true);
+              }
+            }}
+            className={`font-bold border-b border-dashed pb-0.5 cursor-pointer focus:outline-none transition-colors ${
+              isLocked ? 'text-yellow-900 border-yellow-800' : 'text-yellow-700 border-yellow-400 hover:text-yellow-900'
+            }`}
           >
             {formatCurrency(pricing.total)}
           </button>
 
-          {/* THE POPOVER: Controlled by click state, positioned to grow UPWARDS */}
-          {showBreakdown && (
-            /* CSS Logic: left-full (pops right), bottom-0 (anchors to bottom to grow up) */
-            <div className="absolute z-50 left-full bottom-0 translate-y-1 ml-3 w-56 bg-white border border-gray-200 shadow-xl rounded-lg p-3 text-xs shadow-black/5">
+          {/* THE POPOVER */}
+          {showPopover && (
+            <div className={`absolute z-50 left-full ml-3 w-56 bg-white border shadow-xl rounded-lg p-3 text-xs shadow-black/5 transition-opacity ${
+              isLocked ? 'border-yellow-300' : 'border-gray-200' 
+            } ${popoverPosition}`}>
             
-              {/* Tooltip left-pointing arrow: Anchored to the bottom to match the text */}
-              <div className="absolute right-full bottom-3 border-[6px] border-transparent border-r-white"></div>
+              <div className={`absolute right-full border-[6px] border-transparent border-r-white ${arrowPosition}`}></div>
 
               <div className="font-semibold text-gray-800 border-b border-gray-100 pb-1.5 mb-1.5 flex justify-between items-center">
                 <span>Price Breakdown</span>
-                <button 
-                  onClick={() => setShowBreakdown(false)}
-                  className="text-gray-400 text-[10px] font-normal hover:text-red-500 cursor-pointer focus:outline-none"
-                >
-                  Close
-                </button>
+                
+                {/* DYNAMIC HEADER TEXT: Changes based on locked state */}
+                {isLocked ? (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setIsLocked(false); setIsHovered(false); }}
+                    className="text-gray-500 text-[10px] font-normal hover:text-red-600 bg-gray-100 hover:bg-red-50 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+                  >
+                    Close
+                  </button>
+                ) : (
+                  <span className="text-gray-400 text-[9px] font-normal italic">
+                    Click to lock
+                  </span>
+                )}
               </div>
               
               <div className="space-y-1">
@@ -165,7 +201,7 @@ export function AdminTableRow({ item, onEdit, onDelete }: AdminTableRowProps) {
         </div>
       </td>
 
-      {/* 8. Actions (Always visible) */}
+      {/* 8. Actions */}
       <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
         <button onClick={() => onEdit(item)} className="text-yellow-600 hover:text-yellow-900 mr-3 p-1">
           <Edit className="h-4 w-4 md:h-5 md:w-5" />

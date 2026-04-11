@@ -143,23 +143,12 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
     parts.push(`Description: ${formData.description || 'N/A'}\n`);
     parts.push('✦ GOLD SPECIFICATIONS ✦');
     parts.push(`• Gold Weight: ${formData.gold_weight}g`);
-    parts.push(`• Making Charges: ${formatCurrency(formData.making_charges_per_gram)} per gram\n`);
-
+    
     if (formData.diamonds.length > 0) {
       const totalCarats = formData.diamonds.reduce((sum, slot) => sum + slot.carat, 0);
       parts.push('✦ DIAMOND SPECIFICATIONS ✦');
       parts.push(`• Total Stones: ${formData.diamonds.length}`);
       parts.push(`• Total Weight: ${totalCarats.toFixed(2)} ct\n`);
-      parts.push('--- Breakdown by Quality Tier ---');
-      DIAMOND_QUALITIES.forEach((quality) => {
-        const tierTotalCost = formData.diamonds.reduce((sum, slot) => sum + (slot.carat * slot.costs[quality]), 0);
-        parts.push(`[ ${quality} ] -> Total Tier Cost: ${formatCurrency(tierTotalCost)}`);
-        formData.diamonds.forEach((slot, index) => {
-          const stoneCost = slot.carat * slot.costs[quality];
-          parts.push(`  ↳ Stone ${index + 1}: ${slot.carat}ct @ ${formatCurrency(slot.costs[quality])}/ct = ${formatCurrency(stoneCost)}`);
-        });
-        parts.push('');
-      });
     } else {
       parts.push('✦ DIAMOND SPECIFICATIONS ✦');
       parts.push('• No diamonds configured for this item.\n');

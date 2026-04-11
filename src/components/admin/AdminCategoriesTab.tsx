@@ -126,9 +126,9 @@ export function AdminCategoriesTab() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-10 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Hierarchy Structure</th>
+                <th className="px-10 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Categories</th>
                 <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Contents</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">No. of Jewellery</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Jewellery</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>

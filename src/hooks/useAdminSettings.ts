@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { DiamondPricingTier } from '../types';
 
 export function useAdminSettings() {
-  const [fallbackGoldPrice, setFallbackGoldPrice] = useState(5450);
+  const [fallbackGoldPrice, setFallbackGoldPrice] = useState(0);
   const [gstRate, setGstRate] = useState(0.18);
   const [overrideLiveGoldPrice, setOverrideLiveGoldPrice] = useState(false);
   const [globalGoldMakingCharges, setGlobalGoldMakingCharges] = useState(0);
@@ -31,7 +31,7 @@ export function useAdminSettings() {
       const newBaseCosts = { ...diamondBaseCosts };
       
       settingsRes.data?.forEach(setting => {
-        if (setting.setting_key === 'fallback_gold_price') setFallbackGoldPrice(parseFloat(setting.setting_value) || 5450);
+        if (setting.setting_key === 'fallback_gold_price') setFallbackGoldPrice(parseFloat(setting.setting_value) || 0);
         else if (setting.setting_key === 'gst_rate') setGstRate(parseFloat(setting.setting_value) || 0.18);
         else if (setting.setting_key === 'override_live_gold_price') setOverrideLiveGoldPrice(setting.setting_value === 'true');
         else if (setting.setting_key === 'gold_making_charges_per_gram') setGlobalGoldMakingCharges(parseFloat(setting.setting_value));
@@ -54,7 +54,7 @@ export function useAdminSettings() {
   const updateSetting = async (key: string, value: string) => {
     try {
       await supabase.from('admin_settings').upsert({ setting_key: key, setting_value: value }, { onConflict: 'setting_key' });
-      if (key === 'fallback_gold_price') setFallbackGoldPrice(parseFloat(value) || 5450);
+      if (key === 'fallback_gold_price') setFallbackGoldPrice(parseFloat(value) || 0);
       else if (key === 'gst_rate') setGstRate(parseFloat(value) || 0.18);
       else if (key === 'override_live_gold_price') setOverrideLiveGoldPrice(value === 'true');
       else if (key === 'gold_making_charges_per_gram') setGlobalGoldMakingCharges(parseFloat(value));

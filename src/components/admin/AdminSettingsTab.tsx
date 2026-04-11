@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Save, TrendingUp, Percent, Scissors } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Save, TrendingUp, Percent, Scissors, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Props {
@@ -12,10 +12,20 @@ interface Props {
 }
 
 export function AdminSettingsTab({ fallbackGoldPrice, gstRate, goldPrice, overrideLiveGoldPrice, globalGoldMakingCharges, updateSetting }: Props) {
+  // Use local states for the form so we can save everything at once
   const [localFallback, setLocalFallback] = useState(fallbackGoldPrice);
   const [localGst, setLocalGst] = useState(gstRate * 100);
   const [localMaking, setLocalMaking] = useState(globalGoldMakingCharges);
+  const [localOverride, setLocalOverride] = useState(overrideLiveGoldPrice);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Sync props to local state in case the database data loads slightly after the component mounts
+  useEffect(() => {
+    setLocalFallback(fallbackGoldPrice);
+    setLocalGst(gstRate * 100);
+    setLocalMaking(globalGoldMakingCharges);
+    setLocalOverride(overrideLiveGoldPrice);
+  }, [fallbackGoldPrice, gstRate, globalGoldMakingCharges, overrideLiveGoldPrice]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -24,8 +34,14 @@ export function AdminSettingsTab({ fallbackGoldPrice, gstRate, goldPrice, overri
       await updateSetting('fallbackGoldPrice', localFallback);
       await updateSetting('gstRate', localGst / 100);
       await updateSetting('globalGoldMakingCharges', localMaking);
+      await updateSetting('overrideLiveGoldPrice', localOverride); // Saves the checkbox properly!
+      
       toast.success('Settings updated successfully!', { id: loadingToast });
-    } catch (error) { toast.error('Failed to save settings.', { id: loadingToast }); } finally { setIsSaving(false); }
+    } catch (error) { 
+      toast.error('Failed to save settings.', { id: loadingToast }); 
+    } finally { 
+      setIsSaving(false); 
+    }
   };
 
   return (
@@ -53,7 +69,16 @@ export function AdminSettingsTab({ fallbackGoldPrice, gstRate, goldPrice, overri
               </div>
               <div>
                 <h3 className="text-sm sm:text-base font-bold text-gray-900">Gold Price Configuration</h3>
-                <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">Live API Rate: <span className="font-bold text-gray-700">₹{goldPrice}/g</span></p>
+                <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1 flex items-center flex-wrap">
+                  Live API Rate: 
+                  {goldPrice > 0 ? (
+                    <span className="font-bold text-gray-700 ml-1">₹{goldPrice}/g</span>
+                  ) : (
+                    <span className="font-bold text-red-500 flex items-center ml-1 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">
+                      <AlertCircle className="h-3 w-3 mr-1" /> Error / Unavailable
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-4 sm:gap-8 bg-white sm:bg-transparent p-3 sm:p-0 border border-gray-100 sm:border-none rounded-lg shadow-sm sm:shadow-none">
@@ -64,7 +89,7 @@ export function AdminSettingsTab({ fallbackGoldPrice, gstRate, goldPrice, overri
               <div className="w-px h-8 bg-gray-200 hidden sm:block"></div>
               <div className="flex flex-col items-center">
                 <label className="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 sm:mb-1.5">Override Live</label>
-                <input type="checkbox" checked={overrideLiveGoldPrice} onChange={e=>updateSetting('overrideLiveGoldPrice', e.target.checked)} className="rounded border-gray-300 text-yellow-600 focus:ring-yellow-500 h-4 w-4 sm:h-5 sm:w-5 cursor-pointer mt-0.5 sm:mt-1" />
+                <input type="checkbox" checked={localOverride} onChange={e=>setLocalOverride(e.target.checked)} className="rounded border-gray-300 text-yellow-600 focus:ring-yellow-500 h-4 w-4 sm:h-5 sm:w-5 cursor-pointer mt-0.5 sm:mt-1" />
               </div>
             </div>
           </div>

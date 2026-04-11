@@ -1,130 +1,57 @@
-interface UploadFile {
-  name: string
-  data: string // base64 encoded
-  mimeType: string
-}
-
 interface UploadResponse {
-  success: boolean
-  folderId: string
-  folderPath: string
-  files: Array<{
-    originalName: string
-    driveFileId: string
-    fileName: string
-    directUrl: string
-    webViewLink: string
-  }>
-  imageUrls: string[]
-  error?: string
-  details?: string
+  success: boolean; folderId: string; folderPath: string;
+  files: Array<{ originalName: string; driveFileId: string; fileName: string; directUrl: string; webViewLink: string; }>;
+  imageUrls: string[]; error?: string; details?: string;
 }
 
 interface DeleteResponse {
-  success: boolean
-  results: Array<{
-    url: string
-    fileId: string | null
-    success: boolean
-    error?: string
-  }>
-  summary: {
-    total: number
-    successful: number
-    failed: number
-  }
+  success: boolean; summary: { total: number; successful: number; failed: number; };
+  results: Array<{ url: string; fileId: string | null; success: boolean; error?: string; }>;
 }
 
 export class GoogleDriveUploadService {
-  private static readonly EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_DATABASE_URL}/functions/v1/upload-to-drive`
-  private static readonly DELETE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_DATABASE_URL}/functions/v1/delete-from-drive`
-  private static readonly UPDATE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_DATABASE_URL}/functions/v1/update-in-drive`
-  /**
-   * Convert File objects to base64 encoded data
-   */
-  private static async fileToBase64(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => {
-        const result = reader.result as string
-        // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
-        const base64Data = result.split(',')[1]
-        resolve(base64Data)
-      }
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
-  }
+  private static readonly EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_DATABASE_URL}/functions/v1/upload-to-drive`;
+  private static readonly DELETE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_DATABASE_URL}/functions/v1/delete-from-drive`;
+  private static readonly UPDATE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_DATABASE_URL}/functions/v1/update-in-drive`;
 
-  /**
-   * Determine folder path based on category hierarchy
-   */
-  private static getFolderPath(
-    itemType: 'category' | 'jewellery',
-    itemName?: string, // <-- NEW: Accept item name
-    category?: string,
-    parentCategory?: string
-  ): string {
+  private static getFolderPath(itemType: 'category' | 'jewellery', itemName?: string, category?: string, parentCategory?: string): string {
     const basePath = 'WebCatalog(DO NOT EDIT)';
-    
-    if (itemType === 'category') {
-      return basePath;
-    }
-    
-    // Sanitize item name to prevent accidental sub-folders if name contains slashes
+    if (itemType === 'category') return basePath;
     const safeItemName = itemName ? `/${itemName.replace(/[\/\\]/g, '-')}` : '';
-    
-    // For jewellery items, append the safeItemName to the end of the path
-    if (parentCategory && category) {
-      return `${basePath}/${parentCategory}/${category}${safeItemName}`;
-    } else if (category) {
-      return `${basePath}/${category}${safeItemName}`;
-    }
-    
+    if (parentCategory && category) return `${basePath}/${parentCategory}/${category}${safeItemName}`;
+    if (category) return `${basePath}/${category}${safeItemName}`;
     return `${basePath}${safeItemName}`;
   }
 
-  /**
-   * Upload files to Google Drive
-   */
+  // --- OPTIMIZATION 2: Multipart/Form-Data Binary Uploads ---
   static async uploadFiles(
-    files: File[],
-    itemName: string,
-    itemType: 'category' | 'jewellery',
-    category?: string,
-    parentCategory?: string,
-    itemDescription?: string
+    files: File[], itemName: string, itemType: 'category' | 'jewellery',
+    category?: string, parentCategory?: string, itemDescription?: string
   ): Promise<UploadResponse> {
     try {
-      if (!files || files.length === 0) throw new Error('No files provided for upload');
-      for (const file of files) if (file.size > 10 * 1024 * 1024) throw new Error(`File too large.`);
-      
+      if (!files || files.length === 0) throw new Error('No files provided');
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-      for (const file of files) if (!allowedTypes.includes(file.type)) throw new Error(`Unsupported type.`);
+      
+      const formData = new FormData();
+      for (const file of files) {
+        if (file.size > 10 * 1024 * 1024) throw new Error(`File "${file.name}" is too large. Max 10MB.`);
+        if (!allowedTypes.includes(file.type)) throw new Error(`File "${file.name}" has unsupported type.`);
+        formData.append('files', file); // Append raw binary file!
+      }
 
-      const uploadFiles: UploadFile[] = await Promise.all(
-        files.map(async (file) => ({
-          name: file.name,
-          data: await this.fileToBase64(file),
-          mimeType: file.type,
-        }))
-      );
-
-      // <-- FIX: Pass the itemName into the path generator
       const folderPath = this.getFolderPath(itemType, itemName, category, parentCategory);
-
-      const requestPayload = { files: uploadFiles, folderPath, itemName, itemType, itemDescription };
+      formData.append('folderPath', folderPath);
+      formData.append('itemName', itemName);
+      formData.append('itemType', itemType);
+      if (itemDescription) formData.append('itemDescription', itemDescription);
 
       const response = await fetch(this.EDGE_FUNCTION_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify(requestPayload),
+        headers: { 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+        body: formData, // Browser automatically sets Content-Type to multipart/form-data with bounds
       });
 
-      if (!response.ok) throw new Error(`HTTP Error: ${response.statusText}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       const result: UploadResponse = await response.json();
       if (!result.success) throw new Error(result.error || 'Upload failed');
       return result;
@@ -134,145 +61,55 @@ export class GoogleDriveUploadService {
     }
   }
 
-  /**
-   * Delete files from Google Drive
-   */
   static async deleteFiles(imageUrls: string[]): Promise<DeleteResponse> {
     try {
-      if (!imageUrls || imageUrls.length === 0) {
-        throw new Error('No image URLs provided for deletion')
-      }
-
-      console.log(`Starting deletion process for ${imageUrls.length} files`)
-
-      // Prepare request payload
-      const requestPayload = {
-        imageUrls,
-      }
-
-      console.log(`Calling delete edge function: ${this.DELETE_FUNCTION_URL}`)
-
-      // Call the delete edge function
+      if (!imageUrls || imageUrls.length === 0) throw new Error('No image URLs provided');
       const response = await fetch(this.DELETE_FUNCTION_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify(requestPayload),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const result: DeleteResponse = await response.json()
-      
-      console.log(`Deletion complete: ${result.summary.successful} successful, ${result.summary.failed} failed`)
-      return result
-
-    } catch (error) {
-      console.error('Google Drive deletion error:', error)
-      throw error
-    }
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+        body: JSON.stringify({ imageUrls }),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return await response.json();
+    } catch (error) { console.error('Delete error:', error); throw error; }
   }
 
-  /**
-   * Upload category images
-   */
-  static async uploadCategoryImages(
-    files: File[],
-    categoryName: string,
-    itemDescription: string
-  ): Promise<string[]> {
-    const result = await this.uploadFiles(files, categoryName, 'category', undefined, undefined, itemDescription)
-    return result.imageUrls
+  static async uploadCategoryImages(files: File[], categoryName: string, itemDescription: string): Promise<string[]> {
+    return (await this.uploadFiles(files, categoryName, 'category', undefined, undefined, itemDescription)).imageUrls;
   }
 
-  /**
-   * Upload jewellery item images
-   */
-  static async uploadJewelleryImages(
-    files: File[],
-    itemName: string,
-    category: string,
-    parentCategory?: string,
-    itemDescription?: string
-  ): Promise<string[]> {
-    const result = await this.uploadFiles(files, itemName, 'jewellery', category, parentCategory, itemDescription)
-    return result.imageUrls
+  static async uploadJewelleryImages(files: File[], itemName: string, category: string, parentCategory?: string, itemDescription?: string): Promise<string[]> {
+    return (await this.uploadFiles(files, itemName, 'jewellery', category, parentCategory, itemDescription)).imageUrls;
   }
 
-  /**
-   * Update file descriptions and move them to the correct folder in Google Drive
-   */
-  static async updateFilesMetadata(
-    imageUrls: string[],
-    itemType: 'category' | 'jewellery',
-    category?: string,
-    parentCategory?: string,
-    itemDescription?: string,
-    itemName?: string // Already accepting this from our previous fix!
-  ): Promise<boolean> {
+  static async updateFilesMetadata(imageUrls: string[], itemType: 'category' | 'jewellery', category?: string, parentCategory?: string, itemDescription?: string, itemName?: string): Promise<boolean> {
     try {
       if (!imageUrls || imageUrls.length === 0) return true;
-
       const folderPath = this.getFolderPath(itemType, itemName, category, parentCategory);
-
       const response = await fetch(this.UPDATE_FUNCTION_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-        },
-        // --- FIX: We now pass itemName to the Edge Function payload! ---
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
         body: JSON.stringify({ imageUrls, folderPath, itemDescription, itemName }),
       });
-
-      if (!response.ok) throw new Error('Failed to update Drive metadata');
-      const result = await response.json();
-      return result.success;
-    } catch (error) {
-      console.error('Google Drive update error:', error);
-      return false; 
-    }
+      return response.ok;
+    } catch (error) { return false; }
   }
 
   static async deleteFolder(folderPath: string): Promise<boolean> {
     try {
       const response = await fetch(this.DELETE_FUNCTION_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-        },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
         body: JSON.stringify({ imageUrls: [], folderPaths: [folderPath] }),
       });
       return response.ok;
-    } catch (error) {
-      console.error('Google Drive folder deletion error:', error);
-      return false;
-    }
+    } catch (error) { return false; }
   }
 
-  /**
-   * Move or Rename an entire category folder explicitly by path
-   */
   static async moveCategoryFolder(oldFolderPath: string, newFolderPath: string): Promise<boolean> {
     try {
       const response = await fetch(this.UPDATE_FUNCTION_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-        },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
         body: JSON.stringify({ action: 'move_folder', oldFolderPath, newFolderPath }),
       });
       return response.ok;
-    } catch (error) {
-      console.error('Google Drive folder move error:', error);
-      return false;
-    }
+    } catch (error) { return false; }
   }
 }

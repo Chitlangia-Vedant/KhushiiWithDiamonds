@@ -1,7 +1,7 @@
 import React from 'react';
-import { JewelleryItem } from '../../../types';
-import { formatCurrency } from '../../../lib/goldPrice';
-import { DIAMOND_QUALITIES, DiamondQuality } from '../../../constants/jewellery';
+import { JewelleryItem } from '../../../../types';
+import { formatCurrency } from '../../../../lib/goldPrice';
+import { DIAMOND_QUALITIES, DiamondQuality } from '../../../../constants/jewellery';
 
 interface PricePreviewSectionProps {
   mockItem: JewelleryItem;

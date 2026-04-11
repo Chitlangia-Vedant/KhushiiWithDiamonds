@@ -1,7 +1,7 @@
 import React from 'react';
-import { StoneSlot } from '../../../types';
+import { StoneSlot } from '../../../../types';
 import { Plus, Trash2 } from 'lucide-react';
-import { formatCurrency } from '../../../lib/goldPrice';
+import { formatCurrency } from '../../../../lib/goldPrice';
 
 interface OtherStonesSectionProps {
   otherStones: StoneSlot[];

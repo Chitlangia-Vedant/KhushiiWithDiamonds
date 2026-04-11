@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useClickOutside } from '../../hooks/useClickOutside';
-import { JewelleryItem } from '../../types';
-import { DiamondQuality } from '../../constants/jewellery';
+import { useClickOutside } from '../../../hooks/useClickOutside';
+import { JewelleryItem } from '../../../types';
+import { DiamondQuality } from '../../../constants/jewellery';
 import { Edit, Trash2 } from 'lucide-react';
-import { formatCurrency } from '../../lib/goldPrice';
-import { getAvailableDiamondQualities, getDiamondsForQuality } from '../../utils/diamondUtils';
-import { useQualityContext } from '../../context/QualityContext';
-import { useItemPrice } from '../../hooks/useItemPrice';
+import { formatCurrency } from '../../../lib/goldPrice';
+import { getAvailableDiamondQualities, getDiamondsForQuality } from '../../../utils/diamondUtils';
+import { useQualityContext } from '../../../context/QualityContext';
+import { useItemPrice } from '../../../hooks/useItemPrice';
 
 interface AdminTableRowProps {
   item: JewelleryItem;

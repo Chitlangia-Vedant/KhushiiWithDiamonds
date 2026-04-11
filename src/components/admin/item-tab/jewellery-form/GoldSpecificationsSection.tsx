@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatCurrency } from '../../../lib/goldPrice';
+import { formatCurrency } from '../../../../lib/goldPrice';
 
 interface GoldSpecificationsSectionProps {
   formData: { gold_weight: number; making_charges_per_gram: number; };

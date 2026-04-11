@@ -159,7 +159,6 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
                   const oKey = getOffsetKey(q);
                   const currentVal = tier[oKey];
                   
-                  // Safe extraction that completely preserves -0
                   const rawVal = currentVal === undefined || currentVal === null ? 0 : Number(currentVal);
                   const isNegative = rawVal < 0 || Object.is(rawVal, -0);
                   
@@ -190,10 +189,17 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
                           value={rawVal === 0 ? '' : Math.abs(rawVal)} 
                           placeholder="0"
                           onKeyDown={(e) => {
+                            // Smart Typing: Catch BOTH minus and plus keys!
                             if (e.key === '-') {
-                              e.preventDefault(); // Stop native minus logic
+                              e.preventDefault(); 
                               const nt = [...tiers];
                               (nt[index] as any)[oKey] = isNegative ? Math.abs(rawVal) : (rawVal === 0 ? -0 : -Math.abs(rawVal)); 
+                              setTiers(nt);
+                            } else if (e.key === '+') {
+                              e.preventDefault(); 
+                              const nt = [...tiers];
+                              // Force the value to become strictly positive
+                              (nt[index] as any)[oKey] = Math.abs(rawVal); 
                               setTiers(nt);
                             }
                           }}

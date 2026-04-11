@@ -32,10 +32,15 @@ export function AdminItemsTab() {
   const effectiveGoldPrice = overrideLiveGoldPrice ? fallbackGoldPrice : goldPrice;
 
   const [activeCategoryName, setActiveCategoryName] = useState<string | 'All'>('All');
+  
+  // --- SEARCH STATES ---
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(''); // <-- NEW!
+  
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<AdminItemFilters>(initialFilters);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true); // <-- ADD THIS
   
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingItem, setEditingItem] = useState<JewelleryItem | null>(null);
@@ -45,18 +50,32 @@ export function AdminItemsTab() {
 
   useEffect(() => { return () => { toast.dismiss(); }; }, []);
   useEffect(() => { loadItems(); }, []);
+
+  // --- NEW: THE DEBOUNCE EFFECT ---
+  useEffect(() => {
+    // Start a 300ms countdown when the user types
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+
+    // If the user types another letter before 300ms, clear the timer and start over!
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   
   useEffect(() => { 
     setCurrentPage(1); 
     setSelectedItemIds([]); 
-  }, [searchQuery, activeCategoryName, filters]);
+  }, [debouncedSearchQuery, activeCategoryName, filters]); // <-- Now tracks the delayed search!
 
   const loadItems = async () => {
+    setIsLoading(true); // <-- START LOADING
     try {
       const { data } = await supabase.from('jewellery_items').select('*').order('created_at', { ascending: false });
       if (data) setItems(data);
     } catch (error) {
       console.error('Error loading items:', error);
+    } finally {
+      setIsLoading(false); // <-- STOP LOADING (even if it fails)
     }
   };
 
@@ -155,7 +174,14 @@ export function AdminItemsTab() {
   // State handlers
   const toggleSelection = (id: string) => setSelectedItemIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   const updateFilter = (key: keyof AdminItemFilters, value: any) => setFilters(prev => ({ ...prev, [key]: value }));
-  const clearFilters = () => { setFilters(initialFilters); setSearchQuery(''); setActiveCategoryName('All'); };
+  
+  // --- CLEAR BOTH SEARCH STATES ---
+  const clearFilters = () => { 
+    setFilters(initialFilters); 
+    setSearchQuery(''); 
+    setDebouncedSearchQuery(''); 
+    setActiveCategoryName('All'); 
+  };
   
   const handleSelectAll = (checked: boolean, pageIds: string[]) => {
     if (checked) {
@@ -165,9 +191,12 @@ export function AdminItemsTab() {
     }
   };
 
+  // --- THE FILTER ENGINE ---
   const filteredItems = useMemo(() => {
     return items.filter(item => {
-      if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+      // 1. Only filter by the delayed search query!
+      if (debouncedSearchQuery && !item.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())) return false;
+      
       if (activeCategoryName !== 'All') {
         const selectedCat = categories.find(c => c.name === activeCategoryName);
         if (selectedCat) {
@@ -212,7 +241,7 @@ export function AdminItemsTab() {
 
       return true;
     });
-  }, [items, searchQuery, activeCategoryName, filters, globalGoldPurity, globalDiamondQuality, globalGoldMakingCharges, effectiveGoldPrice, gstRate, diamondBaseCosts, diamondTiers, categories]);
+  }, [items, debouncedSearchQuery, activeCategoryName, filters, globalGoldPurity, globalDiamondQuality, globalGoldMakingCharges, effectiveGoldPrice, gstRate, diamondBaseCosts, diamondTiers, categories]);
 
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / ITEMS_PER_PAGE));
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -244,7 +273,13 @@ export function AdminItemsTab() {
       <div className="flex flex-col md:flex-row gap-3 mb-4">
         <div className="relative flex-grow">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input type="text" placeholder="Search item name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none text-sm shadow-sm" />
+          <input 
+            type="text" 
+            placeholder="Search item name..." 
+            value={searchQuery} 
+            onChange={(e) => setSearchQuery(e.target.value)} 
+            className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none text-sm shadow-sm" 
+          />
         </div>
         <div className="w-full md:w-64">
           <CategoryDropdown valueLabel={activeCategoryName === 'All' ? 'All Categories' : activeCategoryName} onSelect={(id, name) => setActiveCategoryName(name)} onClear={() => setActiveCategoryName('All')} clearLabel="All Categories" />
@@ -262,6 +297,7 @@ export function AdminItemsTab() {
       />
 
       <AdminItemsTable 
+        isLoading={isLoading}
         paginatedItems={paginatedItems}
         filteredItemsLength={filteredItems.length}
         selectedItemIds={selectedItemIds}

@@ -15,8 +15,9 @@ export function AdminCategoriesTab() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [itemCounts, setItemCounts] = useState<Record<string, number>>({});
+  
+  const [isLoading, setIsLoading] = useState(true); // <-- NEW LOADING STATE
 
-  // --- NEW: Auto-dismiss toasts when leaving this tab ---
   useEffect(() => {
     return () => { toast.dismiss(); };
   }, []);
@@ -26,6 +27,7 @@ export function AdminCategoriesTab() {
   }, []);
 
   const loadItemCounts = async () => {
+    setIsLoading(true); // <-- START LOADING
     try {
       const { data, error } = await supabase.from('jewellery_items').select('category');
       if (error) throw error; 
@@ -40,6 +42,8 @@ export function AdminCategoriesTab() {
     } catch (error) {
       console.error('Error fetching item counts:', error);
       toast.error('Failed to sync category counts. Please refresh the page.', { duration: 4000 });
+    } finally {
+      setIsLoading(false); // <-- STOP LOADING
     }
   };
 
@@ -53,7 +57,6 @@ export function AdminCategoriesTab() {
     setExpandedCategories(newExpanded);
   };
 
-  // --- UNIFIED CONFIRMATION BOX ---
   const handleDelete = async (id: string) => {
     toast((t) => (
       <div className="flex flex-col p-1 min-w-[320px]">
@@ -70,12 +73,7 @@ export function AdminCategoriesTab() {
           </p>
         </div>
         <div className="flex justify-end gap-3 mt-1">
-          <button
-            onClick={() => toast.dismiss(t.id)}
-            className="px-5 py-2 text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 rounded-lg transition-colors border border-gray-300 shadow-sm"
-          >
-            Cancel
-          </button>
+          <button onClick={() => toast.dismiss(t.id)} className="px-5 py-2 text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 rounded-lg transition-colors border border-gray-300 shadow-sm">Cancel</button>
           <button
             onClick={async () => {
               toast.dismiss(t.id); 
@@ -191,10 +189,30 @@ export function AdminCategoriesTab() {
               </tr>
             </thead>
             <tbody className="bg-white">
-              {topLevelCategories.map((category) => (
-                <CategoryTableRow key={category.id} category={category} level={0} />
-              ))}
-              {topLevelCategories.length === 0 && (
+              
+              {/* --- SKELETON LOADER --- */}
+              {isLoading ? (
+                [...Array(6)].map((_, i) => (
+                  <tr key={`skeleton-${i}`} className="animate-pulse border-b border-gray-100">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="flex items-center pl-4">
+                        <div className="h-8 w-8 bg-gray-200 rounded-lg flex-shrink-0 mr-3"></div>
+                        <div className="h-4 w-32 bg-gray-200 rounded"></div>
+                      </div>
+                    </td>
+                    <td className="hidden md:table-cell px-4 py-3 whitespace-nowrap"><div className="h-5 w-20 bg-gray-200 rounded-full"></div></td>
+                    <td className="px-4 py-3 whitespace-nowrap"><div className="h-5 w-16 bg-gray-200 rounded-full"></div></td>
+                    <td className="px-4 py-3 whitespace-nowrap text-right"><div className="h-8 w-16 bg-gray-200 rounded ml-auto"></div></td>
+                  </tr>
+                ))
+              ) : (
+                /* --- ACTUAL DATA --- */
+                topLevelCategories.map((category) => (
+                  <CategoryTableRow key={category.id} category={category} level={0} />
+                ))
+              )}
+              
+              {!isLoading && topLevelCategories.length === 0 && (
                 <tr>
                   <td colSpan={4} className="text-center py-12 text-gray-500">
                     No categories found. Click "Add Category" to start building your hierarchy!

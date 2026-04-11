@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Category } from '../types';
+import toast from 'react-hot-toast';
 
 export function useCategories() {
   const [categories, setCategories] = useState<Category[]>([]);

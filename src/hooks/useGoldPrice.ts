@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
 import { getCurrentGoldPrice } from '../lib/goldPrice';
+import { useAdminSettings } from './useAdminSettings';
 
 export function useGoldPrice() {
-  const [goldPrice, setGoldPrice] = useState(0); // Start at 0
+  const [rawApiPrice, setRawApiPrice] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Bring the settings in so the hook can make smart decisions
+  const { fallbackGoldPrice, overrideLiveGoldPrice } = useAdminSettings();
 
   useEffect(() => {
     let mounted = true;
@@ -17,14 +21,13 @@ export function useGoldPrice() {
         const price = await getCurrentGoldPrice();
         
         if (mounted) {
-          setGoldPrice(price);
-          // If price is 0, we know the API failed
+          setRawApiPrice(price);
           if (price === 0) setError('Failed to fetch live gold price API');
         }
       } catch (err) {
         if (mounted) {
           setError('Failed to fetch gold price');
-          setGoldPrice(0);
+          setRawApiPrice(0);
           console.error('Gold price fetch error:', err);
         }
       } finally {
@@ -41,5 +44,16 @@ export function useGoldPrice() {
     };
   }, []);
 
-  return { goldPrice, loading, error };
+  // --- THE MAGIC AUTO-FALLBACK ---
+  // If the admin checked "Override", OR if the API failed (returned 0), use the Fallback!
+  const safeGoldPrice = (overrideLiveGoldPrice || rawApiPrice === 0) 
+    ? fallbackGoldPrice 
+    : rawApiPrice;
+
+  return { 
+    goldPrice: safeGoldPrice, // Guaranteed safe price for all math globally
+    rawApiPrice,              // The pure API response for the Settings UI to check
+    loading, 
+    error 
+  };
 }

@@ -3,7 +3,7 @@ import { Link, Routes, Route, Navigate, useLocation, useNavigate } from 'react-r
 import { supabase } from '../lib/supabase';
 import { JewelleryItem } from '../types';
 import { AdminLogin } from '../components/AdminLogin';
-import { AdminItemsTab } from '../components/admin/AdminItemsTab';
+import { AdminItemsTab } from '../components/admin/items-tab/AdminItemsTab';
 import { AdminCategoriesTab } from '../components/admin/AdminCategoriesTab';
 import { AdminSettingsTab } from '../components/admin/AdminSettingsTab';
 import { AdminDiamondsTab } from '../components/admin/AdminDiamondsTab';
@@ -26,7 +26,8 @@ export function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<JewelleryItem[]>([]);
   
-  const { goldPrice } = useGoldPrice();
+  // Destructure BOTH prices from our newly updated hook
+  const { goldPrice, rawApiPrice } = useGoldPrice();
   const { fallbackGoldPrice, gstRate, overrideLiveGoldPrice, globalGoldMakingCharges, updateSetting, diamondBaseCosts, diamondTiers, saveDiamondPricing } = useAdminSettings();
 
   useEffect(() => { checkAuthStatus(); }, []);
@@ -54,8 +55,6 @@ export function AdminPage() {
     } catch (error) { console.error('Error loading items:', error); }
   };
 
-  const effectiveGoldPrice = overrideLiveGoldPrice ? fallbackGoldPrice : goldPrice;
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -69,9 +68,7 @@ export function AdminPage() {
   return (
     <div className="pb-8 bg-gray-50 min-h-screen">
       
-      {/* --- ULTRA-COMPACT HEADER --- */}
       <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm mb-3 sm:mb-4">
-        {/* Single Line, Scrollable on extra small screens */}
         <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-1.5 sm:py-2 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
           
           <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
@@ -79,7 +76,6 @@ export function AdminPage() {
               KWD<span className="hidden sm:inline text-yellow-600">Admin</span>
             </Link>
 
-            {/* ROUTE-BASED TABS */}
             <div className="flex items-center gap-1 sm:border-l sm:border-gray-200 sm:pl-3">
               {[
                 { key: 'items', icon: Package, label: `Items (${items.length})`, path: '/admin/items' },
@@ -101,7 +97,6 @@ export function AdminPage() {
             </div>
           </div>
 
-          {/* Right Side Settings */}
           <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0 ml-auto">
             {currentTab === 'items' && (
               <div className="flex items-center gap-1 sm:gap-1.5 border-r border-gray-200 pr-1.5 sm:pr-3">
@@ -117,9 +112,9 @@ export function AdminPage() {
               </div>
             )}
 
-            {/* FIX: Added whitespace-nowrap and flex-shrink-0 to prevent 2-line wrapping */}
             <div className="flex items-center space-x-1 sm:space-x-2 text-[9px] sm:text-[11px] font-bold px-1 uppercase tracking-wider whitespace-nowrap flex-shrink-0">
-              <span className={overrideLiveGoldPrice ? 'text-orange-600' : 'text-gray-500'}>Gold: ₹{effectiveGoldPrice.toLocaleString('en-IN')}/g</span>
+              {/* Uses guaranteed goldPrice, changes color if it's currently falling back */}
+              <span className={(overrideLiveGoldPrice || rawApiPrice === 0) ? 'text-orange-600' : 'text-gray-500'}>Gold: ₹{goldPrice.toLocaleString('en-IN')}/g</span>
               <span className="text-gray-300">|</span>
               <span className="text-gray-500">GST: {Math.round(gstRate * 100)}%</span>
             </div>
@@ -130,13 +125,15 @@ export function AdminPage() {
         </div>
       </div>
 
-      {/* --- CONTENT --- */}
       <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
         <Routes>
           <Route path="/" element={<Navigate to="items" replace />} />
           <Route path="items" element={<AdminItemsTab />} />
           <Route path="categories" element={<AdminCategoriesTab />} />
-          <Route path="settings" element={<AdminSettingsTab fallbackGoldPrice={fallbackGoldPrice} gstRate={gstRate} goldPrice={goldPrice} overrideLiveGoldPrice={overrideLiveGoldPrice} globalGoldMakingCharges={globalGoldMakingCharges} updateSetting={updateSetting} />} />
+          
+          {/* We pass rawApiPrice exclusively here so the UI can detect the 0 and show the error badge! */}
+          <Route path="settings" element={<AdminSettingsTab fallbackGoldPrice={fallbackGoldPrice} gstRate={gstRate} goldPrice={rawApiPrice} overrideLiveGoldPrice={overrideLiveGoldPrice} globalGoldMakingCharges={globalGoldMakingCharges} updateSetting={updateSetting} />} />
+          
           <Route path="diamonds" element={<AdminDiamondsTab initialBaseCosts={diamondBaseCosts} initialTiers={diamondTiers} saveDiamondPricing={saveDiamondPricing} />} />
         </Routes>
       </div>

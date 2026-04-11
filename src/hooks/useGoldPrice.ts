@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 import { getCurrentGoldPrice } from '../lib/goldPrice';
-import { useAdminSettings } from './useAdminSettings';
 
 export function useGoldPrice() {
-  const [goldPrice, setGoldPrice] = useState(5450);
+  const [goldPrice, setGoldPrice] = useState(0); // Start at 0
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { overrideLiveGoldPrice } = useAdminSettings();
 
   useEffect(() => {
     let mounted = true;
@@ -15,11 +13,18 @@ export function useGoldPrice() {
       try {
         setLoading(true);
         setError(null);
-        const price = await getCurrentGoldPrice(overrideLiveGoldPrice);
-        if (mounted) setGoldPrice(price);
+        
+        const price = await getCurrentGoldPrice();
+        
+        if (mounted) {
+          setGoldPrice(price);
+          // If price is 0, we know the API failed
+          if (price === 0) setError('Failed to fetch live gold price API');
+        }
       } catch (err) {
         if (mounted) {
           setError('Failed to fetch gold price');
+          setGoldPrice(0);
           console.error('Gold price fetch error:', err);
         }
       } finally {
@@ -34,7 +39,7 @@ export function useGoldPrice() {
       mounted = false;
       clearInterval(interval);
     };
-  }, [overrideLiveGoldPrice]);
+  }, []);
 
   return { goldPrice, loading, error };
 }

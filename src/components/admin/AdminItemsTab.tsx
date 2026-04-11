@@ -18,7 +18,7 @@ import { DiamondQuality } from '../../constants/jewellery';
 import { AdminItemsBulkActions } from './item-tab/AdminItemsBulkActions';
 import { AdminItemsAdvancedFilters, AdminItemFilters, initialFilters } from './item-tab/AdminItemsAdvancedFilters';
 import { AdminItemsTable } from './item-tab/AdminItemsTable';
-import { updateJewelleryDriveMetadata } from '../../../utils/uploadUtils'; // <-- Ensure this is imported
+import { updateJewelleryDriveMetadata } from '../../utils/uploadUtils'; // <-- Ensure this is imported
 
 const ITEMS_PER_PAGE = 20;
 

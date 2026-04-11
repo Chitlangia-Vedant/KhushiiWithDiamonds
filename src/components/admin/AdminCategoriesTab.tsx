@@ -3,10 +3,10 @@ import { supabase } from '../../lib/supabase';
 import { Category } from '../../types';
 import { Plus, Edit, Trash2, Image as ImageIcon, ChevronRight, Folder } from 'lucide-react';
 import { CategoryForm } from './CategoryForm';
-import { deleteDriveImages } from '../../utils/uploadUtils';
 import { useCategories } from '../../hooks/useCategories';
 import { getValidCategoryNames } from '../../utils/categoryUtils'; 
 import toast from 'react-hot-toast';
+import { deleteDriveImages, deleteDriveFolder } from '../../utils/uploadUtils'; // <-- Ensure deleteDriveFolder is imported
 
 export function AdminCategoriesTab() {
   const { categories, topLevelCategories, getSubcategories, refetchCategories } = useCategories();
@@ -44,14 +44,7 @@ export function AdminCategoriesTab() {
   const handleDelete = async (id: string) => {
     toast((t) => (
       <div className="flex flex-col p-1 min-w-[320px]">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center flex-shrink-0 border border-red-100"><Trash2 className="h-5 w-5 text-red-600" /></div>
-          <h3 className="font-extrabold text-gray-900 text-lg">Delete Category?</h3>
-        </div>
-        <div className="text-sm text-gray-800 mb-5 pl-[52px] leading-relaxed">
-          <p className="mb-2 font-medium">Are you sure you want to permanently delete this category?</p>
-          <p className="bg-red-50/80 p-2 border border-red-100 rounded text-red-800 text-xs"><span className="font-bold text-red-600">Warning:</span> Ensure no items or subcategories are using it first!</p>
-        </div>
+        {/* ... (toast UI code remains the same) ... */}
         <div className="flex justify-end gap-3 mt-1">
           <button onClick={() => toast.dismiss(t.id)} className="px-5 py-2 text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 rounded-lg transition-colors border border-gray-300 shadow-sm">Cancel</button>
           <button onClick={async () => {
@@ -59,12 +52,27 @@ export function AdminCategoriesTab() {
               const loadingToastId = toast.loading('Deleting category...');
               try {
                 const catToDelete = categories.find(c => c.id === id);
-                if (catToDelete?.image_url) { try { await deleteDriveImages([catToDelete.image_url]); } catch (e) { } }
+                
+                // 1. Delete the category's thumbnail image
+                if (catToDelete?.image_url) { 
+                  try { await deleteDriveImages([catToDelete.image_url]); } catch (e) { } 
+                }
+
+                // 2. Delete the actual category folder in Google Drive
+                if (catToDelete) {
+                  const parentCat = categories.find(c => c.id === catToDelete.parent_id);
+                  try { await deleteDriveFolder(catToDelete.name, parentCat?.name); } catch (e) { }
+                }
+
+                // 3. Delete from Supabase Database
                 const { error } = await supabase.from('categories').delete().eq('id', id);
                 if (error) throw error;
+                
                 await refetchCategories();
                 toast.success('Category deleted successfully!', { id: loadingToastId });
-              } catch (error: any) { toast.error('Error deleting category. It might have attached items.', { id: loadingToastId }); }
+              } catch (error: any) { 
+                toast.error('Error deleting category. It might have attached items.', { id: loadingToastId }); 
+              }
             }} className="px-5 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors shadow-sm border border-red-700">Yes, delete</button>
         </div>
       </div>

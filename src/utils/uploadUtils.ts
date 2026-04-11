@@ -80,3 +80,12 @@ export const updateJewelleryDriveMetadata = async (
     itemName // <-- Pass it to the service
   );
 };
+
+export const deleteDriveFolder = async (categoryName: string, parentCategoryName?: string) => {
+  const basePath = 'WebCatalog(DO NOT EDIT)';
+  const folderPath = parentCategoryName 
+    ? `${basePath}/${parentCategoryName}/${categoryName}`
+    : `${basePath}/${categoryName}`;
+    
+  await GoogleDriveUploadService.deleteFolder(folderPath);
+};

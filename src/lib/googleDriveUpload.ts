@@ -238,4 +238,21 @@ export class GoogleDriveUploadService {
       return false; 
     }
   }
+
+  static async deleteFolder(folderPath: string): Promise<boolean> {
+    try {
+      const response = await fetch(this.DELETE_FUNCTION_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ imageUrls: [], folderPaths: [folderPath] }),
+      });
+      return response.ok;
+    } catch (error) {
+      console.error('Google Drive folder deletion error:', error);
+      return false;
+    }
+  }
 }

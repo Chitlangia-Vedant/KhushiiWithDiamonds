@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast'; // <-- Add this import
 import { Layout } from './components/Layout';
 import { HomePage } from './pages/HomePage';
 import { CategoryPage } from './pages/CategoryPage';
@@ -51,7 +52,7 @@ class ErrorBoundary extends React.Component<
 const StorefrontZone = () => {
   return (
     <Layout>
-      <Outlet /> {/* This tells React Router where to put the Home or Category page */}
+      <Outlet />
     </Layout>
   );
 };
@@ -60,20 +61,35 @@ function App() {
   return (
     <ErrorBoundary>
       <QualityProvider>
+        {/* ADD THE TOASTER HERE so it is available everywhere */}
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#333',
+              color: '#fff',
+            },
+            success: {
+              style: {
+                background: '#059669', // Tailwind Emerald 600
+              },
+            },
+            error: {
+              style: {
+                background: '#DC2626', // Tailwind Red 600
+              },
+            },
+          }}
+        />
         <Router>
           <Routes>
-            
-            {/* --- SECURE ADMIN ZONE --- */}
-            {/* Because this is NOT inside StorefrontZone, it will completely hide the public Header/Footer! */}
-            {/* Your AdminPage already handles the Supabase Auth lock securely. */}
             <Route path="/admin/*" element={<AdminPage />} />
 
-            {/* --- PUBLIC STOREFRONT ZONE --- */}
             <Route element={<StorefrontZone />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/category/:categoryName" element={<CategoryPage />} />
             </Route>
-
           </Routes>
         </Router>
       </QualityProvider>

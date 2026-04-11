@@ -59,8 +59,9 @@ export const uploadCategoryImages = async (
 
 export const updateJewelleryDriveMetadata = async (
   currentImageUrls: string[],
+  itemName: string, // <-- NEW: Added itemName
   categoryName: string,
-  categories: any[], // To find the parent
+  categories: any[], 
   itemDescription: string
 ): Promise<void> => {
   if (!currentImageUrls || currentImageUrls.length === 0) return;
@@ -75,6 +76,31 @@ export const updateJewelleryDriveMetadata = async (
     'jewellery',
     categoryName,
     parentCategory,
-    itemDescription
+    itemDescription,
+    itemName // <-- Pass it to the service
   );
+};
+
+export const deleteDriveFolder = async (categoryName: string, parentCategoryName?: string) => {
+  const basePath = 'WebCatalog(DO NOT EDIT)';
+  const folderPath = parentCategoryName 
+    ? `${basePath}/${parentCategoryName}/${categoryName}`
+    : `${basePath}/${categoryName}`;
+    
+  await GoogleDriveUploadService.deleteFolder(folderPath);
+};
+
+export const moveDriveCategoryFolder = async (
+  oldName: string, oldParentName: string | undefined,
+  newName: string, newParentName: string | undefined
+) => {
+  const basePath = 'WebCatalog(DO NOT EDIT)';
+  
+  const oldPath = oldParentName ? `${basePath}/${oldParentName}/${oldName}` : `${basePath}/${oldName}`;
+  const newPath = newParentName ? `${basePath}/${newParentName}/${newName}` : `${basePath}/${newName}`;
+
+  // Only call the API if the category was actually renamed or moved to a new parent!
+  if (oldPath !== newPath) {
+     await GoogleDriveUploadService.moveCategoryFolder(oldPath, newPath);
+  }
 };

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Category } from '../types';
+import { Category } from '../../types';
 import { ChevronDown, ChevronRight, Folder } from 'lucide-react';
-import { useCategories } from '../hooks/useCategories';
-import { useClickOutside } from '../hooks/useClickOutside';
+import { useCategories } from '../../hooks/useCategories';
+import { useClickOutside } from '../../hooks/useClickOutside';
 
 interface CategoryDropdownProps {
   valueLabel: string;
@@ -24,7 +24,8 @@ export function CategoryDropdown({
   triggerClassName
 }: CategoryDropdownProps) {
   const { topLevelCategories, getSubcategories } = useCategories();
-  const { ref: dropdownRef, isOpen: showDropdown, setIsOpen: setShowDropdown } = useClickOutside<HTMLDivElement>();
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useClickOutside(() => setShowDropdown(false));
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
   const toggleExpanded = (categoryId: string) => {

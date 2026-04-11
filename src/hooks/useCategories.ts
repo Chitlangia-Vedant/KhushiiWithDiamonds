@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Category } from '../types';
+import toast from 'react-hot-toast';
 
 export function useCategories() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -20,6 +21,11 @@ export function useCategories() {
     } catch (err) {
       console.error('Error loading categories:', err);
       setError(err instanceof Error ? err : new Error('Unknown error loading categories'));
+      
+      // Let the admin know the background fetch failed
+      toast.error('Failed to load categories. Please check your connection.', {
+        duration: 4000
+      });
     } finally {
       setLoadingCategories(false);
     }

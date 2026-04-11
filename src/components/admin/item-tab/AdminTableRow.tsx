@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useClickOutside } from '../../hooks/useClickOutside';
-import { JewelleryItem } from '../../types';
-import { DiamondQuality } from '../../constants/jewellery';
+import { useClickOutside } from '../../../hooks/useClickOutside';
+import { JewelleryItem } from '../../../types';
+import { DiamondQuality } from '../../../constants/jewellery';
 import { Edit, Trash2 } from 'lucide-react';
-import { formatCurrency } from '../../lib/goldPrice';
-import { getAvailableDiamondQualities, getDiamondsForQuality } from '../../utils/diamondUtils';
-import { useQualityContext } from '../../context/QualityContext';
-import { useItemPrice } from '../../hooks/useItemPrice';
+import { formatCurrency } from '../../../lib/goldPrice';
+import { getAvailableDiamondQualities, getDiamondsForQuality } from '../../../utils/diamondUtils';
+import { useQualityContext } from '../../../context/QualityContext';
+import { useItemPrice } from '../../../hooks/useItemPrice';
 
 interface AdminTableRowProps {
   item: JewelleryItem;
@@ -14,9 +14,11 @@ interface AdminTableRowProps {
   onDelete: (id: string) => void;
   index: number;
   totalRows: number;
+  isSelected?: boolean;
+  onSelect?: () => void;
 }
 
-export function AdminTableRow({ item, onEdit, onDelete, index, totalRows }: AdminTableRowProps) {
+export function AdminTableRow({ item, onEdit, onDelete, index, totalRows, isSelected, onSelect }: AdminTableRowProps) {
   const { globalDiamondQuality } = useQualityContext(); 
   
   const [selectedQuality, setSelectedQuality] = useState<DiamondQuality | null>(null);
@@ -58,7 +60,17 @@ export function AdminTableRow({ item, onEdit, onDelete, index, totalRows }: Admi
   }
 
   return (
-    <tr className="hover:bg-gray-50">
+    <tr className={`hover:bg-gray-50 transition-colors ${isSelected ? 'bg-blue-50/30' : ''}`}>
+      
+      {/* --- ADD THIS CHECKBOX COLUMN --- */}
+      <td className="px-4 py-4 whitespace-nowrap">
+        <input 
+          type="checkbox" 
+          checked={isSelected} 
+          onChange={onSelect}
+          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer h-4 w-4"
+        />
+      </td>
       {/* 1. Item Name & Image */}
       <td className="px-4 py-4 whitespace-nowrap">
         <div className="flex items-center">

@@ -38,6 +38,8 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
   const [previewGoldPurity, setPreviewGoldPurity] = useState(globalGoldPurity);
   const [previewDiamondQuality, setPreviewDiamondQuality] = useState<DiamondQuality>(globalDiamondQuality as DiamondQuality);
 
+  const [combinedOrder, setCombinedOrder] = useState<string[]>([]);
+
   // Ensure dropdowns stay synced if global context loads late
   useEffect(() => { setPreviewGoldPurity(globalGoldPurity); }, [globalGoldPurity]);
   useEffect(() => { setPreviewDiamondQuality(globalDiamondQuality as DiamondQuality); }, [globalDiamondQuality]);
@@ -181,7 +183,25 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
       }
 
       // 4. Combine arrays and clean up empty stone slots
-      const finalImageUrls = [...currentImages, ...newImageUrls];
+      // 4. Combine arrays and apply the custom mixed drag-and-drop order!
+      let finalImageUrls: string[] = [];
+      
+      if (combinedOrder.length > 0) {
+        // Map the newly generated URLs to their original file IDs
+        const newUrlMap: Record<string, string> = {};
+        selectedImages.forEach((file, index) => {
+          newUrlMap[`${file.name}-${file.size}`] = newImageUrls[index];
+        });
+
+        // Reconstruct the array in the exact order the admin dragged them into
+        finalImageUrls = combinedOrder.map(id => {
+          return currentImages.includes(id) ? id : newUrlMap[id];
+        }).filter(Boolean) as string[];
+      } else {
+        // Fallback just in case
+        finalImageUrls = [...currentImages, ...newImageUrls];
+      }
+      
       const cleanedDiamonds = formData.diamonds.filter(slot => slot.carat > 0);
       const cleanedOtherStones = formData.other_stones.filter(stone => stone.carat > 0);
 
@@ -257,6 +277,7 @@ return (
                   imagesToDelete={imagesToDelete}
                   setImagesToDelete={setImagesToDelete}
                   uploading={uploading}
+                  setCombinedOrder={setCombinedOrder}
                 />
                 
                 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">

@@ -3,7 +3,7 @@ import { Link, Routes, Route, Navigate, useLocation, useNavigate } from 'react-r
 import { supabase } from '../lib/supabase';
 import { JewelleryItem } from '../types';
 import { AdminLogin } from '../components/AdminLogin';
-import { AdminItemsTab } from '../components/admin/AdminItemsTab';
+import { AdminItemsTab } from '../components/admin/items-tab/AdminItemsTab';
 import { AdminCategoriesTab } from '../components/admin/AdminCategoriesTab';
 import { AdminSettingsTab } from '../components/admin/AdminSettingsTab';
 import { AdminDiamondsTab } from '../components/admin/AdminDiamondsTab';
@@ -117,13 +117,14 @@ export function AdminPage() {
               </div>
             )}
 
-            <div className="hidden sm:flex items-center space-x-2 text-[11px] font-bold px-1 uppercase tracking-wider">
+            {/* FIX: Added whitespace-nowrap and flex-shrink-0 to prevent 2-line wrapping */}
+            <div className="flex items-center space-x-1 sm:space-x-2 text-[9px] sm:text-[11px] font-bold px-1 uppercase tracking-wider whitespace-nowrap flex-shrink-0">
               <span className={overrideLiveGoldPrice ? 'text-orange-600' : 'text-gray-500'}>Gold: ₹{effectiveGoldPrice.toLocaleString('en-IN')}/g</span>
               <span className="text-gray-300">|</span>
               <span className="text-gray-500">GST: {Math.round(gstRate * 100)}%</span>
             </div>
 
-            <button onClick={handleLogout} className="p-1 sm:p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><LogOut className="h-4 w-4" /></button>
+            <button onClick={handleLogout} className="p-1 sm:p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors flex-shrink-0"><LogOut className="h-4 w-4" /></button>
           </div>
 
         </div>

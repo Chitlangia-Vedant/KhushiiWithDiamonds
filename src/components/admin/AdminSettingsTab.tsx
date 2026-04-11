@@ -29,67 +29,83 @@ export function AdminSettingsTab({ fallbackGoldPrice, gstRate, goldPrice, overri
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden max-w-2xl mx-auto mt-2">
-      {/* HEADER */}
-      <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-100 bg-gray-50">
-        <h2 className="text-base sm:text-lg font-bold text-gray-800">Global System Settings</h2>
-        <button onClick={handleSave} disabled={isSaving} className="bg-yellow-600 text-white p-1.5 sm:px-4 sm:py-1.5 rounded flex items-center hover:bg-yellow-700 transition font-medium text-sm shadow-sm">
-          <Save className="h-4 w-4" /> <span className="hidden sm:inline ml-1.5">{isSaving ? 'Saving...' : 'Save All'}</span>
+    <>
+      {/* STANDARD HEADER */}
+      <div className="flex justify-between items-center mb-4 sm:mb-6">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Settings</h2>
+          <p className="text-[10px] sm:text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Manage global pricing parameters.</p>
+        </div>
+        <button onClick={handleSave} disabled={isSaving} className="bg-yellow-600 text-white p-2 sm:px-4 sm:py-2 rounded-lg hover:bg-yellow-700 flex items-center shadow-sm flex-shrink-0 transition-colors">
+          <Save className="h-5 w-5" /> <span className="hidden sm:inline ml-1.5 font-medium">{isSaving ? 'Saving...' : 'Save Settings'}</span>
         </button>
       </div>
 
-      <div className="p-3 sm:p-5 space-y-3 sm:space-y-4">
-        
-        {/* COMPACT GOLD PRICING */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border border-gray-100 rounded-lg bg-white shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-yellow-50 rounded text-yellow-600"><TrendingUp className="h-4 w-4 sm:h-5 sm:w-5"/></div>
-            <div>
-              <h3 className="text-sm font-bold text-gray-800">Gold Price</h3>
-              <p className="text-[10px] text-gray-500">Live API: ₹{goldPrice}/g</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 sm:gap-6">
-            <div className="flex flex-col">
-              <label className="text-[10px] font-semibold text-gray-500 mb-1">Fallback (₹/g)</label>
-              <input type="number" value={localFallback} onChange={e=>setLocalFallback(Number(e.target.value))} className="w-20 sm:w-24 px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-yellow-500" />
-            </div>
-            <div className="flex flex-col items-center">
-              <label className="text-[10px] font-semibold text-gray-500 mb-1">Override Live</label>
-              <input type="checkbox" checked={overrideLiveGoldPrice} onChange={e=>updateSetting('overrideLiveGoldPrice', e.target.checked)} className="rounded border-gray-300 text-yellow-600 focus:ring-yellow-500 h-4 w-4 cursor-pointer" />
-            </div>
-          </div>
-        </div>
+      {/* MATCHING TABLE CONTAINER */}
+      <div className="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden mb-6">
+        <div className="divide-y divide-gray-100">
 
-        {/* COMPACT GST */}
-        <div className="flex items-center justify-between gap-3 p-3 sm:p-4 border border-gray-100 rounded-lg bg-white shadow-sm">
-           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-50 rounded text-blue-600"><Percent className="h-4 w-4 sm:h-5 sm:w-5"/></div>
-            <h3 className="text-sm font-bold text-gray-800">GST Rate</h3>
-          </div>
-          <div className="flex items-center bg-gray-50 border border-gray-200 rounded px-1">
-            <input type="number" value={localGst} onChange={e=>setLocalGst(Number(e.target.value))} className="w-12 sm:w-16 px-1 py-1 text-xs bg-transparent border-none focus:ring-0 text-right font-medium" />
-            <span className="text-xs font-bold text-gray-500 pr-2">%</span>
-          </div>
-        </div>
-
-        {/* COMPACT MAKING CHARGES */}
-        <div className="flex items-center justify-between gap-3 p-3 sm:p-4 border border-gray-100 rounded-lg bg-white shadow-sm">
-           <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-50 rounded text-green-600"><Scissors className="h-4 w-4 sm:h-5 sm:w-5"/></div>
-            <div>
-              <h3 className="text-sm font-bold text-gray-800">Making Charges</h3>
-              <p className="text-[10px] text-gray-500">Global Base Rate</p>
+          {/* Gold Price Row */}
+          <div className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="h-10 w-10 sm:h-12 sm:w-12 bg-yellow-50 text-yellow-600 rounded-lg flex items-center justify-center flex-shrink-0 border border-yellow-100">
+                <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6"/>
+              </div>
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-gray-900">Gold Price Configuration</h3>
+                <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">Live API Rate: <span className="font-bold text-gray-700">₹{goldPrice}/g</span></p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 sm:gap-8 bg-white sm:bg-transparent p-3 sm:p-0 border border-gray-100 sm:border-none rounded-lg shadow-sm sm:shadow-none">
+              <div className="flex flex-col">
+                <label className="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 sm:mb-1.5">Fallback (₹/g)</label>
+                <input type="number" value={localFallback} onChange={e=>setLocalFallback(Number(e.target.value))} className="w-20 sm:w-28 px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-yellow-500 outline-none font-medium" />
+              </div>
+              <div className="w-px h-8 bg-gray-200 hidden sm:block"></div>
+              <div className="flex flex-col items-center">
+                <label className="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 sm:mb-1.5">Override Live</label>
+                <input type="checkbox" checked={overrideLiveGoldPrice} onChange={e=>updateSetting('overrideLiveGoldPrice', e.target.checked)} className="rounded border-gray-300 text-yellow-600 focus:ring-yellow-500 h-4 w-4 sm:h-5 sm:w-5 cursor-pointer mt-0.5 sm:mt-1" />
+              </div>
             </div>
           </div>
-          <div className="flex items-center bg-gray-50 border border-gray-200 rounded px-1">
-            <span className="text-xs font-bold text-gray-500 pl-2">₹</span>
-            <input type="number" value={localMaking} onChange={e=>setLocalMaking(Number(e.target.value))} className="w-16 sm:w-20 px-1 py-1 text-xs bg-transparent border-none focus:ring-0 text-right font-medium" />
-            <span className="text-[10px] text-gray-500 pr-2">/g</span>
-          </div>
-        </div>
 
+          {/* GST Rate Row */}
+          <div className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="h-10 w-10 sm:h-12 sm:w-12 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 border border-blue-100">
+                <Percent className="h-5 w-5 sm:h-6 sm:w-6"/>
+              </div>
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-gray-900">Tax Settings</h3>
+                <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">Global GST applied at checkout</p>
+              </div>
+            </div>
+            <div className="flex items-center bg-white border border-gray-300 rounded-md px-2 py-1 sm:px-3 sm:py-1.5 shadow-sm w-fit self-start sm:self-auto">
+              <input type="number" value={localGst} onChange={e=>setLocalGst(Number(e.target.value))} className="w-12 sm:w-16 px-1 py-0.5 text-xs sm:text-sm bg-transparent border-none focus:ring-0 text-right font-bold text-gray-800 outline-none" />
+              <span className="text-xs sm:text-sm font-bold text-gray-500 pr-1">%</span>
+            </div>
+          </div>
+
+          {/* Making Charges Row */}
+          <div className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="h-10 w-10 sm:h-12 sm:w-12 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0 border border-emerald-100">
+                <Scissors className="h-5 w-5 sm:h-6 sm:w-6"/>
+              </div>
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-gray-900">Making Charges</h3>
+                <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">Global baseline rate per gram</p>
+              </div>
+            </div>
+            <div className="flex items-center bg-white border border-gray-300 rounded-md px-2 py-1 sm:px-3 sm:py-1.5 shadow-sm w-fit self-start sm:self-auto">
+              <span className="text-xs sm:text-sm font-bold text-gray-500 pl-1">₹</span>
+              <input type="number" value={localMaking} onChange={e=>setLocalMaking(Number(e.target.value))} className="w-16 sm:w-20 px-1 py-0.5 text-xs sm:text-sm bg-transparent border-none focus:ring-0 text-right font-bold text-gray-800 outline-none" />
+              <span className="text-[10px] sm:text-xs text-gray-500 pr-1">/g</span>
+            </div>
+          </div>
+
+        </div>
       </div>
-    </div>
+    </>
   );
 }

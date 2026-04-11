@@ -59,8 +59,9 @@ export const uploadCategoryImages = async (
 
 export const updateJewelleryDriveMetadata = async (
   currentImageUrls: string[],
+  itemName: string, // <-- NEW: Added itemName
   categoryName: string,
-  categories: any[], // To find the parent
+  categories: any[], 
   itemDescription: string
 ): Promise<void> => {
   if (!currentImageUrls || currentImageUrls.length === 0) return;
@@ -75,6 +76,7 @@ export const updateJewelleryDriveMetadata = async (
     'jewellery',
     categoryName,
     parentCategory,
-    itemDescription
+    itemDescription,
+    itemName // <-- Pass it to the service
   );
 };

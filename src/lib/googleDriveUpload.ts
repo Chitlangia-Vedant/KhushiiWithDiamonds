@@ -61,23 +61,27 @@ export class GoogleDriveUploadService {
    */
   private static getFolderPath(
     itemType: 'category' | 'jewellery',
+    itemName?: string, // <-- NEW: Accept item name
     category?: string,
     parentCategory?: string
   ): string {
-    const basePath = 'WebCatalog(DO NOT EDIT)'
+    const basePath = 'WebCatalog(DO NOT EDIT)';
     
     if (itemType === 'category') {
-      return basePath
+      return basePath;
     }
     
-    // For jewellery items
+    // Sanitize item name to prevent accidental sub-folders if name contains slashes
+    const safeItemName = itemName ? `/${itemName.replace(/[\/\\]/g, '-')}` : '';
+    
+    // For jewellery items, append the safeItemName to the end of the path
     if (parentCategory && category) {
-      return `${basePath}/${parentCategory}/${category}`
+      return `${basePath}/${parentCategory}/${category}${safeItemName}`;
     } else if (category) {
-      return `${basePath}/${category}`
+      return `${basePath}/${category}${safeItemName}`;
     }
     
-    return basePath
+    return `${basePath}${safeItemName}`;
   }
 
   /**
@@ -92,55 +96,25 @@ export class GoogleDriveUploadService {
     itemDescription?: string
   ): Promise<UploadResponse> {
     try {
-      if (!files || files.length === 0) {
-        throw new Error('No files provided for upload')
-      }
+      if (!files || files.length === 0) throw new Error('No files provided for upload');
+      for (const file of files) if (file.size > 10 * 1024 * 1024) throw new Error(`File too large.`);
+      
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      for (const file of files) if (!allowedTypes.includes(file.type)) throw new Error(`Unsupported type.`);
 
-      // Validate file sizes (max 10MB each)
-      for (const file of files) {
-        if (file.size > 10 * 1024 * 1024) {
-          throw new Error(`File "${file.name}" is too large. Maximum size is 10MB.`)
-        }
-      }
-
-      // Validate file types
-      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
-      for (const file of files) {
-        if (!allowedTypes.includes(file.type)) {
-          throw new Error(`File "${file.name}" has unsupported type. Only images are allowed.`)
-        }
-      }
-
-      console.log(`Starting upload process for ${files.length} files`)
-
-      // Convert files to base64
       const uploadFiles: UploadFile[] = await Promise.all(
-        files.map(async (file) => {
-          console.log(`Converting ${file.name} to base64...`)
-          return {
-            name: file.name,
-            data: await this.fileToBase64(file),
-            mimeType: file.type,
-          }
-        })
-      )
+        files.map(async (file) => ({
+          name: file.name,
+          data: await this.fileToBase64(file),
+          mimeType: file.type,
+        }))
+      );
 
-      // Determine folder path
-      const folderPath = this.getFolderPath(itemType, category, parentCategory)
-      console.log(`Target folder path: ${folderPath}`)
+      // <-- FIX: Pass the itemName into the path generator
+      const folderPath = this.getFolderPath(itemType, itemName, category, parentCategory);
 
-      // Prepare request payload
-      const requestPayload = {
-        files: uploadFiles,
-        folderPath,
-        itemName,
-        itemType,
-        itemDescription,
-      }
+      const requestPayload = { files: uploadFiles, folderPath, itemName, itemType, itemDescription };
 
-      console.log(`Calling edge function: ${this.EDGE_FUNCTION_URL}`)
-
-      // Call the edge function
       const response = await fetch(this.EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: {
@@ -148,25 +122,15 @@ export class GoogleDriveUploadService {
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify(requestPayload),
-      })
+      });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const result: UploadResponse = await response.json()
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Upload failed')
-      }
-
-      console.log(`Upload successful! ${result.files.length} files uploaded.`)
-      return result
-
+      if (!response.ok) throw new Error(`HTTP Error: ${response.statusText}`);
+      const result: UploadResponse = await response.json();
+      if (!result.success) throw new Error(result.error || 'Upload failed');
+      return result;
     } catch (error) {
-      console.error('Google Drive upload error:', error)
-      throw error
+      console.error('Google Drive upload error:', error);
+      throw error;
     }
   }
 
@@ -248,12 +212,14 @@ export class GoogleDriveUploadService {
     itemType: 'category' | 'jewellery',
     category?: string,
     parentCategory?: string,
-    itemDescription?: string
+    itemDescription?: string,
+    itemName?: string // <-- NEW: Accept item name here too!
   ): Promise<boolean> {
     try {
       if (!imageUrls || imageUrls.length === 0) return true;
 
-      const folderPath = this.getFolderPath(itemType, category, parentCategory);
+      // <-- FIX: Pass the itemName into the path generator
+      const folderPath = this.getFolderPath(itemType, itemName, category, parentCategory);
 
       const response = await fetch(this.UPDATE_FUNCTION_URL, {
         method: 'POST',
@@ -261,20 +227,14 @@ export class GoogleDriveUploadService {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
-        body: JSON.stringify({
-          imageUrls,
-          folderPath,
-          itemDescription,
-        }),
+        body: JSON.stringify({ imageUrls, folderPath, itemDescription }),
       });
 
       if (!response.ok) throw new Error('Failed to update Drive metadata');
-      
       const result = await response.json();
       return result.success;
     } catch (error) {
       console.error('Google Drive update error:', error);
-      // We don't throw here. If Drive fails, we still want the Supabase database update to succeed!
       return false; 
     }
   }

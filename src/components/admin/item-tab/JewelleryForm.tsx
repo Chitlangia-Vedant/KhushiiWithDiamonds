@@ -167,7 +167,7 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
       const itemDescription = generateItemDescription();
 
       if (editingItem && currentImages.length > 0) {
-        try { await updateJewelleryDriveMetadata(currentImages, formData.category, categories, itemDescription); } 
+        try { await updateJewelleryDriveMetadata(currentImages, formData.name, formData.category, categories, itemDescription); } 
         catch (updateError) { console.error('Drive metadata update failed:', updateError); }
       }
 

@@ -8,7 +8,7 @@ import { DiamondSlotsSection } from './jewellery-form/DiamondSlotsSection';
 import { PricePreviewSection } from './jewellery-form/PricePreviewSection';
 import { ImagePreviewModal } from './jewellery-form/ImagePreviewModal';
 import { formatCurrency, getPriceBreakdownItem } from '../../../lib/goldPrice';
-import { DIAMOND_QUALITIES, DiamondQuality } from '../../../constants/jewellery';
+import { DiamondQuality } from '../../../constants/jewellery';
 import { uploadJewelleryImages, deleteDriveImages, updateJewelleryDriveMetadata } from '../../../utils/uploadUtils';
 import { useCategories } from '../../../hooks/useCategories';
 import { OtherStonesSection } from './jewellery-form/OtherStonesSection';

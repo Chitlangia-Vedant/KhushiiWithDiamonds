@@ -3,7 +3,7 @@ import { Link, Routes, Route, Navigate, useLocation, useNavigate } from 'react-r
 import { supabase } from '../lib/supabase';
 import { JewelleryItem } from '../types';
 import { AdminLogin } from '../components/AdminLogin';
-import { AdminItemsTab } from '../components/admin/items-tab/AdminItemsTab';
+import { AdminItemsTab } from '../components/admin/AdminItemsTab';
 import { AdminCategoriesTab } from '../components/admin/AdminCategoriesTab';
 import { AdminSettingsTab } from '../components/admin/AdminSettingsTab';
 import { AdminDiamondsTab } from '../components/admin/AdminDiamondsTab';

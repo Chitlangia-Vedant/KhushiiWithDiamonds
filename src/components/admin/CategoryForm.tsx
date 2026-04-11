@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Category } from '../../types';
 import { Save, X, Upload, Loader, AlertTriangle } from 'lucide-react'; 
 import { useCategories } from '../../hooks/useCategories';
-import { uploadCategoryImages } from '../../utils/uploadUtils';
-import { CategoryDropdown } from '../shared/CategoryDropdown';
+import { uploadCategoryImages, moveDriveCategoryFolder } from '../../utils/uploadUtils';
+import { CategoryDropdown } from '../shared/CategoryDropdown'; // <-- Import the new utilityimport { CategoryDropdown } from '../shared/CategoryDropdown';
 import toast from 'react-hot-toast';
 import { supabase } from '../../lib/supabase'; 
 
@@ -141,14 +141,29 @@ export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryF
       };
 
       if (editingCategory) {
+        // --- NEW: Physically move the Google Drive Folder! ---
+        const oldParentCat = categories.find(c => c.id === editingCategory.parent_id);
+        const newParentCat = categories.find(c => c.id === categoryFormData.parent_id);
+        
+        try {
+          await moveDriveCategoryFolder(
+            editingCategory.name, oldParentCat?.name,
+            categoryFormData.name, newParentCat?.name
+          );
+        } catch (folderError) {
+          console.error("Failed to move folder in Drive:", folderError);
+        }
+
+        // --- Execute DB Update ---
         const { error } = await supabase.from('categories').update(finalData).eq('id', editingCategory.id);
         if (error) throw error;
+
       } else {
         const { error } = await supabase.from('categories').insert([finalData]);
         if (error) throw error;
       }
 
-      (window as any).isFormDirty = false; // Successfully saved! Clear the dirty flag.
+      (window as any).isFormDirty = false;
       await onSuccess(); 
       toast.success(editingCategory ? 'Category updated successfully!' : 'Category added successfully!', { id: loadingToastId });
       

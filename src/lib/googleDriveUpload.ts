@@ -255,4 +255,24 @@ export class GoogleDriveUploadService {
       return false;
     }
   }
+
+  /**
+   * Move or Rename an entire category folder explicitly by path
+   */
+  static async moveCategoryFolder(oldFolderPath: string, newFolderPath: string): Promise<boolean> {
+    try {
+      const response = await fetch(this.UPDATE_FUNCTION_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ action: 'move_folder', oldFolderPath, newFolderPath }),
+      });
+      return response.ok;
+    } catch (error) {
+      console.error('Google Drive folder move error:', error);
+      return false;
+    }
+  }
 }

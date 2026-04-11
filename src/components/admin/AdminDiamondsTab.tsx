@@ -38,7 +38,7 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
     if (q === 'Lab Grown') return 'lab_grown_offset';
     if (q === 'GH/VS-SI') return 'gh_vs_si_offset';
     if (q === 'FG/VVS-SI') return 'fg_vvs_si_offset';
-    return 'ef_vvs_offset'; // EF/VVS
+    return 'ef_vvs_offset'; 
   };
 
   const handleDeleteTier = (index: number) => {
@@ -105,18 +105,19 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
           </thead>
           <tbody className="divide-y divide-gray-100">
             
-            {/* --- BASE COSTS ROW --- */}
             <tr className="bg-purple-50/20 hover:bg-purple-50/40 transition-colors">
               <td className="px-6 py-4 font-bold text-gray-800">BASE COST</td>
               {DIAMOND_QUALITIES.map(q => (
                 <td key={q} className="px-6 py-4">
                   <div className="flex items-center">
-                    {/* INVISIBLE SPACER: Keeps Base Costs perfectly aligned with the Tier +/- buttons */}
                     <div className="w-8 h-8 mr-2 flex-shrink-0"></div>
                     <input 
                       type="number" 
-                      value={baseCosts[q] || 0} 
+                      min="0"
+                      step="any"
+                      value={baseCosts[q] === 0 ? '' : baseCosts[q]} 
                       onChange={(e) => setBaseCosts({ ...baseCosts, [q]: parseFloat(e.target.value) || 0 })} 
+                      placeholder="0"
                       className={inputCss} 
                     />
                   </div>
@@ -125,40 +126,41 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
               <td></td>
             </tr>
 
-            {/* --- TIERS ROWS --- */}
             {tiers.map((tier, index) => (
               <tr key={index} className="hover:bg-gray-50 transition-colors">
                 <td className="px-6 py-4 flex items-center space-x-2">
                   <input 
-                    type="number" step="0.01" 
-                    value={tier.min_carat} 
+                    type="number" min="0" step="any" 
+                    value={tier.min_carat === 0 ? '' : tier.min_carat} 
                     onChange={(e) => { const nt = [...tiers]; nt[index].min_carat = parseFloat(e.target.value) || 0; setTiers(nt); }} 
+                    placeholder="0"
                     className="w-20 px-2 py-1.5 border border-gray-300 rounded shadow-sm text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none text-center transition-all font-medium" 
                   />
                   <span className="text-gray-500 font-bold px-1">to</span>
                   <input 
-                    type="number" step="0.01" 
-                    value={tier.max_carat} 
+                    type="number" min="0" step="any" 
+                    value={tier.max_carat === 0 ? '' : tier.max_carat} 
                     onChange={(e) => { const nt = [...tiers]; nt[index].max_carat = parseFloat(e.target.value) || 0; setTiers(nt); }} 
+                    placeholder="0"
                     className="w-20 px-2 py-1.5 border border-gray-300 rounded shadow-sm text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none text-center transition-all font-medium" 
                   />
                 </td>
                 
                 {DIAMOND_QUALITIES.map(q => {
                   const oKey = getOffsetKey(q);
-                  const isNegative = Number(tier[oKey]) < 0;
+                  const rawVal = Number(tier[oKey]) || 0;
+                  // Object.is accurately detects -0 even if the number is visually blank
+                  const isNegative = rawVal < 0 || Object.is(rawVal, -0);
                   
                   return (
                     <td key={q} className="px-6 py-4">
                       <div className="flex items-center">
-                        {/* THE TOGGLE BUTTON: Replaces the floating text and keeps the sign outside */}
                         <button 
                           type="button"
                           onClick={() => {
                             const nt = [...tiers];
-                            const currentVal = Number((nt[index] as any)[oKey]) || 0;
-                            // Multiplies by -1. If 0, it behaves neutrally until user types
-                            (nt[index] as any)[oKey] = currentVal === 0 ? 0 : currentVal * -1; 
+                            // Safely flips between 50 and -50, or 0 and -0
+                            (nt[index] as any)[oKey] = isNegative ? Math.abs(rawVal) : (rawVal === 0 ? -0 : -Math.abs(rawVal)); 
                             setTiers(nt);
                           }}
                           className={`w-8 h-8 flex items-center justify-center rounded text-lg font-extrabold mr-2 transition-colors border flex-shrink-0 cursor-pointer ${
@@ -171,20 +173,33 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
                           {!isNegative ? '+' : '-'}
                         </button>
                         
-                        {/* ABSOLUTE VALUE INPUT: Strips negative signs from inside the box natively */}
                         <input 
                           type="number" 
-                          value={Math.abs(Number(tier[oKey]))} 
+                          min="0"
+                          step="any"
+                          value={rawVal === 0 ? '' : Math.abs(rawVal)} 
+                          placeholder="0"
+                          onKeyDown={(e) => {
+                            // Smart Typing: Catch the minus key globally
+                            if (e.key === '-') {
+                              e.preventDefault();
+                              const nt = [...tiers];
+                              (nt[index] as any)[oKey] = isNegative ? Math.abs(rawVal) : (rawVal === 0 ? -0 : -Math.abs(rawVal)); 
+                              setTiers(nt);
+                            }
+                          }}
                           onChange={(e) => { 
                             const rawStr = e.target.value;
-                            // If user hits the '-' key on their keyboard, we detect it and flip the button!
-                            const userTypedNegative = rawStr.includes('-');
+                            if (rawStr === '') {
+                                const nt = [...tiers];
+                                (nt[index] as any)[oKey] = isNegative ? -0 : 0;
+                                setTiers(nt);
+                                return;
+                            }
                             
                             const val = Math.abs(parseFloat(rawStr) || 0);
-                            const shouldBeNegative = userTypedNegative ? true : isNegative;
-                            
                             const nt = [...tiers]; 
-                            (nt[index] as any)[oKey] = shouldBeNegative ? -val : val; 
+                            (nt[index] as any)[oKey] = isNegative ? (val === 0 ? -0 : -val) : val; 
                             setTiers(nt); 
                           }} 
                           className={inputCss}

@@ -15,6 +15,11 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
   const [tiers, setTiers] = useState<DiamondPricingTier[]>(initialTiers);
   const [isSaving, setIsSaving] = useState(false);
 
+  // --- NEW: Auto-dismiss toasts when leaving this tab ---
+  useEffect(() => {
+    return () => { toast.dismiss(); };
+  }, []);
+
   useEffect(() => { setBaseCosts(initialBaseCosts); setTiers(initialTiers); }, [initialBaseCosts, initialTiers]);
 
   const handleSave = async () => {
@@ -41,22 +46,23 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
     return 'ef_vvs_offset'; 
   };
 
+  // --- UNIFIED CONFIRMATION BOX ---
   const handleDeleteTier = (index: number) => {
     toast((t) => (
-      <div className="flex flex-col p-2 min-w-[300px]">
+      <div className="flex flex-col p-1 min-w-[320px]">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0 border border-red-200 shadow-inner">
+          <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center flex-shrink-0 border border-red-100">
             <Trash2 className="h-5 w-5 text-red-600" />
           </div>
           <h3 className="font-extrabold text-gray-900 text-lg">Delete Tier?</h3>
         </div>
-        <div className="text-sm text-gray-800 mb-5 pl-13 leading-relaxed">
-          <p className="mb-2">Are you sure you want to remove this carat tier?</p>
-          <p className="bg-red-50 p-2 border border-red-100 rounded text-red-800 text-xs">
-            <span className="font-bold text-red-600">Note:</span> You must click "Save Pricing Grid" to apply this change.
+        <div className="text-sm text-gray-800 mb-5 pl-[52px] leading-relaxed">
+          <p className="mb-2 font-medium">Are you sure you want to permanently delete this carat tier?</p>
+          <p className="bg-red-50/80 p-2 border border-red-100 rounded text-red-800 text-xs">
+            <span className="font-bold text-red-600">Warning:</span> You must click "Save Pricing Grid" to apply this change.
           </p>
         </div>
-        <div className="flex justify-end gap-3 mt-2">
+        <div className="flex justify-end gap-3 mt-1">
           <button
             onClick={() => toast.dismiss(t.id)}
             className="px-5 py-2 text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 rounded-lg transition-colors border border-gray-300 shadow-sm"
@@ -70,14 +76,11 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
             }}
             className="px-5 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors shadow-sm border border-red-700"
           >
-            Yes, remove
+            Yes, delete
           </button>
         </div>
       </div>
-    ), {
-      duration: Infinity, 
-      style: { maxWidth: '450px', padding: '16px', border: '1px solid #fee2e2' }
-    });
+    ), { duration: Infinity, style: { maxWidth: '450px', padding: '16px', backgroundColor: '#ffffff', border: '1px solid #fecaca' } });
   };
 
   const inputCss = "w-24 px-3 py-1.5 border border-gray-300 rounded shadow-sm text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all font-medium text-gray-800";
@@ -189,7 +192,6 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
                           value={rawVal === 0 ? '' : Math.abs(rawVal)} 
                           placeholder="0"
                           onKeyDown={(e) => {
-                            // Smart Typing: Catch BOTH minus and plus keys!
                             if (e.key === '-') {
                               e.preventDefault(); 
                               const nt = [...tiers];
@@ -198,7 +200,6 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
                             } else if (e.key === '+') {
                               e.preventDefault(); 
                               const nt = [...tiers];
-                              // Force the value to become strictly positive
                               (nt[index] as any)[oKey] = Math.abs(rawVal); 
                               setTiers(nt);
                             }

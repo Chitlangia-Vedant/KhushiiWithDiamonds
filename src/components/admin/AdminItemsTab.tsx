@@ -45,15 +45,19 @@ export function AdminItemsTab() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingItem, setEditingItem] = useState<JewelleryItem | null>(null);
 
-  // BULK SELECTION STATE
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [bulkCategoryName, setBulkCategoryName] = useState<string>('');
+
+  // --- NEW: Auto-dismiss toasts when leaving this tab ---
+  useEffect(() => {
+    return () => { toast.dismiss(); };
+  }, []);
 
   useEffect(() => { loadItems(); }, []);
   
   useEffect(() => { 
     setCurrentPage(1); 
-    setSelectedItemIds([]); // Clear selection if filters change
+    setSelectedItemIds([]); 
   }, [searchQuery, activeCategoryName, filters]);
 
   const loadItems = async () => {
@@ -81,46 +85,101 @@ export function AdminItemsTab() {
     resetForm();
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this item?')) {
-      const loadingToastId = toast.loading('Deleting item...');
-      try {
-        const itemToDelete = items.find(item => item.id === id);
-        if (itemToDelete?.image_url && itemToDelete.image_url.length > 0) {
-          try { await deleteDriveImages(itemToDelete.image_url); } catch (e) { console.error(e); }
-        }
-        const { error } = await supabase.from('jewellery_items').delete().eq('id', id);
-        if (error) throw error;
-        await loadItems();
-        setSelectedItemIds(prev => prev.filter(selectedId => selectedId !== id)); 
-        toast.success('Item deleted successfully!', { id: loadingToastId });
-      } catch (error) {
-        toast.error('Error deleting item.', { id: loadingToastId });
-      }
-    }
+  // --- UNIFIED SINGLE DELETE CONFIRMATION ---
+  const handleDelete = (id: string) => {
+    toast((t) => (
+      <div className="flex flex-col p-1 min-w-[320px]">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center flex-shrink-0 border border-red-100">
+            <Trash2 className="h-5 w-5 text-red-600" />
+          </div>
+          <h3 className="font-extrabold text-gray-900 text-lg">Delete Item?</h3>
+        </div>
+        <div className="text-sm text-gray-800 mb-5 pl-[52px] leading-relaxed">
+          <p className="mb-2 font-medium">Are you sure you want to permanently delete this item?</p>
+          <p className="bg-red-50/80 p-2 border border-red-100 rounded text-red-800 text-xs">
+            <span className="font-bold text-red-600">Warning:</span> This action cannot be undone and its images will be removed.
+          </p>
+        </div>
+        <div className="flex justify-end gap-3 mt-1">
+          <button onClick={() => toast.dismiss(t.id)} className="px-5 py-2 text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 rounded-lg transition-colors border border-gray-300 shadow-sm">
+            Cancel
+          </button>
+          <button
+            onClick={async () => {
+              toast.dismiss(t.id);
+              const loadingToastId = toast.loading('Deleting item...');
+              try {
+                const itemToDelete = items.find(item => item.id === id);
+                if (itemToDelete?.image_url && itemToDelete.image_url.length > 0) {
+                  try { await deleteDriveImages(itemToDelete.image_url); } catch (e) { console.error(e); }
+                }
+                const { error } = await supabase.from('jewellery_items').delete().eq('id', id);
+                if (error) throw error;
+                await loadItems();
+                setSelectedItemIds(prev => prev.filter(selectedId => selectedId !== id)); 
+                toast.success('Item deleted successfully!', { id: loadingToastId });
+              } catch (error) {
+                toast.error('Error deleting item.', { id: loadingToastId });
+              }
+            }}
+            className="px-5 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors shadow-sm border border-red-700"
+          >
+            Yes, delete
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity, style: { maxWidth: '450px', padding: '16px', backgroundColor: '#ffffff', border: '1px solid #fecaca' } });
   };
 
-  // BULK ACTIONS
-  const handleBulkDelete = async () => {
-    if (!window.confirm(`Are you sure you want to permanently delete ${selectedItemIds.length} items?`)) return;
-    
-    const loadingToastId = toast.loading(`Deleting ${selectedItemIds.length} items...`);
-    try {
-      const itemsToDelete = items.filter(item => selectedItemIds.includes(item.id));
-      const allImageUrls = itemsToDelete.flatMap(item => item.image_url || []);
-      if (allImageUrls.length > 0) {
-        try { await deleteDriveImages(allImageUrls); } catch (e) { console.error('Bulk image delete error:', e); }
-      }
+  // --- UNIFIED BULK DELETE CONFIRMATION ---
+  const handleBulkDelete = () => {
+    toast((t) => (
+      <div className="flex flex-col p-1 min-w-[320px]">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center flex-shrink-0 border border-red-100">
+            <Trash2 className="h-5 w-5 text-red-600" />
+          </div>
+          <h3 className="font-extrabold text-gray-900 text-lg">Delete {selectedItemIds.length} Items?</h3>
+        </div>
+        <div className="text-sm text-gray-800 mb-5 pl-[52px] leading-relaxed">
+          <p className="mb-2 font-medium">Are you sure you want to permanently delete these {selectedItemIds.length} items?</p>
+          <p className="bg-red-50/80 p-2 border border-red-100 rounded text-red-800 text-xs">
+            <span className="font-bold text-red-600">Warning:</span> All associated images will also be permanently removed.
+          </p>
+        </div>
+        <div className="flex justify-end gap-3 mt-1">
+          <button onClick={() => toast.dismiss(t.id)} className="px-5 py-2 text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 rounded-lg transition-colors border border-gray-300 shadow-sm">
+            Cancel
+          </button>
+          <button
+            onClick={async () => {
+              toast.dismiss(t.id);
+              const loadingToastId = toast.loading(`Deleting ${selectedItemIds.length} items...`);
+              try {
+                const itemsToDelete = items.filter(item => selectedItemIds.includes(item.id));
+                const allImageUrls = itemsToDelete.flatMap(item => item.image_url || []);
+                if (allImageUrls.length > 0) {
+                  try { await deleteDriveImages(allImageUrls); } catch (e) { console.error('Bulk image delete error:', e); }
+                }
 
-      const { error } = await supabase.from('jewellery_items').delete().in('id', selectedItemIds);
-      if (error) throw error;
+                const { error } = await supabase.from('jewellery_items').delete().in('id', selectedItemIds);
+                if (error) throw error;
 
-      await loadItems();
-      setSelectedItemIds([]);
-      toast.success(`${selectedItemIds.length} items deleted successfully!`, { id: loadingToastId });
-    } catch (error) {
-      toast.error('Error during bulk deletion.', { id: loadingToastId });
-    }
+                await loadItems();
+                setSelectedItemIds([]);
+                toast.success(`${selectedItemIds.length} items deleted successfully!`, { id: loadingToastId });
+              } catch (error) {
+                toast.error('Error during bulk deletion.', { id: loadingToastId });
+              }
+            }}
+            className="px-5 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors shadow-sm border border-red-700"
+          >
+            Yes, delete all
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity, style: { maxWidth: '450px', padding: '16px', backgroundColor: '#ffffff', border: '1px solid #fecaca' } });
   };
 
   const handleBulkMove = async () => {
@@ -149,7 +208,6 @@ export function AdminItemsTab() {
 
   const filteredItems = useMemo(() => {
     return items.filter(item => {
-      // 1. Basic Search & Category
       if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       if (activeCategoryName !== 'All') {
         const selectedCat = categories.find(c => c.name === activeCategoryName);
@@ -161,13 +219,11 @@ export function AdminItemsTab() {
         }
       }
 
-      // 2. Gold & Pricing Overrides
       if (filters.goldWeightMin && item.gold_weight < Number(filters.goldWeightMin)) return false;
       if (filters.goldWeightMax && item.gold_weight > Number(filters.goldWeightMax)) return false;
       if (filters.overriddenMaking && item.making_charges_per_gram === -1) return false;
       if (filters.overriddenDiamond && item.override_diamond_costs === false) return false;
 
-      // 3. Diamond Properties
       const numDiamonds = item.diamonds?.length || 0;
       const totalDiamondCarat = item.diamonds?.reduce((sum, d) => sum + (d.carat || 0), 0) || 0;
       if (filters.diamondsCountMin && numDiamonds < Number(filters.diamondsCountMin)) return false;
@@ -178,7 +234,6 @@ export function AdminItemsTab() {
       if (filters.hasCustomDiamondName && !item.diamonds?.some(d => !(d.name || '').toLowerCase().startsWith('diamond'))) return false;
       if (filters.diamondNameQuery && !item.diamonds?.some(d => (d.name || '').toLowerCase().includes(filters.diamondNameQuery.toLowerCase()))) return false;
 
-      // 4. Other Stones Properties
       const hasStones = item.other_stones && item.other_stones.length > 0;
       const totalStoneCarat = item.other_stones?.reduce((sum, s) => sum + (s.carat || 0), 0) || 0;
       if (filters.hasOtherStones && !hasStones) return false;
@@ -186,7 +241,6 @@ export function AdminItemsTab() {
       if (filters.totalStoneCaratMax && totalStoneCarat > Number(filters.totalStoneCaratMax)) return false;
       if (filters.stoneNameQuery && !item.other_stones?.some(s => (s.name || '').toLowerCase().includes(filters.stoneNameQuery.toLowerCase()))) return false;
 
-      // 5. Any Single Stone Carat Limit
       if (filters.singleStoneCaratMin || filters.singleStoneCaratMax) {
         const min = filters.singleStoneCaratMin ? Number(filters.singleStoneCaratMin) : 0;
         const max = filters.singleStoneCaratMax ? Number(filters.singleStoneCaratMax) : Infinity;
@@ -194,7 +248,6 @@ export function AdminItemsTab() {
         if (!allStones.some(s => (s.carat || 0) >= min && (s.carat || 0) <= max)) return false;
       }
 
-      // 6. Live Final Price
       if (filters.priceMin || filters.priceMax) {
         const pricing = getPriceBreakdownItem(item, globalGoldPurity, globalDiamondQuality as DiamondQuality, globalGoldMakingCharges, effectiveGoldPrice, gstRate, diamondBaseCosts, diamondTiers);
         if (filters.priceMin && pricing.total < Number(filters.priceMin)) return false;
@@ -209,7 +262,6 @@ export function AdminItemsTab() {
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedItems = filteredItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  // Helper for input styles inside the advanced filters
   const inputCss = "w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-yellow-500 outline-none";
 
   return (
@@ -224,7 +276,6 @@ export function AdminItemsTab() {
         </button>
       </div>
 
-      {/* --- FLOATING BULK ACTIONS BAR --- */}
       {selectedItemIds.length > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 flex flex-col sm:flex-row items-center justify-between shadow-sm transition-all">
           <div className="flex items-center mb-3 sm:mb-0">
@@ -258,7 +309,6 @@ export function AdminItemsTab() {
         </div>
       )}
 
-      {/* --- TOP BAR: SEARCH, HIERARCHICAL CATEGORY, FILTER TOGGLE --- */}
       <div className="flex flex-col md:flex-row gap-3 mb-4">
         <div className="relative flex-grow">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -272,7 +322,6 @@ export function AdminItemsTab() {
         </button>
       </div>
 
-      {/* --- ADVANCED FILTERS DRAWER (RESTORED) --- */}
       {showFilters && (
         <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6 shadow-sm">
           <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
@@ -281,8 +330,6 @@ export function AdminItemsTab() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            
-            {/* Group 1: Core & Pricing */}
             <div className="space-y-3 p-3 bg-gray-50 rounded border border-gray-100">
               <h4 className="text-xs font-bold text-gray-500 uppercase">Core & Pricing</h4>
               <div className="flex gap-2">
@@ -296,7 +343,6 @@ export function AdminItemsTab() {
               <label className="flex items-center space-x-2 text-xs text-gray-700 cursor-pointer"><input type="checkbox" checked={filters.overriddenMaking} onChange={e=>updateFilter('overriddenMaking', e.target.checked)} className="rounded border-gray-300 text-yellow-600 focus:ring-yellow-500"/><span>Custom Making Charge</span></label>
             </div>
 
-            {/* Group 2: Diamonds */}
             <div className="space-y-3 p-3 bg-blue-50/50 rounded border border-blue-100">
               <h4 className="text-xs font-bold text-blue-800 uppercase">Diamonds</h4>
               <div className="flex gap-2">
@@ -314,7 +360,6 @@ export function AdminItemsTab() {
               </div>
             </div>
 
-            {/* Group 3: Other Stones */}
             <div className="space-y-3 p-3 bg-emerald-50/50 rounded border border-emerald-100">
               <h4 className="text-xs font-bold text-emerald-800 uppercase">Other Stones</h4>
               <label className="flex items-center space-x-2 text-xs text-gray-700 cursor-pointer"><input type="checkbox" checked={filters.hasOtherStones} onChange={e=>updateFilter('hasOtherStones', e.target.checked)} className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"/><span>Contains Other Stones</span></label>
@@ -325,7 +370,6 @@ export function AdminItemsTab() {
               </div>
             </div>
 
-            {/* Group 4: Deep Specs */}
             <div className="space-y-3 p-3 bg-purple-50/50 rounded border border-purple-100">
               <h4 className="text-xs font-bold text-purple-800 uppercase">Any Stone Target</h4>
               <p className="text-[10px] text-gray-500 leading-tight mb-2">Find items containing AT LEAST ONE diamond or other stone within this carat range:</p>
@@ -339,7 +383,6 @@ export function AdminItemsTab() {
         </div>
       )}
 
-      {/* --- TABLE COMPONENT --- */}
       <div className="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden mb-6">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -393,7 +436,6 @@ export function AdminItemsTab() {
           )}
         </div>
 
-        {/* PAGINATION FOOTER */}
         {filteredItems.length > 0 && (
           <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
             <p className="text-sm text-gray-700 hidden sm:block">

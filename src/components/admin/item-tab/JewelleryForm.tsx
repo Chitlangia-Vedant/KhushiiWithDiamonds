@@ -163,21 +163,23 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
     setUploading(true);
     const loadingToastId = toast.loading(editingItem ? 'Updating item...' : 'Saving new item...');
 
+    // --- NEW: Track newly uploaded URLs so we can roll them back if the DB fails! ---
+    let newlyUploadedUrls: string[] = [];
+
     try {
       const itemDescription = generateItemDescription();
 
       if (editingItem && currentImages.length > 0) {
-        try { await updateJewelleryDriveMetadata(currentImages, formData.name, formData.category, categories, itemDescription); } 
-        catch (updateError) { console.error('Drive metadata update failed:', updateError); }
+        try { 
+          await updateJewelleryDriveMetadata(
+            currentImages, formData.name, formData.category, categories, itemDescription
+          ); 
+        } catch (updateError) { console.error('Drive metadata update failed:', updateError); }
       }
 
-      let newImageUrls: string[] = [];
       if (selectedImages.length > 0) {
-        try { newImageUrls = await uploadJewelleryImages(selectedImages, formData.name, formData.category, categories, itemDescription); } 
-        catch (uploadError) {
-          const errorMessage = uploadError instanceof Error ? uploadError.message : 'Unknown error';
-          toast.error(`Image upload failed: ${errorMessage}. Saving without new images.`, { duration: 5000 });
-        }
+        // We don't wrap this in a catch. If Drive upload fails, we WANT it to crash before touching the DB.
+        newlyUploadedUrls = await uploadJewelleryImages(selectedImages, formData.name, formData.category, categories, itemDescription); 
       }
 
       if (imagesToDelete.length > 0) {
@@ -188,10 +190,10 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
       let finalImageUrls: string[] = [];
       if (combinedOrder.length > 0) {
         const newUrlMap: Record<string, string> = {};
-        selectedImages.forEach((file, index) => { newUrlMap[`${file.name}-${file.size}`] = newImageUrls[index]; });
+        selectedImages.forEach((file, index) => { newUrlMap[`${file.name}-${file.size}`] = newlyUploadedUrls[index]; });
         finalImageUrls = combinedOrder.map(id => currentImages.includes(id) ? id : newUrlMap[id]).filter(Boolean) as string[];
       } else {
-        finalImageUrls = [...currentImages, ...newImageUrls];
+        finalImageUrls = [...currentImages, ...newlyUploadedUrls];
       }
       
       const cleanedDiamonds = formData.diamonds.filter(slot => slot.carat > 0);
@@ -204,19 +206,36 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
         other_stones: cleanedOtherStones, override_diamond_costs: formData.override_diamond_costs
       };
 
-      await onSubmit(itemData, finalImageUrls);
+      // --- NEW: Await the DB submission so we can catch its errors ---
+      try {
+        await onSubmit(itemData, finalImageUrls);
+      } catch (dbError) {
+        throw new Error(`Database Error: ${(dbError as Error).message}`);
+      }
       
-      (window as any).isFormDirty = false; // Successfully saved! Clear the dirty flag.
+      (window as any).isFormDirty = false; 
       toast.success(editingItem ? 'Item updated successfully!' : 'Item added successfully!', { id: loadingToastId });
       
     } catch (error) {
+      // --- THE ROLLBACK ---
+      // If the process crashed anywhere, and we successfully uploaded images to Drive, 
+      // we must delete them so they don't become permanent "Ghost Images".
+      if (newlyUploadedUrls.length > 0) {
+        console.warn("Rolling back Google Drive uploads due to Database failure...");
+        try {
+          await deleteDriveImages(newlyUploadedUrls);
+        } catch (rollbackError) {
+          console.error("CRITICAL: Rollback failed. Orphaned files exist in Drive.", rollbackError);
+        }
+      }
+
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast.error(`Error saving item: ${errorMessage}`, { id: loadingToastId, duration: 5000 });
+      toast.error(`Error saving item: ${errorMessage}`, { id: loadingToastId, duration: 6000 });
     } finally {
       setUploading(false);
     }
   };
-
+  
 return (
     <>
       <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">

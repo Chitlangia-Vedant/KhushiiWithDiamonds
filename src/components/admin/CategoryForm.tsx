@@ -119,18 +119,16 @@ export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryF
     
     const loadingToastId = toast.loading(editingCategory ? 'Updating category...' : 'Saving category...');
     
+    // --- NEW: Track uploaded URLs for rollback ---
+    let newlyUploadedUrls: string[] = [];
+
     try {
       let finalImageUrl = editingCategory?.image_url || null;
 
       if (selectedImages.length > 0) {
-        try {
-          const itemDescription = generateCategoryDescription(); 
-          const uploadedUrls = await uploadCategoryImages(selectedImages, categoryFormData.name, itemDescription);
-          if (uploadedUrls.length > 0) finalImageUrl = uploadedUrls[0];
-        } catch (uploadError) {
-          const errorMessage = uploadError instanceof Error ? uploadError.message : 'Unknown error';
-          toast.error(`Image upload failed: ${errorMessage}. Saving without new images.`, { duration: 5000 });
-        }
+        const itemDescription = generateCategoryDescription(); 
+        newlyUploadedUrls = await uploadCategoryImages(selectedImages, categoryFormData.name, itemDescription);
+        if (newlyUploadedUrls.length > 0) finalImageUrl = newlyUploadedUrls[0];
       }
 
       const finalData = {
@@ -141,26 +139,21 @@ export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryF
       };
 
       if (editingCategory) {
-        // --- NEW: Physically move the Google Drive Folder! ---
         const oldParentCat = categories.find(c => c.id === editingCategory.parent_id);
         const newParentCat = categories.find(c => c.id === categoryFormData.parent_id);
         
         try {
-          await moveDriveCategoryFolder(
-            editingCategory.name, oldParentCat?.name,
-            categoryFormData.name, newParentCat?.name
-          );
+          await moveDriveCategoryFolder(editingCategory.name, oldParentCat?.name, categoryFormData.name, newParentCat?.name);
         } catch (folderError) {
           console.error("Failed to move folder in Drive:", folderError);
         }
 
-        // --- Execute DB Update ---
         const { error } = await supabase.from('categories').update(finalData).eq('id', editingCategory.id);
-        if (error) throw error;
+        if (error) throw error; // Triggers the catch block below
 
       } else {
         const { error } = await supabase.from('categories').insert([finalData]);
-        if (error) throw error;
+        if (error) throw error; // Triggers the catch block below
       }
 
       (window as any).isFormDirty = false;
@@ -168,6 +161,18 @@ export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryF
       toast.success(editingCategory ? 'Category updated successfully!' : 'Category added successfully!', { id: loadingToastId });
       
     } catch (error: any) {
+      
+      // --- THE ROLLBACK ---
+      if (newlyUploadedUrls.length > 0) {
+        console.warn("Rolling back Google Drive uploads due to Database failure...");
+        try {
+           // Reuse your existing utility to delete the orphaned category images
+           await deleteDriveImages(newlyUploadedUrls);
+        } catch (rollbackError) {
+           console.error("CRITICAL: Rollback failed.", rollbackError);
+        }
+      }
+
       console.error('Error saving category:', error);
       toast.error(error.message || 'Error saving category. Please check your connection.', { id: loadingToastId, duration: 4000 });
     } finally {

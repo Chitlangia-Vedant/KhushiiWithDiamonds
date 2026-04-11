@@ -18,6 +18,7 @@ import { DiamondQuality } from '../../constants/jewellery';
 import { AdminItemsBulkActions } from './item-tab/AdminItemsBulkActions';
 import { AdminItemsAdvancedFilters, AdminItemFilters, initialFilters } from './item-tab/AdminItemsAdvancedFilters';
 import { AdminItemsTable } from './item-tab/AdminItemsTable';
+import { updateJewelleryDriveMetadata } from '../../../utils/uploadUtils'; // <-- Ensure this is imported
 
 const ITEMS_PER_PAGE = 20;
 
@@ -149,12 +150,41 @@ export function AdminItemsTab() {
 
   const handleBulkMove = async () => {
     if (!bulkCategoryName) return toast.error('Select a destination category first.');
-    const loadingToastId = toast.loading(`Moving...`);
+    const loadingToastId = toast.loading(`Moving items and Drive folders...`);
+    
     try {
+      // 1. Find the items we are moving
+      const itemsToMove = items.filter(item => selectedItemIds.includes(item.id));
+
+      // 2. Move their folders in Google Drive one by one
+      for (const item of itemsToMove) {
+        if (item.image_url && item.image_url.length > 0) {
+          try {
+            // We pass the NEW category name, so Drive knows where to move it
+            await updateJewelleryDriveMetadata(
+              item.image_url,
+              item.name,
+              bulkCategoryName, // The destination category
+              categories,
+              item.description || 'Bulk moved item' // Fallback description
+            );
+          } catch (driveError) {
+            console.error(`Failed to move Drive folder for ${item.name}`, driveError);
+          }
+        }
+      }
+
+      // 3. Finally, update the Database
       await supabase.from('jewellery_items').update({ category: bulkCategoryName }).in('id', selectedItemIds);
-      await loadItems(); setSelectedItemIds([]); setBulkCategoryName('');
+      
+      await loadItems(); 
+      setSelectedItemIds([]); 
+      setBulkCategoryName('');
       toast.success(`Moved successfully!`, { id: loadingToastId });
-    } catch (error) { toast.error('Error moving items.', { id: loadingToastId }); }
+      
+    } catch (error) { 
+      toast.error('Error moving items.', { id: loadingToastId }); 
+    }
   };
 
   const handleSort = (key: string) => {

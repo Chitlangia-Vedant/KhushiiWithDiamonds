@@ -213,12 +213,11 @@ export class GoogleDriveUploadService {
     category?: string,
     parentCategory?: string,
     itemDescription?: string,
-    itemName?: string // <-- NEW: Accept item name here too!
+    itemName?: string // Already accepting this from our previous fix!
   ): Promise<boolean> {
     try {
       if (!imageUrls || imageUrls.length === 0) return true;
 
-      // <-- FIX: Pass the itemName into the path generator
       const folderPath = this.getFolderPath(itemType, itemName, category, parentCategory);
 
       const response = await fetch(this.UPDATE_FUNCTION_URL, {
@@ -227,7 +226,8 @@ export class GoogleDriveUploadService {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
-        body: JSON.stringify({ imageUrls, folderPath, itemDescription }),
+        // --- FIX: We now pass itemName to the Edge Function payload! ---
+        body: JSON.stringify({ imageUrls, folderPath, itemDescription, itemName }),
       });
 
       if (!response.ok) throw new Error('Failed to update Drive metadata');

@@ -115,8 +115,11 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
                       type="number" 
                       min="0"
                       step="any"
-                      value={baseCosts[q] === 0 ? '' : baseCosts[q]} 
-                      onChange={(e) => setBaseCosts({ ...baseCosts, [q]: parseFloat(e.target.value) || 0 })} 
+                      value={baseCosts[q] === 0 || baseCosts[q] === undefined ? '' : baseCosts[q]} 
+                      onChange={(e) => {
+                        const parsed = parseFloat(e.target.value);
+                        setBaseCosts({ ...baseCosts, [q]: isNaN(parsed) ? 0 : parsed });
+                      }} 
                       placeholder="0"
                       className={inputCss} 
                     />
@@ -132,7 +135,10 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
                   <input 
                     type="number" min="0" step="any" 
                     value={tier.min_carat === 0 ? '' : tier.min_carat} 
-                    onChange={(e) => { const nt = [...tiers]; nt[index].min_carat = parseFloat(e.target.value) || 0; setTiers(nt); }} 
+                    onChange={(e) => { 
+                      const parsed = parseFloat(e.target.value);
+                      const nt = [...tiers]; nt[index].min_carat = isNaN(parsed) ? 0 : parsed; setTiers(nt); 
+                    }} 
                     placeholder="0"
                     className="w-20 px-2 py-1.5 border border-gray-300 rounded shadow-sm text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none text-center transition-all font-medium" 
                   />
@@ -140,7 +146,10 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
                   <input 
                     type="number" min="0" step="any" 
                     value={tier.max_carat === 0 ? '' : tier.max_carat} 
-                    onChange={(e) => { const nt = [...tiers]; nt[index].max_carat = parseFloat(e.target.value) || 0; setTiers(nt); }} 
+                    onChange={(e) => { 
+                      const parsed = parseFloat(e.target.value);
+                      const nt = [...tiers]; nt[index].max_carat = isNaN(parsed) ? 0 : parsed; setTiers(nt); 
+                    }} 
                     placeholder="0"
                     className="w-20 px-2 py-1.5 border border-gray-300 rounded shadow-sm text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none text-center transition-all font-medium" 
                   />
@@ -148,8 +157,10 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
                 
                 {DIAMOND_QUALITIES.map(q => {
                   const oKey = getOffsetKey(q);
-                  const rawVal = Number(tier[oKey]) || 0;
-                  // Object.is accurately detects -0 even if the number is visually blank
+                  const currentVal = tier[oKey];
+                  
+                  // Safe extraction that completely preserves -0
+                  const rawVal = currentVal === undefined || currentVal === null ? 0 : Number(currentVal);
                   const isNegative = rawVal < 0 || Object.is(rawVal, -0);
                   
                   return (
@@ -159,7 +170,6 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
                           type="button"
                           onClick={() => {
                             const nt = [...tiers];
-                            // Safely flips between 50 and -50, or 0 and -0
                             (nt[index] as any)[oKey] = isNegative ? Math.abs(rawVal) : (rawVal === 0 ? -0 : -Math.abs(rawVal)); 
                             setTiers(nt);
                           }}
@@ -180,9 +190,8 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
                           value={rawVal === 0 ? '' : Math.abs(rawVal)} 
                           placeholder="0"
                           onKeyDown={(e) => {
-                            // Smart Typing: Catch the minus key globally
                             if (e.key === '-') {
-                              e.preventDefault();
+                              e.preventDefault(); // Stop native minus logic
                               const nt = [...tiers];
                               (nt[index] as any)[oKey] = isNegative ? Math.abs(rawVal) : (rawVal === 0 ? -0 : -Math.abs(rawVal)); 
                               setTiers(nt);
@@ -197,7 +206,9 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
                                 return;
                             }
                             
-                            const val = Math.abs(parseFloat(rawStr) || 0);
+                            const parsed = parseFloat(rawStr);
+                            const val = isNaN(parsed) ? 0 : Math.abs(parsed);
+                            
                             const nt = [...tiers]; 
                             (nt[index] as any)[oKey] = isNegative ? (val === 0 ? -0 : -val) : val; 
                             setTiers(nt); 

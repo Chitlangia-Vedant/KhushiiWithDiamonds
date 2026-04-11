@@ -42,8 +42,7 @@ export function AdminItemsTab() {
   const effectiveGoldPrice = overrideLiveGoldPrice ? fallbackGoldPrice : goldPrice;
 
   // States
-  const [activeCategoryId, setActiveCategoryId] = useState<string | 'All'>('All');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategoryName, setActiveCategoryName] = useState<string | 'All'>('All');  const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState(initialFilters);
   const [currentPage, setCurrentPage] = useState(1);
@@ -52,7 +51,7 @@ export function AdminItemsTab() {
   const [editingItem, setEditingItem] = useState<JewelleryItem | null>(null);
 
   useEffect(() => { loadItems(); }, []);
-  useEffect(() => { setCurrentPage(1); }, [searchQuery, activeCategoryId, filters]);
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, activeCategoryName, filters]);
 
   const loadItems = async () => {
     try {
@@ -99,15 +98,23 @@ export function AdminItemsTab() {
   };
 
   const updateFilter = (key: keyof typeof filters, value: any) => setFilters(prev => ({ ...prev, [key]: value }));
-  const clearFilters = () => { setFilters(initialFilters); setSearchQuery(''); setActiveCategoryId('All'); };
+  const clearFilters = () => { setFilters(initialFilters); setSearchQuery(''); setActiveCategoryName('All'); };
 
   // --- OPTIMIZED FILTER ENGINE ---
   const filteredItems = useMemo(() => {
     return items.filter(item => {
       // 1. Basic Search & Category
       if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-      if (activeCategoryId !== 'All' && !getValidCategoryNames(activeCategoryId, categories).includes(item.category)) return false;
-
+      if (activeCategoryName !== 'All') {
+        const selectedCat = categories.find(c => c.name === activeCategoryName);
+        if (selectedCat) {
+          const validNames = getValidCategoryNames(selectedCat.id, categories);
+          if (!validNames.includes(item.category)) return false;
+        } else {
+          // Safety fallback
+          if (item.category !== activeCategoryName) return false;
+        }
+      }
       // 2. Gold & Pricing Overrides
       if (filters.goldWeightMin && item.gold_weight < Number(filters.goldWeightMin)) return false;
       if (filters.goldWeightMax && item.gold_weight > Number(filters.goldWeightMax)) return false;
@@ -122,8 +129,8 @@ export function AdminItemsTab() {
       if (filters.totalDiamondCaratMin && totalDiamondCarat < Number(filters.totalDiamondCaratMin)) return false;
       if (filters.totalDiamondCaratMax && totalDiamondCarat > Number(filters.totalDiamondCaratMax)) return false;
       
-      if (filters.hasCustomDiamondName && !item.diamonds?.some(d => !d.name.toLowerCase().startsWith('diamond'))) return false;
-      if (filters.diamondNameQuery && !item.diamonds?.some(d => d.name.toLowerCase().includes(filters.diamondNameQuery.toLowerCase()))) return false;
+      if (filters.hasCustomDiamondName && !item.diamonds?.some(d => !(d.name || '').toLowerCase().startsWith('diamond'))) return false;
+      if (filters.diamondNameQuery && !item.diamonds?.some(d => (d.name || '').toLowerCase().includes(filters.diamondNameQuery.toLowerCase()))) return false;
 
       // 4. Other Stones Properties
       const hasStones = item.other_stones && item.other_stones.length > 0;
@@ -131,7 +138,7 @@ export function AdminItemsTab() {
       if (filters.hasOtherStones && !hasStones) return false;
       if (filters.totalStoneCaratMin && totalStoneCarat < Number(filters.totalStoneCaratMin)) return false;
       if (filters.totalStoneCaratMax && totalStoneCarat > Number(filters.totalStoneCaratMax)) return false;
-      if (filters.stoneNameQuery && !item.other_stones?.some(s => s.name.toLowerCase().includes(filters.stoneNameQuery.toLowerCase()))) return false;
+      if (filters.stoneNameQuery && !item.other_stones?.some(s => (s.name || '').toLowerCase().includes(filters.stoneNameQuery.toLowerCase()))) return false;
 
       // 5. Any Single Stone Carat Limit
       if (filters.singleStoneCaratMin || filters.singleStoneCaratMax) {
@@ -150,7 +157,7 @@ export function AdminItemsTab() {
 
       return true;
     });
-  }, [items, searchQuery, activeCategoryId, filters, globalGoldPurity, globalDiamondQuality, globalGoldMakingCharges, effectiveGoldPrice, gstRate, diamondBaseCosts, diamondTiers, categories]);
+  }, [items, searchQuery, activeCategoryName, filters, globalGoldPurity, globalDiamondQuality, globalGoldMakingCharges, effectiveGoldPrice, gstRate, diamondBaseCosts, diamondTiers, categories]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / ITEMS_PER_PAGE));
@@ -179,7 +186,12 @@ export function AdminItemsTab() {
           <input type="text" placeholder="Search item name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none text-sm shadow-sm" />
         </div>
         <div className="w-full md:w-64">
-          <CategoryDropdown categories={categories} value={activeCategoryId === 'All' ? '' : activeCategoryId} onChange={(val) => setActiveCategoryId(val || 'All')} />
+          <CategoryDropdown  
+            valueLabel={activeCategoryName === 'All' ? 'All Categories' : activeCategoryName} 
+            onSelect={(id, name) => setActiveCategoryName(name)} 
+            onClear={() => setActiveCategoryName('All')}
+            clearLabel="All Categories" 
+          />
         </div>
         <button onClick={() => setShowFilters(!showFilters)} className={`px-4 py-2 border rounded-lg text-sm font-medium flex items-center justify-center transition-colors ${showFilters ? 'bg-yellow-50 border-yellow-200 text-yellow-700' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 shadow-sm'}`}>
           <Filter className="h-4 w-4 mr-2" /> Advanced

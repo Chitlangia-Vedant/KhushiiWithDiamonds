@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Plus, Trash2 } from 'lucide-react';
-import toast from 'react-hot-toast'; // <-- Added toast import
+import toast from 'react-hot-toast';
 import { DIAMOND_QUALITIES } from '../../constants/jewellery';
 import { DiamondPricingTier } from '../../types';
 
@@ -41,7 +41,6 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
     return 'ef_vvs_offset'; // EF/VVS
   };
 
-  // --- NEW CONFIRMATION TOAST FOR DELETING A TIER ---
   const handleDeleteTier = (index: number) => {
     toast((t) => (
       <div className="flex flex-col p-1 min-w-[280px]">
@@ -64,8 +63,7 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
           </button>
           <button
             onClick={() => {
-              toast.dismiss(t.id); // Hide the confirm dialog
-              // Remove the tier from local state
+              toast.dismiss(t.id);
               setTiers(tiers.filter((_, i) => i !== index));
             }}
             className="px-4 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors shadow-sm"
@@ -80,6 +78,10 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
     });
   };
 
+  // --- NEW: Unified Input Styling ---
+  // This ensures every single number box in the table is the exact same width and design!
+  const inputCss = "w-24 px-3 py-1.5 border border-gray-300 rounded shadow-sm text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all";
+
   return (
     <div className="bg-white shadow-lg rounded-xl p-6 border border-gray-100">
       <div className="flex justify-between items-center mb-6">
@@ -87,60 +89,92 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
           <h2 className="text-xl font-bold text-gray-900">Universal Diamond Pricing</h2>
           <p className="text-sm text-gray-500">Set base costs and dynamic offsets per carat range.</p>
         </div>
-        <button onClick={handleSave} disabled={isSaving} className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-purple-700">
+        <button onClick={handleSave} disabled={isSaving} className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-purple-700 shadow-sm transition-colors">
           <Save className="h-4 w-4 mr-2" /> {isSaving ? 'Saving...' : 'Save Pricing Grid'}
         </button>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-purple-50 text-purple-900 font-semibold uppercase text-xs">
+      {/* Added border and spacing to the table wrapper to make it look cleaner */}
+      <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <table className="w-full text-sm text-left whitespace-nowrap">
+          <thead className="bg-purple-50 text-purple-900 font-semibold uppercase text-xs tracking-wider border-b border-gray-200">
             <tr>
-              <th className="px-4 py-3">Carat Range</th>
-              {DIAMOND_QUALITIES.map(q => <th key={q} className="px-4 py-3">{q} (₹/ct)</th>)}
-              <th className="px-4 py-3">Actions</th>
+              {/* Increased px-6 padding across all columns for breathing room */}
+              <th className="px-6 py-4">Carat Range</th>
+              {DIAMOND_QUALITIES.map(q => <th key={q} className="px-6 py-4">{q} (₹/ct)</th>)}
+              <th className="px-6 py-4 text-center">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {/* BASE COSTS */}
-            <tr className="bg-purple-50/30">
-              <td className="px-4 py-4 font-bold text-gray-800">BASE COST</td>
+            
+            {/* --- BASE COSTS ROW --- */}
+            <tr className="bg-purple-50/20 hover:bg-purple-50/40 transition-colors">
+              <td className="px-6 py-4 font-bold text-gray-800">BASE COST</td>
               {DIAMOND_QUALITIES.map(q => (
-                <td key={q} className="px-4 py-4">
-                  <input type="number" value={baseCosts[q] || 0} onChange={(e) => setBaseCosts({ ...baseCosts, [q]: parseFloat(e.target.value) || 0 })} className="w-24 px-2 py-1 border rounded" />
+                <td key={q} className="px-6 py-4">
+                  <input 
+                    type="number" 
+                    value={baseCosts[q] || 0} 
+                    onChange={(e) => setBaseCosts({ ...baseCosts, [q]: parseFloat(e.target.value) || 0 })} 
+                    className={inputCss} 
+                  />
                 </td>
               ))}
               <td></td>
             </tr>
-            {/* TIERS */}
+
+            {/* --- TIERS ROWS --- */}
             {tiers.map((tier, index) => (
-              <tr key={index} className="hover:bg-gray-50">
-                <td className="px-4 py-4 flex items-center space-x-2">
-                  <input type="number" step="0.01" value={tier.min_carat} onChange={(e) => { const nt = [...tiers]; nt[index].min_carat = parseFloat(e.target.value) || 0; setTiers(nt); }} className="w-16 px-2 py-1 border rounded" />
-                  <span>to</span>
-                  <input type="number" step="0.01" value={tier.max_carat} onChange={(e) => { const nt = [...tiers]; nt[index].max_carat = parseFloat(e.target.value) || 0; setTiers(nt); }} className="w-16 px-2 py-1 border rounded" />
+              <tr key={index} className="hover:bg-gray-50 transition-colors">
+                <td className="px-6 py-4 flex items-center space-x-2">
+                  <input 
+                    type="number" step="0.01" 
+                    value={tier.min_carat} 
+                    onChange={(e) => { const nt = [...tiers]; nt[index].min_carat = parseFloat(e.target.value) || 0; setTiers(nt); }} 
+                    className="w-20 px-2 py-1.5 border border-gray-300 rounded shadow-sm text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none text-center transition-all" 
+                  />
+                  <span className="text-gray-500 font-medium px-1">to</span>
+                  <input 
+                    type="number" step="0.01" 
+                    value={tier.max_carat} 
+                    onChange={(e) => { const nt = [...tiers]; nt[index].max_carat = parseFloat(e.target.value) || 0; setTiers(nt); }} 
+                    className="w-20 px-2 py-1.5 border border-gray-300 rounded shadow-sm text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none text-center transition-all" 
+                  />
                 </td>
+                
                 {DIAMOND_QUALITIES.map(q => {
                   const oKey = getOffsetKey(q);
                   return (
-                    <td key={q} className="px-4 py-4">
-                      <div className="flex items-center">
-                        <span className="text-gray-400 mr-1">{Number(tier[oKey]) >= 0 ? '+' : ''}</span>
-                        <input type="number" value={Number(tier[oKey]) || 0} onChange={(e) => { const nt = [...tiers]; (nt[index] as any)[oKey] = parseFloat(e.target.value) || 0; setTiers(nt); }} className="w-24 px-2 py-1 border rounded" />
-                      </div>
+                    <td key={q} className="px-6 py-4">
+                      {/* FIX: Removed the floating '+' span. Now using the unified inputCss! */}
+                      <input 
+                        type="number" 
+                        value={Number(tier[oKey]) || 0} 
+                        onChange={(e) => { 
+                          const nt = [...tiers]; 
+                          (nt[index] as any)[oKey] = parseFloat(e.target.value) || 0; 
+                          setTiers(nt); 
+                        }} 
+                        className={inputCss}
+                      />
                     </td>
                   );
                 })}
-                <td className="px-4 py-4">
-                  {/* CHANGED TO USE THE NEW FUNCTION */}
-                  <button onClick={() => handleDeleteTier(index)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 className="h-4 w-4" /></button>
+                
+                <td className="px-6 py-4 text-center">
+                  <button onClick={() => handleDeleteTier(index)} className="text-red-500 hover:bg-red-50 p-2 rounded-md transition-colors inline-flex items-center justify-center" title="Delete Tier">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <button onClick={() => setTiers([...tiers, { min_carat: 0, max_carat: 0.99, ef_vvs_offset: 0, fg_vvs_si_offset: 0, gh_vs_si_offset: 0, lab_grown_offset: 0 }])} className="mt-4 text-sm font-semibold text-purple-600 flex items-center"><Plus className="h-4 w-4 mr-1" /> Add Carat Tier</button>
+      
+      <button onClick={() => setTiers([...tiers, { min_carat: 0, max_carat: 0.99, ef_vvs_offset: 0, fg_vvs_si_offset: 0, gh_vs_si_offset: 0, lab_grown_offset: 0 }])} className="mt-5 text-sm font-semibold text-purple-600 flex items-center hover:text-purple-800 transition-colors bg-purple-50 hover:bg-purple-100 px-4 py-2 rounded-lg w-fit">
+        <Plus className="h-4 w-4 mr-1.5" /> Add Carat Tier
+      </button>
     </div>
   );
 }

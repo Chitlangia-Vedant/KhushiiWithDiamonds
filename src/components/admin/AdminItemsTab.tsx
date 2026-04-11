@@ -4,7 +4,10 @@ import { JewelleryItem } from '../../types';
 import { Plus, Search, Filter, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { JewelleryForm } from './item-tab/JewelleryForm';
-import { deleteDriveImages } from '../../utils/uploadUtils';
+
+// --- NEW IMPORTS: Moved Drive logic to the parent! ---
+import { deleteDriveImages, uploadJewelleryImages, updateJewelleryDriveMetadata } from '../../utils/uploadUtils';
+
 import { useCategories } from '../../hooks/useCategories';
 import { getValidCategoryNames } from '../../utils/categoryUtils';
 import { CategoryDropdown } from '../shared/CategoryDropdown';
@@ -18,7 +21,6 @@ import { DiamondQuality } from '../../constants/jewellery';
 import { AdminItemsBulkActions } from './item-tab/AdminItemsBulkActions';
 import { AdminItemsAdvancedFilters, AdminItemFilters, initialFilters } from './item-tab/AdminItemsAdvancedFilters';
 import { AdminItemsTable } from './item-tab/AdminItemsTable';
-import { updateJewelleryDriveMetadata } from '../../utils/uploadUtils'; // <-- Ensure this is imported
 
 const ITEMS_PER_PAGE = 20;
 
@@ -47,7 +49,6 @@ export function AdminItemsTab() {
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [bulkCategoryName, setBulkCategoryName] = useState<string>('');
 
-  // --- NEW: SORTING STATE ---
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ 
     key: 'created_at', 
     direction: 'desc' 
@@ -61,13 +62,11 @@ export function AdminItemsTab() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
   
-  // Reset pagination when filters change
   useEffect(() => { 
     setCurrentPage(1); 
     setSelectedItemIds([]); 
   }, [debouncedSearchQuery, activeCategoryName, filters]); 
 
-  // Reset pagination when sort changes (but keep selections!)
   useEffect(() => {
     setCurrentPage(1);
   }, [sortConfig]);
@@ -83,14 +82,74 @@ export function AdminItemsTab() {
   const resetForm = () => { setShowAddForm(false); setEditingItem(null); };
   const startEdit = (item: JewelleryItem) => { setEditingItem(item); setShowAddForm(true); };
 
-  const handleSubmit = async (itemData: Partial<JewelleryItem>, imageUrls: string[]) => {
-    const finalItemData = { ...itemData, image_url: imageUrls };
-    if (editingItem) {
-      await supabase.from('jewellery_items').update({ ...finalItemData, updated_at: new Date().toISOString() }).eq('id', editingItem.id);
-    } else {
-      await supabase.from('jewellery_items').insert([finalItemData]);
+  // --- BACKGROUND SAVING LOGIC ---
+  const handleSubmit = async (payload: any) => {
+    
+    // 1. Instantly close the form! The user can now continue using the dashboard.
+    resetForm(); 
+
+    // 2. Warn the user not to close the browser tab while the background save is running
+    const loadingToastId = toast.loading(
+      payload.isEditing ? 'Updating item in background (Do not close page)...' : 'Saving new item in background (Do not close page)...'
+    );
+    
+    let newlyUploadedUrls: string[] = [];
+
+    try {
+      // 3. Update Existing Google Drive Metadata
+      if (payload.isEditing && payload.currentImages.length > 0 && payload.hasTextDataChanged) {
+        try { 
+          await updateJewelleryDriveMetadata(
+            payload.currentImages, payload.itemData.name, payload.itemData.category, categories, payload.itemDescription
+          ); 
+        } catch (updateError) { console.error('Drive metadata update failed:', updateError); }
+      }
+
+      // 4. Upload New Google Drive Images
+      if (payload.selectedImages.length > 0) {
+        newlyUploadedUrls = await uploadJewelleryImages(
+          payload.selectedImages, payload.itemData.name, payload.itemData.category, categories, payload.itemDescription
+        ); 
+      }
+
+      // 5. Delete Trash Google Drive Images
+      if (payload.imagesToDelete.length > 0) {
+        try { await deleteDriveImages(payload.imagesToDelete); } 
+        catch (deleteError) { console.error('Failed to delete images:', deleteError); }
+      }
+
+      // 6. Compile Final URLs based on drag-and-drop order
+      let finalImageUrls: string[] = [];
+      if (payload.combinedOrder.length > 0) {
+        const newUrlMap: Record<string, string> = {};
+        payload.selectedImages.forEach((file: File, index: number) => { newUrlMap[`${file.name}-${file.size}`] = newlyUploadedUrls[index]; });
+        finalImageUrls = payload.combinedOrder.map((id: string) => payload.currentImages.includes(id) ? id : newUrlMap[id]).filter(Boolean) as string[];
+      } else {
+        finalImageUrls = [...payload.currentImages, ...newlyUploadedUrls];
+      }
+      
+      const finalItemData = { ...payload.itemData, image_url: finalImageUrls };
+
+      // 7. Push to Supabase Database
+      if (payload.isEditing) {
+        await supabase.from('jewellery_items').update({ ...finalItemData, updated_at: new Date().toISOString() }).eq('id', payload.itemId);
+      } else {
+        await supabase.from('jewellery_items').insert([finalItemData]);
+      }
+      
+      // 8. Silent refresh of the table and display success!
+      await loadItems();
+      toast.success(payload.isEditing ? 'Item updated successfully!' : 'Item added successfully!', { id: loadingToastId });
+      
+    } catch (error) {
+      // The Rollback Safety Net
+      if (newlyUploadedUrls.length > 0) {
+        console.warn("Rolling back Google Drive uploads due to Database failure...");
+        try { await deleteDriveImages(newlyUploadedUrls); } catch (e) {}
+      }
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Error saving item: ${errorMessage}`, { id: loadingToastId, duration: 6000 });
     }
-    await loadItems(); resetForm();
   };
 
   const handleDelete = (id: string) => {
@@ -153,20 +212,17 @@ export function AdminItemsTab() {
     const loadingToastId = toast.loading(`Moving items and Drive folders...`);
     
     try {
-      // 1. Find the items we are moving
       const itemsToMove = items.filter(item => selectedItemIds.includes(item.id));
 
-      // 2. Move their folders in Google Drive one by one
       for (const item of itemsToMove) {
         if (item.image_url && item.image_url.length > 0) {
           try {
-            // We pass the NEW category name, so Drive knows where to move it
             await updateJewelleryDriveMetadata(
               item.image_url,
               item.name,
-              bulkCategoryName, // The destination category
+              bulkCategoryName, 
               categories,
-              item.description || 'Bulk moved item' // Fallback description
+              item.description || 'Bulk moved item' 
             );
           } catch (driveError) {
             console.error(`Failed to move Drive folder for ${item.name}`, driveError);
@@ -174,7 +230,6 @@ export function AdminItemsTab() {
         }
       }
 
-      // 3. Finally, update the Database
       await supabase.from('jewellery_items').update({ category: bulkCategoryName }).in('id', selectedItemIds);
       
       await loadItems(); 
@@ -199,7 +254,6 @@ export function AdminItemsTab() {
   const clearFilters = () => { setFilters(initialFilters); setSearchQuery(''); setDebouncedSearchQuery(''); setActiveCategoryName('All'); };
   const handleSelectAll = (checked: boolean, pageIds: string[]) => { checked ? setSelectedItemIds(Array.from(new Set([...selectedItemIds, ...pageIds]))) : setSelectedItemIds(selectedItemIds.filter(id => !pageIds.includes(id))); };
 
-  // 1. FILTER PIPELINE
   const filteredItems = useMemo(() => {
     return items.filter(item => {
       if (debouncedSearchQuery && !item.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())) return false;
@@ -245,9 +299,7 @@ export function AdminItemsTab() {
     });
   }, [items, debouncedSearchQuery, activeCategoryName, filters, globalGoldPurity, globalDiamondQuality, globalGoldMakingCharges, effectiveGoldPrice, gstRate, diamondBaseCosts, diamondTiers, categories]);
 
-  // 2. HIGH-PERFORMANCE SORTING PIPELINE
   const sortedItems = useMemo(() => {
-    // We map the filtered items to attach pre-calculated sort values, ensuring lightning-fast sorting
     const sortable = filteredItems.map(item => ({
       ...item,
       _sortPrice: getPriceBreakdownItem(item, globalGoldPurity, globalDiamondQuality as DiamondQuality, globalGoldMakingCharges, effectiveGoldPrice, gstRate, diamondBaseCosts, diamondTiers).total,
@@ -279,7 +331,6 @@ export function AdminItemsTab() {
   }, [filteredItems, sortConfig, globalGoldPurity, globalDiamondQuality, globalGoldMakingCharges, effectiveGoldPrice, gstRate, diamondBaseCosts, diamondTiers]);
 
 
-  // 3. PAGINATION PIPELINE
   const totalPages = Math.max(1, Math.ceil(sortedItems.length / ITEMS_PER_PAGE));
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedItems = sortedItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
@@ -300,7 +351,6 @@ export function AdminItemsTab() {
         <AdminItemsBulkActions selectedCount={selectedItemIds.length} bulkCategoryName={bulkCategoryName} setBulkCategoryName={setBulkCategoryName} onMove={handleBulkMove} onDelete={handleBulkDelete} />
       )}
 
-      {/* SEARCH AND FILTER BAR */}
       <div className="flex flex-col md:flex-row gap-2 sm:gap-3 mb-4">
         <div className="relative flex-grow">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -333,8 +383,8 @@ export function AdminItemsTab() {
         startIndex={startIndex} 
         itemsPerPage={ITEMS_PER_PAGE} 
         clearFilters={clearFilters} 
-        sortConfig={sortConfig}    // <-- NEW PROP
-        onSort={handleSort}        // <-- NEW PROP
+        sortConfig={sortConfig}    
+        onSort={handleSort}        
       />
 
       {showAddForm && <JewelleryForm editingItem={editingItem} onSubmit={handleSubmit} onCancel={resetForm} />}

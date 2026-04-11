@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { JewelleryItem, DiamondSlot, StoneSlot } from '../../../types';
-import { Save, X, Loader, AlertTriangle } from 'lucide-react';
+import { Save, X, AlertTriangle } from 'lucide-react';
 import { JewelleryDetailsSection } from './jewellery-form/JewelleryDetailsSection';
 import { JewelleryImagesSection } from './jewellery-form/JewelleryImagesSection';
 import { GoldSpecificationsSection } from './jewellery-form/GoldSpecificationsSection';
@@ -9,7 +9,6 @@ import { PricePreviewSection } from './jewellery-form/PricePreviewSection';
 import { ImagePreviewModal } from './jewellery-form/ImagePreviewModal';
 import { formatCurrency, getPriceBreakdownItem } from '../../../lib/goldPrice';
 import { DiamondQuality } from '../../../constants/jewellery';
-import { uploadJewelleryImages, deleteDriveImages, updateJewelleryDriveMetadata } from '../../../utils/uploadUtils';
 import { useCategories } from '../../../hooks/useCategories';
 import { OtherStonesSection } from './jewellery-form/OtherStonesSection';
 
@@ -20,14 +19,16 @@ import toast from 'react-hot-toast';
 
 interface JewelleryFormProps {
   editingItem: JewelleryItem | null;
-  onSubmit: (itemData: Partial<JewelleryItem>, imageUrls: string[]) => Promise<void>;
+  onSubmit: (payload: any) => void; // Changed to accept our background payload
   onCancel: () => void;
 }
 
 export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryFormProps) {
   const { categories } = useCategories();
-  const [uploading, setUploading] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  // We keep uploading=false as a dummy prop so we don't have to rewrite child components
+  const uploading = false; 
 
   const { goldPrice } = useGoldPrice();
   const { fallbackGoldPrice, overrideLiveGoldPrice, gstRate, globalGoldMakingCharges, diamondBaseCosts, diamondTiers } = useAdminSettings();
@@ -170,7 +171,7 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
       parts.push('--- Breakdown ---');
       formData.other_stones.forEach((stone, index) => {
         const name = stone.name || `Stone ${index + 1}`;
-        parts.push(`  ↳ ${name}: ${stone.carat}ct (Cost: ${formatCurrency(stone.cost_per_carat || 0)})`);
+        parts.push(`  ↳ ${name}: ${stone.carat}ct (Cost: ${formatCurrency(stone.amount || 0)})`);
       });
       parts.push(''); 
     }
@@ -180,78 +181,36 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
     return parts.join('\n');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setUploading(true);
-    const loadingToastId = toast.loading(editingItem ? 'Updating item...' : 'Saving new item...');
+    
+    const itemDescription = generateItemDescription();
+    const hasTextDataChanged = JSON.stringify(formData) !== initialDataStr;
+    
+    const cleanedDiamonds = formData.diamonds.filter(slot => slot.carat > 0);
+    const cleanedOtherStones = formData.other_stones.filter(stone => stone.carat > 0);
 
-    let newlyUploadedUrls: string[] = [];
+    const itemData: Partial<JewelleryItem> = {
+      name: formData.name, description: formData.description, category: formData.category,
+      gold_weight: formData.gold_weight, making_charges_per_gram: formData.making_charges_per_gram,
+      base_price: formData.base_price, diamonds: cleanedDiamonds,
+      other_stones: cleanedOtherStones, override_diamond_costs: formData.override_diamond_costs
+    };
 
-    try {
-      const itemDescription = generateItemDescription();
-      
-      // --- THE OPTIMIZATION ---
-      // Compare current formData against the original data loaded when the modal opened
-      const hasTextDataChanged = JSON.stringify(formData) !== initialDataStr;
+    (window as any).isFormDirty = false; 
 
-      // Only run the Google Drive update if they are editing an item, it has images, 
-      // AND they actually changed a text field, category, or price!
-      if (editingItem && currentImages.length > 0 && hasTextDataChanged) {
-        try { 
-          await updateJewelleryDriveMetadata(
-            currentImages, formData.name, formData.category, categories, itemDescription
-          ); 
-        } catch (updateError) { console.error('Drive metadata update failed:', updateError); }
-      }
-
-      // ... (The rest of the upload logic remains exactly the same) ...
-      if (selectedImages.length > 0) {
-        newlyUploadedUrls = await uploadJewelleryImages(selectedImages, formData.name, formData.category, categories, itemDescription); 
-      }
-
-      if (imagesToDelete.length > 0) {
-        try { await deleteDriveImages(imagesToDelete); } 
-        catch (deleteError) { console.error('Failed to delete images:', deleteError); }
-      }
-
-      let finalImageUrls: string[] = [];
-      if (combinedOrder.length > 0) {
-        const newUrlMap: Record<string, string> = {};
-        selectedImages.forEach((file, index) => { newUrlMap[`${file.name}-${file.size}`] = newlyUploadedUrls[index]; });
-        finalImageUrls = combinedOrder.map(id => currentImages.includes(id) ? id : newUrlMap[id]).filter(Boolean) as string[];
-      } else {
-        finalImageUrls = [...currentImages, ...newlyUploadedUrls];
-      }
-      
-      const cleanedDiamonds = formData.diamonds.filter(slot => slot.carat > 0);
-      const cleanedOtherStones = formData.other_stones.filter(stone => stone.carat > 0);
-
-      const itemData: Partial<JewelleryItem> = {
-        name: formData.name, description: formData.description, category: formData.category,
-        gold_weight: formData.gold_weight, making_charges_per_gram: formData.making_charges_per_gram,
-        base_price: formData.base_price, diamonds: cleanedDiamonds,
-        other_stones: cleanedOtherStones, override_diamond_costs: formData.override_diamond_costs
-      };
-
-      try {
-        await onSubmit(itemData, finalImageUrls);
-      } catch (dbError) {
-        throw new Error(`Database Error: ${(dbError as Error).message}`);
-      }
-      
-      (window as any).isFormDirty = false; 
-      toast.success(editingItem ? 'Item updated successfully!' : 'Item added successfully!', { id: loadingToastId });
-      
-    } catch (error) {
-      if (newlyUploadedUrls.length > 0) {
-        console.warn("Rolling back Google Drive uploads due to Database failure...");
-        try { await deleteDriveImages(newlyUploadedUrls); } catch (e) {}
-      }
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast.error(`Error saving item: ${errorMessage}`, { id: loadingToastId, duration: 6000 });
-    } finally {
-      setUploading(false);
-    }
+    // Instantly pass all the workload to the parent component!
+    onSubmit({
+      isEditing: !!editingItem,
+      itemId: editingItem?.id,
+      itemData,
+      selectedImages,
+      imagesToDelete,
+      currentImages,
+      combinedOrder,
+      itemDescription,
+      hasTextDataChanged
+    });
   };
 
 return (
@@ -291,11 +250,11 @@ return (
           </div>
 
           <div className="p-5 sm:px-8 sm:py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex justify-end space-x-4 shrink-0">
-            <button type="button" onClick={handleSafeCancel} disabled={uploading} className="px-5 py-2 text-gray-700 font-medium rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50">
+            <button type="button" onClick={handleSafeCancel} className="px-5 py-2 text-gray-700 font-medium rounded-md hover:bg-gray-200 transition-colors">
               Cancel
             </button>
-            <button type="submit" form="jewellery-form" disabled={uploading} className="bg-yellow-600 text-white px-6 py-2 rounded-md hover:bg-yellow-700 font-medium flex items-center space-x-2 transition-colors disabled:opacity-70 shadow-sm">
-              {uploading ? <><Loader className="h-4 w-4 animate-spin" /><span>Saving...</span></> : <><Save className="h-4 w-4" /><span>{editingItem ? 'Update Item' : 'Save Item'}</span></>}
+            <button type="submit" form="jewellery-form" className="bg-yellow-600 text-white px-6 py-2 rounded-md hover:bg-yellow-700 font-medium flex items-center space-x-2 transition-colors shadow-sm">
+              <Save className="h-4 w-4" /><span>{editingItem ? 'Update Item' : 'Save Item'}</span>
             </button>
           </div>
 

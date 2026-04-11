@@ -6,7 +6,7 @@ import JewelleryCard from '../components/JewelleryCard';
 import { Search, Filter, Sparkles } from 'lucide-react';
 import { useCategories } from '../hooks/useCategories';
 import { useNavigate } from 'react-router-dom';
-import { CategoryFilter } from '../components/CategoryFilter';
+import { CategoryFilter } from '../components/shared/CategoryFilter';
 import { getValidCategoryNames } from '../utils/categoryUtils';
 
 

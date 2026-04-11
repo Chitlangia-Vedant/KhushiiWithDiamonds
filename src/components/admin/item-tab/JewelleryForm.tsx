@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { JewelleryItem, DiamondSlot, StoneSlot } from '../../types';
+import { JewelleryItem, DiamondSlot, StoneSlot } from '../../../types';
 import { Save, X, Loader } from 'lucide-react';
-import { JewelleryDetailsSection } from './item-tab/jewellery-form/JewelleryDetailsSection';
-import { JewelleryImagesSection } from './item-tab/jewellery-form/JewelleryImagesSection';
-import { GoldSpecificationsSection } from './item-tab/jewellery-form/GoldSpecificationsSection';
-import { DiamondSlotsSection } from './item-tab/jewellery-form/DiamondSlotsSection';
-import { PricePreviewSection } from './item-tab/jewellery-form/PricePreviewSection';
-import { ImagePreviewModal } from './item-tab/jewellery-form/ImagePreviewModal';
-import { formatCurrency, getPriceBreakdownItem } from '../../lib/goldPrice';
-import { DIAMOND_QUALITIES, DiamondQuality } from '../../constants/jewellery';
-import { uploadJewelleryImages, deleteDriveImages, updateJewelleryDriveMetadata } from '../../utils/uploadUtils';
-import { useCategories } from '../../hooks/useCategories';
-import { OtherStonesSection } from './item-tab/jewellery-form/OtherStonesSection';
+import { JewelleryDetailsSection } from './jewellery-form/JewelleryDetailsSection';
+import { JewelleryImagesSection } from './jewellery-form/JewelleryImagesSection';
+import { GoldSpecificationsSection } from './jewellery-form/GoldSpecificationsSection';
+import { DiamondSlotsSection } from './jewellery-form/DiamondSlotsSection';
+import { PricePreviewSection } from './jewellery-form/PricePreviewSection';
+import { ImagePreviewModal } from './jewellery-form/ImagePreviewModal';
+import { formatCurrency, getPriceBreakdownItem } from '../../../lib/goldPrice';
+import { DIAMOND_QUALITIES, DiamondQuality } from '../../../constants/jewellery';
+import { uploadJewelleryImages, deleteDriveImages, updateJewelleryDriveMetadata } from '../../../utils/uploadUtils';
+import { useCategories } from '../../../hooks/useCategories';
+import { OtherStonesSection } from './jewellery-form/OtherStonesSection';
 
 // --- ADD THESE NEW IMPORTS ---
-import { useGoldPrice } from '../../hooks/useGoldPrice';
-import { useAdminSettings } from '../../hooks/useAdminSettings';
-import { useQualityContext } from '../../context/QualityContext';
+import { useGoldPrice } from '../../../hooks/useGoldPrice';
+import { useAdminSettings } from '../../../hooks/useAdminSettings';
+import { useQualityContext } from '../../../context/QualityContext';
 import toast from 'react-hot-toast';
 
 interface JewelleryFormProps {

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Category } from '../types';
+import { Category } from '../../types';
 import { ChevronDown, ChevronRight, Folder } from 'lucide-react';
-import { useCategories } from '../hooks/useCategories';
-import { useClickOutside } from '../hooks/useClickOutside';
+import { useCategories } from '../../hooks/useCategories';
+import { useClickOutside } from '../../hooks/useClickOutside';
 
 interface CategoryDropdownProps {
   valueLabel: string;

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { JewelleryItem } from '../types';
 import { AdminLogin } from '../components/AdminLogin';
-import { AdminItemsTab } from '../components/admin/AdminItemsTab';
+import { AdminItemsTab } from '../components/admin/items-tab/AdminItemsTab';
 import { AdminCategoriesTab } from '../components/admin/AdminCategoriesTab';
 import { AdminSettingsTab } from '../components/admin/AdminSettingsTab';
 import { AdminDiamondsTab } from '../components/admin/AdminDiamondsTab';
@@ -16,12 +16,17 @@ import { GOLD_QUALITIES, DIAMOND_QUALITIES, DiamondQuality } from '../constants/
 import toast from 'react-hot-toast';
 
 export function AdminPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Extract the current tab from the URL (e.g., "/admin/categories" -> "categories")
+  const currentTab = location.pathname.split('/').pop() || 'items';
+
   const { categories } = useCategories();
   const { globalGoldPurity, setGlobalGoldPurity, globalDiamondQuality, setGlobalDiamondQuality } = useQualityContext();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<JewelleryItem[]>([]);
-  const [activeTab, setActiveTab] = useState<'items' | 'categories' | 'settings'| 'diamonds'>('items');
   
   const { goldPrice } = useGoldPrice();
   const { 
@@ -30,9 +35,9 @@ export function AdminPage() {
       overrideLiveGoldPrice, 
       globalGoldMakingCharges, 
       updateSetting,
-      diamondBaseCosts,    // <-- Grab it here!
-      diamondTiers,        // <-- Grab it here!
-      saveDiamondPricing   // <-- Grab it here!
+      diamondBaseCosts,    
+      diamondTiers,        
+      saveDiamondPricing   
     } = useAdminSettings();
 
   useEffect(() => {
@@ -60,21 +65,15 @@ export function AdminPage() {
       await supabase.auth.signOut();
       setIsAuthenticated(false);
       setItems([]);
-      
-      // Add the success toast
       toast.success('Logged out successfully.');
-      
     } catch (error) {
       console.error('Error signing out:', error);
-      
-      // Add the error toast
       toast.error('Error signing out. Please try again.');
     }
   };
 
   const loadData = async () => {
     try {
-      // We only need to fetch items now! Categories are handled by the hook.
       const { data } = await supabase
         .from('jewellery_items')
         .select('*')
@@ -104,34 +103,30 @@ export function AdminPage() {
   }
 
   return (
-    // 1. Removed max-w from the outer div so the sticky header can stretch 100% wide
     <div className="pb-8 bg-gray-50 min-h-screen">
       
       {/* --- UNIFIED SINGLE-ROW APP BAR --- */}
       <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm mb-4">
-        {/* 2. The max-w here perfectly centers your header buttons */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 md:py-3 flex flex-wrap items-center justify-between gap-3">
           
-          {/* LEFT SIDE: Branding & Navigation Tabs */}
           <div className="flex flex-wrap items-center gap-3 sm:gap-6">
-            {/* Shortened Brand Name */}
             <Link to="/" className="text-lg font-black text-gray-900 hover:text-yellow-600 transition-colors tracking-tight">
               KWD<span className="text-yellow-600">Admin</span>
             </Link>
 
-            {/* Integrated Tabs */}
+            {/* ROUTE-BASED TABS */}
             <div className="flex flex-wrap gap-1 sm:border-l sm:border-gray-200 sm:pl-6">
               {[
-                { key: 'items', icon: Package, label: `Items (${items.length})` },
-                { key: 'categories', icon: Folder, label: `Categories (${categories.length})` },
-                { key: 'settings', icon: Settings, label: 'Settings' },
-                { key: 'diamonds', icon: Gem, label: 'Diamond Pricing' }
-              ].map(({ key, icon: Icon, label }) => (
+                { key: 'items', icon: Package, label: `Items (${items.length})`, path: '/admin/items' },
+                { key: 'categories', icon: Folder, label: `Categories (${categories.length})`, path: '/admin/categories' },
+                { key: 'settings', icon: Settings, label: 'Settings', path: '/admin/settings' },
+                { key: 'diamonds', icon: Gem, label: 'Diamond Pricing', path: '/admin/diamonds' }
+              ].map(({ key, icon: Icon, label, path }) => (
                 <button
                   key={key}
-                  onClick={() => setActiveTab(key as 'items' | 'categories' | 'settings')}
+                  onClick={() => navigate(path)}
                   className={`px-2.5 py-1.5 rounded-md flex items-center space-x-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
-                    activeTab === key
+                    currentTab === key
                       ? 'bg-yellow-50 text-yellow-700'
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
@@ -143,11 +138,8 @@ export function AdminPage() {
             </div>
           </div>
 
-          {/* RIGHT SIDE: Tools, Status, & Logout */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 ml-auto">
-            
-            {/* Micro Quality Selectors */}
-            {activeTab === 'items' && (
+            {currentTab === 'items' && (
               <div className="flex flex-wrap items-center gap-1.5 border-r border-gray-200 pr-3">
                 <select
                   value={globalGoldPurity}
@@ -174,7 +166,6 @@ export function AdminPage() {
               </div>
             )}
 
-            {/* Live Pricing Stats */}
             <div className="hidden sm:flex items-center space-x-2 text-[10px] sm:text-[11px] font-bold px-1 uppercase tracking-wider">
               <span className={overrideLiveGoldPrice ? 'text-orange-600' : 'text-gray-500'} title="Current Gold Price">
                 Gold: ₹{effectiveGoldPrice.toLocaleString('en-IN')}/g
@@ -185,7 +176,6 @@ export function AdminPage() {
               </span>
             </div>
 
-            {/* Icon-Only Logout Button */}
             <button
               onClick={handleLogout}
               title="Sign Out"
@@ -198,24 +188,31 @@ export function AdminPage() {
         </div>
       </div>
 
-      {/* --- TAB CONTENT STARTS IMMEDIATELY HERE --- */}
+      {/* --- ROUTED TAB CONTENT --- */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* --- TAB CONTENT STARTS IMMEDIATELY HERE --- */}
-        {activeTab === 'items' && <AdminItemsTab />}
-        {activeTab === 'categories' && <AdminCategoriesTab />}
-        {activeTab === 'settings' && (
-          <AdminSettingsTab 
-            fallbackGoldPrice={fallbackGoldPrice}
-            gstRate={gstRate}
-            goldPrice={goldPrice}
-            overrideLiveGoldPrice={overrideLiveGoldPrice}
-            globalGoldMakingCharges={globalGoldMakingCharges} // <-- NEW
-            updateSetting={updateSetting}
-          />
-        )}
-        {activeTab === 'diamonds' && (
-          <AdminDiamondsTab initialBaseCosts={diamondBaseCosts} initialTiers={diamondTiers} saveDiamondPricing={saveDiamondPricing} />
-        )}
+        <Routes>
+          <Route path="/" element={<Navigate to="items" replace />} />
+          
+          <Route path="items" element={<AdminItemsTab />} />
+          <Route path="categories" element={<AdminCategoriesTab />} />
+          <Route path="settings" element={
+            <AdminSettingsTab 
+              fallbackGoldPrice={fallbackGoldPrice}
+              gstRate={gstRate}
+              goldPrice={goldPrice}
+              overrideLiveGoldPrice={overrideLiveGoldPrice}
+              globalGoldMakingCharges={globalGoldMakingCharges}
+              updateSetting={updateSetting}
+            />
+          } />
+          <Route path="diamonds" element={
+            <AdminDiamondsTab 
+              initialBaseCosts={diamondBaseCosts} 
+              initialTiers={diamondTiers} 
+              saveDiamondPricing={saveDiamondPricing} 
+            />
+          } />
+        </Routes>
       </div>
     </div>
   );

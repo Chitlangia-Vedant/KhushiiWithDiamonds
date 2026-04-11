@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Category } from '../../../../types';
 import { getCategoryDisplayName } from '../../../../utils/categoryUtils';
 import { useCategories } from '../../../../hooks/useCategories';
-import { CategoryDropdown } from '../../../CategoryDropdown';
+import { CategoryDropdown } from '../../../shared/CategoryDropdown';
 
 
 interface JewelleryDetailsSectionProps {

@@ -3,11 +3,11 @@ import { supabase } from '../../lib/supabase';
 import { JewelleryItem } from '../../types';
 import { Plus, Search, Filter, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { JewelleryForm } from './JewelleryForm';
+import { JewelleryForm } from './item-tab/JewelleryForm';
 import { deleteDriveImages } from '../../utils/uploadUtils';
 import { useCategories } from '../../hooks/useCategories';
 import { getValidCategoryNames } from '../../utils/categoryUtils';
-import { CategoryDropdown } from '../CategoryDropdown';
+import { CategoryDropdown } from '../shared/CategoryDropdown';
 
 import { useGoldPrice } from '../../hooks/useGoldPrice';
 import { useAdminSettings } from '../../hooks/useAdminSettings';

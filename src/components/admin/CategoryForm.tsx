@@ -3,7 +3,7 @@ import { Category } from '../../types';
 import { Save, X, Upload, Loader } from 'lucide-react'; 
 import { useCategories } from '../../hooks/useCategories';
 import { uploadCategoryImages } from '../../utils/uploadUtils';
-import { CategoryDropdown } from '../CategoryDropdown';
+import { CategoryDropdown } from '../shared/CategoryDropdown';
 import toast from 'react-hot-toast';
 import { supabase } from '../../lib/supabase'; // <-- ADDED SUPABASE IMPORT
 

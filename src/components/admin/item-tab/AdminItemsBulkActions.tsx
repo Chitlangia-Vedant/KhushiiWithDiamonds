@@ -1,6 +1,6 @@
 import React from 'react';
 import { Trash2, FolderSymlink } from 'lucide-react';
-import { CategoryDropdown } from '../../CategoryDropdown';
+import { CategoryDropdown } from '../../shared/CategoryDropdown';
 
 interface Props {
   selectedCount: number;

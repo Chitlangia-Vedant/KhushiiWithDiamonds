@@ -137,22 +137,44 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
 
   const generateItemDescription = (): string => {
     const parts: string[] = [];
-    parts.push('=========================================');
+    parts.push('===============================');
     parts.push(` ITEM: ${formData.name.toUpperCase()}`);
-    parts.push('=========================================');
+    parts.push('===============================');
     parts.push(`Description: ${formData.description || 'N/A'}\n`);
+    
     parts.push('✦ GOLD SPECIFICATIONS ✦');
     parts.push(`• Gold Weight: ${formData.gold_weight}g`);
-    
+   
+    // --- UPDATED: DIAMOND BREAKDOWN ---
     if (formData.diamonds.length > 0) {
       const totalCarats = formData.diamonds.reduce((sum, slot) => sum + slot.carat, 0);
       parts.push('✦ DIAMOND SPECIFICATIONS ✦');
-      parts.push(`• Total Stones: ${formData.diamonds.length}`);
-      parts.push(`• Total Weight: ${totalCarats.toFixed(2)} ct\n`);
+      parts.push(`• Total Diamond Slots: ${formData.diamonds.length}`);
+      parts.push(`• Total Diamond Weight: ${totalCarats.toFixed(2)} ct`);
+      parts.push('--- Breakdown ---');
+      formData.diamonds.forEach((slot, index) => {
+        const name = slot.name || `Diamond ${index + 1}`;
+        parts.push(`  ↳ ${name}: ${slot.carat}ct`);
+      });
+      parts.push(''); // Add a blank line for spacing
     } else {
       parts.push('✦ DIAMOND SPECIFICATIONS ✦');
       parts.push('• No diamonds configured for this item.\n');
     }
+
+    if (formData.other_stones && formData.other_stones.length > 0) {
+      const totalStoneCarats = formData.other_stones.reduce((sum, stone) => sum + (stone.carat || 0), 0);
+      parts.push('✦ OTHER STONES ✦');
+      parts.push(`• Total Stone Types: ${formData.other_stones.length}`);
+      parts.push(`• Total Stone Weight: ${totalStoneCarats.toFixed(2)} ct`);
+      parts.push('--- Breakdown ---');
+      formData.other_stones.forEach((stone, index) => {
+        const name = stone.name || `Stone ${index + 1}`;
+        parts.push(`  ↳ ${name}: ${stone.carat}ct (Cost: ${formatCurrency(stone.cost_per_carat || 0)})`);
+      });
+      parts.push(''); 
+    }
+
     parts.push('✦ ADDITIONAL DETAILS ✦');
     parts.push(`• Base Price (Design/Misc): ${formatCurrency(formData.base_price)}`);
     return parts.join('\n');
@@ -163,13 +185,18 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
     setUploading(true);
     const loadingToastId = toast.loading(editingItem ? 'Updating item...' : 'Saving new item...');
 
-    // --- NEW: Track newly uploaded URLs so we can roll them back if the DB fails! ---
     let newlyUploadedUrls: string[] = [];
 
     try {
       const itemDescription = generateItemDescription();
+      
+      // --- THE OPTIMIZATION ---
+      // Compare current formData against the original data loaded when the modal opened
+      const hasTextDataChanged = JSON.stringify(formData) !== initialDataStr;
 
-      if (editingItem && currentImages.length > 0) {
+      // Only run the Google Drive update if they are editing an item, it has images, 
+      // AND they actually changed a text field, category, or price!
+      if (editingItem && currentImages.length > 0 && hasTextDataChanged) {
         try { 
           await updateJewelleryDriveMetadata(
             currentImages, formData.name, formData.category, categories, itemDescription
@@ -177,8 +204,8 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
         } catch (updateError) { console.error('Drive metadata update failed:', updateError); }
       }
 
+      // ... (The rest of the upload logic remains exactly the same) ...
       if (selectedImages.length > 0) {
-        // We don't wrap this in a catch. If Drive upload fails, we WANT it to crash before touching the DB.
         newlyUploadedUrls = await uploadJewelleryImages(selectedImages, formData.name, formData.category, categories, itemDescription); 
       }
 
@@ -206,7 +233,6 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
         other_stones: cleanedOtherStones, override_diamond_costs: formData.override_diamond_costs
       };
 
-      // --- NEW: Await the DB submission so we can catch its errors ---
       try {
         await onSubmit(itemData, finalImageUrls);
       } catch (dbError) {
@@ -217,25 +243,17 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
       toast.success(editingItem ? 'Item updated successfully!' : 'Item added successfully!', { id: loadingToastId });
       
     } catch (error) {
-      // --- THE ROLLBACK ---
-      // If the process crashed anywhere, and we successfully uploaded images to Drive, 
-      // we must delete them so they don't become permanent "Ghost Images".
       if (newlyUploadedUrls.length > 0) {
         console.warn("Rolling back Google Drive uploads due to Database failure...");
-        try {
-          await deleteDriveImages(newlyUploadedUrls);
-        } catch (rollbackError) {
-          console.error("CRITICAL: Rollback failed. Orphaned files exist in Drive.", rollbackError);
-        }
+        try { await deleteDriveImages(newlyUploadedUrls); } catch (e) {}
       }
-
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast.error(`Error saving item: ${errorMessage}`, { id: loadingToastId, duration: 6000 });
     } finally {
       setUploading(false);
     }
   };
-  
+
 return (
     <>
       <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">

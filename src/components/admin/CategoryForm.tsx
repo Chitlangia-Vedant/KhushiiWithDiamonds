@@ -5,10 +5,10 @@ import { useCategories } from '../../hooks/useCategories';
 import { uploadCategoryImages } from '../../utils/uploadUtils';
 import { CategoryDropdown } from '../CategoryDropdown';
 import toast from 'react-hot-toast';
+import { supabase } from '../../lib/supabase'; // <-- ADDED SUPABASE IMPORT
 
 interface CategoryFormProps {
   editingCategory: Category | null;
-  // CHANGE THIS LINE:
   onSuccess: () => void;
   onCancel: () => void;
 }
@@ -26,7 +26,6 @@ export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryF
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
-      // Append new files to existing ones instead of replacing them
       const fileArray = Array.from(files);
       setSelectedImages([...selectedImages, ...fileArray]);
     }
@@ -36,7 +35,6 @@ export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryF
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Function to generate category description
   const generateCategoryDescription = (): string => {
     let description = `Name: ${categoryFormData.name}\n`;
     description += `Description: ${categoryFormData.description || 'N/A'}\n`;
@@ -55,42 +53,59 @@ export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryF
     e.preventDefault();
     setUploading(true);
     
-    // 1. Trigger the loading toast
-    const loadingToastId = toast.loading('Saving category...');
+    const loadingToastId = toast.loading(editingCategory ? 'Updating category...' : 'Saving category...');
     
     try {
-      let imageUrls: string[] = [];
+      // Keep track of the existing image url, or update it if we upload a new one
+      let finalImageUrl = editingCategory?.image_url || null;
 
-      // Upload images to Google Drive if any are selected
       if (selectedImages.length > 0) {
         try {
           const itemDescription = generateCategoryDescription(); 
-          
-          // Use your new utility!
-          imageUrls = await uploadCategoryImages(
+          const uploadedUrls = await uploadCategoryImages(
             selectedImages,
             categoryFormData.name,
             itemDescription
           );
+          
+          if (uploadedUrls.length > 0) {
+            finalImageUrl = uploadedUrls[0]; // Categories typically use 1 primary image
+          }
         } catch (uploadError) {
           console.error('Image upload failed:', uploadError);
           const errorMessage = uploadError instanceof Error ? uploadError.message : 'Unknown error';
-          
-          // Show a separate error toast for the image failure, but don't stop the save process
-          toast.error(`Image upload failed: ${errorMessage}. The category will be saved without images.`, { duration: 5000 });
+          toast.error(`Image upload failed: ${errorMessage}. Saving without new images.`, { duration: 5000 });
         }
       }
 
-      await onSuccess();
+      // --- NEW: ACTUAL DATABASE LOGIC ---
+      const finalData = {
+        name: categoryFormData.name,
+        description: categoryFormData.description,
+        parent_id: categoryFormData.parent_id || null, // Supabase prefers null over empty string for foreign keys
+        image_url: finalImageUrl
+      };
+
+      if (editingCategory) {
+        const { error } = await supabase
+          .from('categories')
+          .update(finalData)
+          .eq('id', editingCategory.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('categories')
+          .insert([finalData]);
+        if (error) throw error;
+      }
+      // ----------------------------------
+
+      await onSuccess(); // This triggers the parent's refetchCategories()
+      toast.success(editingCategory ? 'Category updated successfully!' : 'Category added successfully!', { id: loadingToastId });
       
-      // 2. Transform the loading toast into a success toast!
-      toast.success('Category saved successfully!', { id: loadingToastId });
-      
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving category:', error);
-      
-      // 3. Transform the loading toast into a hard error toast!
-      toast.error('Error saving category. Please check your permissions and try again.', { 
+      toast.error(error.message || 'Error saving category. Please check your connection.', { 
         id: loadingToastId,
         duration: 4000
       });
@@ -101,11 +116,9 @@ export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryF
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
-      
-      {/* Modal Container: Fixed max height, flex column for sticky sections */}
       <div className="bg-white rounded-xl w-full max-w-md shadow-2xl flex flex-col max-h-[95vh] relative">
         
-        {/* --- STICKY HEADER --- */}
+        {/* STICKY HEADER */}
         <div className="flex justify-between items-center p-5 border-b border-gray-200 shrink-0">
           <h2 className="text-xl font-bold text-gray-800">
             {editingCategory ? 'Edit Category' : 'Add New Category'}
@@ -115,7 +128,7 @@ export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryF
           </button>
         </div>
 
-        {/* --- SCROLLABLE BODY --- */}
+        {/* SCROLLABLE BODY */}
         <div className="overflow-y-auto p-5 flex-1 custom-scrollbar">
           <form id="category-form" onSubmit={handleSubmit} className="space-y-5">
             
@@ -173,7 +186,6 @@ export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryF
               </label>
               
               <div className="grid grid-cols-3 gap-3">
-                {/* Upload Button (Acts as a grid item) */}
                 <label className={`flex flex-col items-center justify-center aspect-square border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
                   <Upload className="w-6 h-6 text-gray-400 mb-1" />
                   <span className="text-xs text-gray-500 font-medium">Add Photo</span>
@@ -187,7 +199,6 @@ export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryF
                   />
                 </label>
 
-                {/* New Images Previews (Side-by-side with upload button) */}
                 {selectedImages.map((file, index) => (
                   <div key={index} className="relative group aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-green-200">
                     <img 
@@ -216,7 +227,7 @@ export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryF
           </form>
         </div>
 
-        {/* --- STICKY FOOTER --- */}
+        {/* STICKY FOOTER */}
         <div className="p-5 border-t border-gray-200 bg-gray-50 rounded-b-xl flex justify-end space-x-3 shrink-0">
           <button
             type="button"

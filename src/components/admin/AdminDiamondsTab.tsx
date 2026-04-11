@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Save, Plus, Trash2 } from 'lucide-react';
 import { DIAMOND_QUALITIES } from '../../constants/jewellery';
 import { DiamondPricingTier } from '../../types';
+import toast from 'react-hot-toast';
 
 interface Props {
   initialBaseCosts: Record<string, number>;
@@ -18,9 +19,23 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
 
   const handleSave = async () => {
     setIsSaving(true);
-    const success = await saveDiamondPricing(baseCosts, tiers);
-    if (success) alert('Diamond pricing saved!');
-    setIsSaving(false);
+    
+    try {
+      const success = await saveDiamondPricing(baseCosts, tiers);
+      
+      if (success) {
+        toast.success('Diamond pricing saved successfully!');
+      } else {
+        // If the database function fails but doesn't throw a hard error
+        toast.error('Failed to save diamond pricing. Please try again.');
+      }
+      
+    } catch (error) {
+      console.error('Error saving diamond pricing:', error);
+      toast.error('An unexpected error occurred while saving.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const getOffsetKey = (q: string): keyof DiamondPricingTier => {

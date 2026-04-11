@@ -44,13 +44,13 @@ export function CategoryPage() {
   }, [])
 
   const handleCategorySelect = (categoryId: string) => {
-      if (categoryId === 'All') {
-        navigate('/category/All');
-      } else {
-        const selectedCat = categories.find(c => c.id === categoryId);
-        if (selectedCat) navigate(`/category/${selectedCat.name}`);
-      }
-    };
+    if (categoryId === 'All') {
+      navigate('/category/All');
+    } else {
+      const selectedCat = categories.find(c => c.id === categoryId);
+      if (selectedCat) navigate(`/category/${selectedCat.name}`);
+    }
+  };
 
   const filteredItems = items.filter(item => {
     if (activeCategoryId === 'All') return true;

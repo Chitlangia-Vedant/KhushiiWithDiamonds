@@ -17,6 +17,7 @@ import { OtherStonesSection } from './jewellery-form/OtherStonesSection';
 import { useGoldPrice } from '../../hooks/useGoldPrice';
 import { useAdminSettings } from '../../hooks/useAdminSettings';
 import { useQualityContext } from '../../context/QualityContext';
+import toast from 'react-hot-toast';
 
 interface JewelleryFormProps {
   editingItem: JewelleryItem | null;
@@ -130,46 +131,64 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
     e.preventDefault();
     setUploading(true);
 
+    // 1. Trigger the loading toast (changes text based on edit/add mode)
+    const loadingToastId = toast.loading(editingItem ? 'Updating item...' : 'Saving new item...');
+
     try {
       // 1. Generate description (if you are using this for Drive metadata)
       const itemDescription = generateItemDescription();
 
       if (editingItem && currentImages.length > 0) {
         // This will silently update the description and move the files if the category changed!
-        await updateJewelleryDriveMetadata(
-          currentImages,
-          formData.category,
-          categories,
-          itemDescription
-        );
+        try {
+          await updateJewelleryDriveMetadata(
+            currentImages,
+            formData.category,
+            categories,
+            itemDescription
+          );
+        } catch (updateError) {
+          console.error('Drive metadata update failed:', updateError);
+        }
       }
 
       // 2. Upload new images using the utility
       let newImageUrls: string[] = [];
       if (selectedImages.length > 0) {
-        newImageUrls = await uploadJewelleryImages(
-          selectedImages,
-          formData.name,
-          formData.category,
-          categories,
-          itemDescription
-        );
+        try {
+          newImageUrls = await uploadJewelleryImages(
+            selectedImages,
+            formData.name,
+            formData.category,
+            categories,
+            itemDescription
+          );
+        } catch (uploadError) {
+          console.error('Image upload failed:', uploadError);
+          const errorMessage = uploadError instanceof Error ? uploadError.message : 'Unknown error';
+          // Show a separate error toast for the image failure, but don't stop the save process
+          toast.error(`Image upload failed: ${errorMessage}. Saving without new images.`, { duration: 5000 });
+        }
       }
 
       // 3. Delete removed images using the utility
       if (imagesToDelete.length > 0) {
-        await deleteDriveImages(imagesToDelete);
+        try { 
+          await deleteDriveImages(imagesToDelete); 
+        } catch (deleteError) { 
+          console.error('Failed to delete images:', deleteError); 
+        }
       }
 
-      // 4. Combine arrays and clean up diamonds (ignore empty slots)
+      // 4. Combine arrays and clean up empty stone slots
       const finalImageUrls = [...currentImages, ...newImageUrls];
       const cleanedDiamonds = formData.diamonds.filter(slot => slot.carat > 0);
-      const cleanedOtherStones = formData.other_stones.filter(stone => stone.carat > 0); // <-- Clean empty stones
+      const cleanedOtherStones = formData.other_stones.filter(stone => stone.carat > 0);
 
       // 5. Build final data and submit
       const itemData: Partial<JewelleryItem> = {
         name: formData.name,
-        description: formData.description, // Fixed strict null TypeScript error
+        description: formData.description,
         category: formData.category,
         gold_weight: formData.gold_weight,
         making_charges_per_gram: formData.making_charges_per_gram,
@@ -181,10 +200,18 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
 
       await onSubmit(itemData, finalImageUrls);
       
+      // 2. Transform the loading toast into a success toast!
+      toast.success(editingItem ? 'Item updated successfully!' : 'Item added successfully!', { id: loadingToastId });
+      
     } catch (error) {
       console.error('Error saving item:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      alert(`Error saving item: ${errorMessage}. Please check permissions.`);
+      
+      // 3. Transform the loading toast into a hard error toast!
+      toast.error(`Error saving item: ${errorMessage}`, { 
+        id: loadingToastId,
+        duration: 5000
+      });
     } finally {
       setUploading(false);
     }

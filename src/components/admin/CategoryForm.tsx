@@ -4,6 +4,7 @@ import { Save, X, Upload, Loader } from 'lucide-react';
 import { useCategories } from '../../hooks/useCategories';
 import { uploadCategoryImages } from '../../utils/uploadUtils';
 import { CategoryDropdown } from '../CategoryDropdown';
+import toast from 'react-hot-toast';
 
 interface CategoryFormProps {
   editingCategory: Category | null;
@@ -54,6 +55,9 @@ export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryF
     e.preventDefault();
     setUploading(true);
     
+    // 1. Trigger the loading toast
+    const loadingToastId = toast.loading('Saving category...');
+    
     try {
       let imageUrls: string[] = [];
 
@@ -71,14 +75,25 @@ export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryF
         } catch (uploadError) {
           console.error('Image upload failed:', uploadError);
           const errorMessage = uploadError instanceof Error ? uploadError.message : 'Unknown error';
-          alert(`Image upload failed: ${errorMessage}. The category will be saved without images.`);
+          
+          // Show a separate error toast for the image failure, but don't stop the save process
+          toast.error(`Image upload failed: ${errorMessage}. The category will be saved without images.`, { duration: 5000 });
         }
       }
 
       await onSuccess();
+      
+      // 2. Transform the loading toast into a success toast!
+      toast.success('Category saved successfully!', { id: loadingToastId });
+      
     } catch (error) {
       console.error('Error saving category:', error);
-      alert('Error saving category. Please check your permissions and try again.');
+      
+      // 3. Transform the loading toast into a hard error toast!
+      toast.error('Error saving category. Please check your permissions and try again.', { 
+        id: loadingToastId,
+        duration: 4000
+      });
     } finally {
       setUploading(false);
     }

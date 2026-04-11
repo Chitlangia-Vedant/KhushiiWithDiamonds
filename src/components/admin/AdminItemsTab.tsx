@@ -8,6 +8,7 @@ import { deleteDriveImages } from '../../utils/uploadUtils';
 import { useCategories } from '../../hooks/useCategories';
 import { CategoryFilter } from '../CategoryFilter';
 import { getValidCategoryNames } from '../../utils/categoryUtils';
+import toast from 'react-hot-toast';
 
 export function AdminItemsTab() {
   const { categories } = useCategories();
@@ -25,13 +26,24 @@ export function AdminItemsTab() {
 
   const loadItems = async () => {
     try {
-      const { data } = await supabase
+      // Added 'error' extraction here
+      const { data, error } = await supabase
         .from('jewellery_items')
         .select('*')
         .order('created_at', { ascending: false });
+        
+      // Force the catch block to run if Supabase returns an error
+      if (error) throw error; 
+      
       if (data) setItems(data);
+      
     } catch (error) {
       console.error('Error loading items:', error);
+      
+      // Add the silent failure warning!
+      toast.error('Failed to load inventory. Please check your connection or refresh the page.', {
+        duration: 5000
+      });
     }
   };
 
@@ -46,6 +58,7 @@ export function AdminItemsTab() {
   };
 
   const handleSubmit = async (itemData: Partial<JewelleryItem>, imageUrls: string[]) => {
+    // The success/error toasts for this are handled inside JewelleryForm.tsx!
     const finalItemData = { ...itemData, image_url: imageUrls };
     if (editingItem) {
       const { error } = await supabase.from('jewellery_items').update({ ...finalItemData, updated_at: new Date().toISOString() }).eq('id', editingItem.id);
@@ -59,18 +72,36 @@ export function AdminItemsTab() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this item?')) {
+    if (window.confirm('Are you sure you want to delete this item?')) {
+      
+      // 1. Trigger the loading toast
+      const loadingToastId = toast.loading('Deleting item...');
+      
       try {
         const itemToDelete = items.find(item => item.id === id);
+        
+        // Clean up Google Drive images silently
         if (itemToDelete?.image_url && itemToDelete.image_url.length > 0) {
           try { await deleteDriveImages(itemToDelete.image_url); } catch (e) { console.error(e); }
         }
+        
+        // Delete from database
         const { error } = await supabase.from('jewellery_items').delete().eq('id', id);
         if (error) throw error;
+        
         await loadItems();
+        
+        // 2. Transform into success toast!
+        toast.success('Item deleted successfully!', { id: loadingToastId });
+        
       } catch (error) {
         console.error('Error deleting:', error);
-        alert('Error deleting item.');
+        
+        // 3. Transform into error toast!
+        toast.error('Error deleting item. Please try again.', { 
+          id: loadingToastId,
+          duration: 4000
+        });
       }
     }
   };

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Save, AlertCircle } from 'lucide-react';
 import { formatCurrency } from '../../lib/goldPrice';
+import toast from 'react-hot-toast';
 
 interface AdminSettingsTabProps {
   fallbackGoldPrice: number;
@@ -42,25 +43,34 @@ export function AdminSettingsTab({
     e.preventDefault();
     setIsSaving(true);
     
+    // Trigger the loading toast
+    const loadingToastId = toast.loading('Saving settings...');
+    
     try {
       const fallbackPrice = parseFloat(settingsFormData.fallback_gold_price);
       const gstDecimal = parseFloat(settingsFormData.gst_rate) / 100;
       const overrideValue = settingsFormData.override_live_gold_price.toString();
+      const makingCharges = parseFloat(settingsFormData.gold_making_charges);
 
       const success1 = await updateSetting('fallback_gold_price', fallbackPrice.toString());
       const success2 = await updateSetting('gst_rate', gstDecimal.toString());
       const success3 = await updateSetting('override_live_gold_price', overrideValue);
-      const makingCharges = parseFloat(settingsFormData.gold_making_charges);
       const success4 = await updateSetting('gold_making_charges_per_gram', makingCharges.toString());
 
       if (success1 && success2 && success3 && success4) {
-        alert('Settings updated successfully!');
+        // Transform into success toast
+        toast.success('Settings updated successfully!', { id: loadingToastId });
       } else {
-        alert('Error updating some settings. Please try again.');
+        // Transform into partial error toast
+        toast.error('Error updating some settings. Please try again.', { id: loadingToastId });
       }
     } catch (error) {
       console.error('Error updating settings:', error);
-      alert('Error updating settings. Please check your input values.');
+      // Transform into hard error toast
+      toast.error('Error updating settings. Please check your input values.', { 
+        id: loadingToastId,
+        duration: 4000
+      });
     } finally {
       setIsSaving(false);
     }

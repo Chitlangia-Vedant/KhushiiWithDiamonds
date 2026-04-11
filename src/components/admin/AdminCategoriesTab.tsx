@@ -6,6 +6,7 @@ import { CategoryForm } from './CategoryForm';
 import { deleteDriveImages } from '../../utils/uploadUtils';
 import { useCategories } from '../../hooks/useCategories';
 import { getValidCategoryNames } from '../../utils/categoryUtils'; // <-- Import our utility!
+import toast from 'react-hot-toast';
 
 export function AdminCategoriesTab() {
   const { categories, topLevelCategories, getSubcategories, refetchCategories } = useCategories();
@@ -26,6 +27,10 @@ export function AdminCategoriesTab() {
     try {
       // We only need to fetch the category column, making this extremely fast!
       const { data, error } = await supabase.from('jewellery_items').select('category');
+      
+      // FIX: You must throw the error so the catch block actually runs if Supabase fails!
+      if (error) throw error; 
+
       if (data) {
         const counts: Record<string, number> = {};
         data.forEach(item => {
@@ -35,6 +40,11 @@ export function AdminCategoriesTab() {
       }
     } catch (error) {
       console.error('Error fetching item counts:', error);
+      
+      // Let the admin know the background sync failed
+      toast.error('Failed to sync category counts. Please refresh the page.', {
+        duration: 4000
+      });
     }
   };
 
@@ -56,21 +66,37 @@ export function AdminCategoriesTab() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this category? (Note: Ensure no items are using it first!)')) {
+    // We keep window.confirm as it's the safest, native way to prevent accidental clicks
+    if (window.confirm('Are you sure you want to delete this category? (Note: Ensure no items are using it first!)')) {
+      
+      // 1. Trigger a loading toast so the user knows it's working
+      const loadingToastId = toast.loading('Deleting category...');
+      
       try {
         const catToDelete = categories.find(c => c.id === id);
         
+        // Clean up Google Drive images silently
         if (catToDelete?.image_url) {
           try { await deleteDriveImages([catToDelete.image_url]); } catch (e) { console.error(e); }
         }
 
+        // Delete from database
         const { error } = await supabase.from('categories').delete().eq('id', id);
         if (error) throw error;
         
         await refetchCategories();
+        
+        // 2. Replace the loading toast with a success message!
+        toast.success('Category deleted successfully!', { id: loadingToastId });
+        
       } catch (error: any) {
         console.error('Error deleting:', error);
-        alert('Error deleting category. It might have subcategories or items attached to it.');
+        
+        // 3. Replace the loading toast with an error message!
+        toast.error('Error deleting category. It might have subcategories or items attached to it.', { 
+          id: loadingToastId,
+          duration: 5000 // Give them a little extra time to read the error
+        });
       }
     }
   };

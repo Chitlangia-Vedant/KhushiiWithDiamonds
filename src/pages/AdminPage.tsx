@@ -13,6 +13,7 @@ import { useAdminSettings } from '../hooks/useAdminSettings';
 import { useCategories } from '../hooks/useCategories';
 import { useQualityContext } from '../context/QualityContext';
 import { GOLD_QUALITIES, DIAMOND_QUALITIES, DiamondQuality } from '../constants/jewellery';
+import toast from 'react-hot-toast';
 
 export function AdminPage() {
   const { categories } = useCategories();
@@ -59,8 +60,15 @@ export function AdminPage() {
       await supabase.auth.signOut();
       setIsAuthenticated(false);
       setItems([]);
+      
+      // Add the success toast
+      toast.success('Logged out successfully.');
+      
     } catch (error) {
       console.error('Error signing out:', error);
+      
+      // Add the error toast
+      toast.error('Error signing out. Please try again.');
     }
   };
 

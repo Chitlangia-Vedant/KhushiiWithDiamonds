@@ -46,6 +46,12 @@ export function AdminItemsTab() {
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [bulkCategoryName, setBulkCategoryName] = useState<string>('');
 
+  // --- NEW: SORTING STATE ---
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ 
+    key: 'created_at', 
+    direction: 'desc' 
+  });
+
   useEffect(() => { return () => { toast.dismiss(); }; }, []);
   useEffect(() => { loadItems(); }, []);
 
@@ -54,10 +60,16 @@ export function AdminItemsTab() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
   
+  // Reset pagination when filters change
   useEffect(() => { 
     setCurrentPage(1); 
     setSelectedItemIds([]); 
   }, [debouncedSearchQuery, activeCategoryName, filters]); 
+
+  // Reset pagination when sort changes (but keep selections!)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [sortConfig]);
 
   const loadItems = async () => {
     setIsLoading(true); 
@@ -145,11 +157,19 @@ export function AdminItemsTab() {
     } catch (error) { toast.error('Error moving items.', { id: loadingToastId }); }
   };
 
+  const handleSort = (key: string) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc'
+    }));
+  };
+
   const toggleSelection = (id: string) => setSelectedItemIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   const updateFilter = (key: keyof AdminItemFilters, value: any) => setFilters(prev => ({ ...prev, [key]: value }));
   const clearFilters = () => { setFilters(initialFilters); setSearchQuery(''); setDebouncedSearchQuery(''); setActiveCategoryName('All'); };
   const handleSelectAll = (checked: boolean, pageIds: string[]) => { checked ? setSelectedItemIds(Array.from(new Set([...selectedItemIds, ...pageIds]))) : setSelectedItemIds(selectedItemIds.filter(id => !pageIds.includes(id))); };
 
+  // 1. FILTER PIPELINE
   const filteredItems = useMemo(() => {
     return items.filter(item => {
       if (debouncedSearchQuery && !item.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())) return false;
@@ -195,9 +215,44 @@ export function AdminItemsTab() {
     });
   }, [items, debouncedSearchQuery, activeCategoryName, filters, globalGoldPurity, globalDiamondQuality, globalGoldMakingCharges, effectiveGoldPrice, gstRate, diamondBaseCosts, diamondTiers, categories]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredItems.length / ITEMS_PER_PAGE));
+  // 2. HIGH-PERFORMANCE SORTING PIPELINE
+  const sortedItems = useMemo(() => {
+    // We map the filtered items to attach pre-calculated sort values, ensuring lightning-fast sorting
+    const sortable = filteredItems.map(item => ({
+      ...item,
+      _sortPrice: getPriceBreakdownItem(item, globalGoldPurity, globalDiamondQuality as DiamondQuality, globalGoldMakingCharges, effectiveGoldPrice, gstRate, diamondBaseCosts, diamondTiers).total,
+      _sortDiamonds: item.diamonds?.reduce((sum, d) => sum + (d.carat || 0), 0) || 0
+    }));
+
+    sortable.sort((a, b) => {
+      let aValue: any = a.created_at;
+      let bValue: any = b.created_at;
+
+      if (sortConfig.key === 'price') {
+        aValue = a._sortPrice; bValue = b._sortPrice;
+      } else if (sortConfig.key === 'diamonds') {
+        aValue = a._sortDiamonds; bValue = b._sortDiamonds;
+      } else if (sortConfig.key === 'gold') {
+        aValue = a.gold_weight || 0; bValue = b.gold_weight || 0;
+      } else if (sortConfig.key === 'name') {
+        aValue = (a.name || '').toLowerCase(); bValue = (b.name || '').toLowerCase();
+      } else if (sortConfig.key === 'category') {
+        aValue = (a.category || '').toLowerCase(); bValue = (b.category || '').toLowerCase();
+      }
+
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return sortable;
+  }, [filteredItems, sortConfig, globalGoldPurity, globalDiamondQuality, globalGoldMakingCharges, effectiveGoldPrice, gstRate, diamondBaseCosts, diamondTiers]);
+
+
+  // 3. PAGINATION PIPELINE
+  const totalPages = Math.max(1, Math.ceil(sortedItems.length / ITEMS_PER_PAGE));
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedItems = filteredItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const paginatedItems = sortedItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   return (
     <>
@@ -215,7 +270,7 @@ export function AdminItemsTab() {
         <AdminItemsBulkActions selectedCount={selectedItemIds.length} bulkCategoryName={bulkCategoryName} setBulkCategoryName={setBulkCategoryName} onMove={handleBulkMove} onDelete={handleBulkDelete} />
       )}
 
-      {/* --- SIDE-BY-SIDE MOBILE FILTER BAR --- */}
+      {/* SEARCH AND FILTER BAR */}
       <div className="flex flex-col md:flex-row gap-2 sm:gap-3 mb-4">
         <div className="relative flex-grow">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -233,7 +288,24 @@ export function AdminItemsTab() {
 
       <AdminItemsAdvancedFilters showFilters={showFilters} filters={filters} updateFilter={updateFilter} clearFilters={clearFilters} />
 
-      <AdminItemsTable isLoading={isLoading} paginatedItems={paginatedItems} filteredItemsLength={filteredItems.length} selectedItemIds={selectedItemIds} onToggleSelection={toggleSelection} onSelectAll={handleSelectAll} onEdit={startEdit} onDelete={handleDelete} currentPage={currentPage} setCurrentPage={setCurrentPage} totalPages={totalPages} startIndex={startIndex} itemsPerPage={ITEMS_PER_PAGE} clearFilters={clearFilters} />
+      <AdminItemsTable 
+        isLoading={isLoading} 
+        paginatedItems={paginatedItems} 
+        filteredItemsLength={sortedItems.length} 
+        selectedItemIds={selectedItemIds} 
+        onToggleSelection={toggleSelection} 
+        onSelectAll={handleSelectAll} 
+        onEdit={startEdit} 
+        onDelete={handleDelete} 
+        currentPage={currentPage} 
+        setCurrentPage={setCurrentPage} 
+        totalPages={totalPages} 
+        startIndex={startIndex} 
+        itemsPerPage={ITEMS_PER_PAGE} 
+        clearFilters={clearFilters} 
+        sortConfig={sortConfig}    // <-- NEW PROP
+        onSort={handleSort}        // <-- NEW PROP
+      />
 
       {showAddForm && <JewelleryForm editingItem={editingItem} onSubmit={handleSubmit} onCancel={resetForm} />}
     </>

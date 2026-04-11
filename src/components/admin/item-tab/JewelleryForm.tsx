@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { JewelleryItem, DiamondSlot, StoneSlot } from '../../../types';
-import { Save, X, Loader } from 'lucide-react';
+import { Save, X, Loader, AlertTriangle } from 'lucide-react';
 import { JewelleryDetailsSection } from './jewellery-form/JewelleryDetailsSection';
 import { JewelleryImagesSection } from './jewellery-form/JewelleryImagesSection';
 import { GoldSpecificationsSection } from './jewellery-form/GoldSpecificationsSection';
@@ -52,24 +52,20 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
     override_diamond_costs: editingItem?.override_diamond_costs ?? false,
   });
 
-  // --- FIX: MOVED STATE DECLARATIONS UP HERE ---
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [currentImages, setCurrentImages] = useState<string[]>(editingItem?.image_url || []);
   const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
 
-  // --- UNSAVED CHANGES PROTECTION LOGIC ---
   const [initialDataStr] = useState(JSON.stringify(formData));
 
   const hasUnsavedChanges = () => {
-    // Now it can safely read selectedImages and imagesToDelete!
     return JSON.stringify(formData) !== initialDataStr || selectedImages.length > 0 || imagesToDelete.length > 0;
   };
 
   useEffect(() => {
     const isDirty = hasUnsavedChanges();
-    (window as any).isFormDirty = isDirty; // Signal to AdminPage.tsx
+    (window as any).isFormDirty = isDirty; 
 
-    // Block native browser refresh/close
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isDirty) {
         e.preventDefault();
@@ -80,18 +76,49 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      (window as any).isFormDirty = false; // Cleanup when unmounted
+      (window as any).isFormDirty = false; 
     };
   }, [formData, selectedImages, imagesToDelete, initialDataStr]);
 
+  // --- CUSTOM TOAST CANCEL HANDLER ---
   const handleSafeCancel = () => {
     if (hasUnsavedChanges()) {
-      if (!window.confirm("You have unsaved changes. Are you sure you want to discard them?")) return;
+      toast((t) => (
+        <div className="flex flex-col p-1 min-w-[320px]">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-orange-50 rounded-full flex items-center justify-center flex-shrink-0 border border-orange-100">
+              <AlertTriangle className="h-5 w-5 text-orange-600" />
+            </div>
+            <h3 className="font-extrabold text-gray-900 text-lg">Discard Changes?</h3>
+          </div>
+          <div className="text-sm text-gray-800 mb-5 pl-[52px] leading-relaxed">
+            <p className="mb-2 font-medium">You have unsaved changes in this item.</p>
+            <p className="bg-orange-50/80 p-2 border border-orange-100 rounded text-orange-900 text-xs">
+              Are you sure you want to close without saving?
+            </p>
+          </div>
+          <div className="flex justify-end gap-3 mt-1">
+            <button onClick={() => toast.dismiss(t.id)} className="px-5 py-2 text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 rounded-lg transition-colors border border-gray-300 shadow-sm">
+              Keep Editing
+            </button>
+            <button 
+              onClick={() => {
+                toast.dismiss(t.id);
+                (window as any).isFormDirty = false;
+                onCancel();
+              }} 
+              className="px-5 py-2 text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors shadow-sm border border-orange-600"
+            >
+              Yes, discard
+            </button>
+          </div>
+        </div>
+      ), { duration: Infinity, style: { maxWidth: '450px', padding: '16px', backgroundColor: '#ffffff', border: '1px solid #fed7aa' } });
+    } else {
+      (window as any).isFormDirty = false;
+      onCancel();
     }
-    (window as any).isFormDirty = false;
-    onCancel();
   };
-  // ----------------------------------------
 
   const effectiveGoldPrice = overrideLiveGoldPrice ? fallbackGoldPrice : goldPrice;
   const mockItem = {

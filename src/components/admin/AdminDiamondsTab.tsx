@@ -15,16 +15,51 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
   const [tiers, setTiers] = useState<DiamondPricingTier[]>(initialTiers);
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => { return () => { toast.dismiss(); }; }, []);
-  useEffect(() => { setBaseCosts(initialBaseCosts); setTiers(initialTiers); }, [initialBaseCosts, initialTiers]);
+  useEffect(() => { 
+    setBaseCosts(initialBaseCosts); 
+    setTiers(initialTiers); 
+  }, [initialBaseCosts, initialTiers]);
+
+  // --- UNSAVED CHANGES PROTECTION LOGIC ---
+  const hasUnsavedChanges = () => {
+    return JSON.stringify(baseCosts) !== JSON.stringify(initialBaseCosts) ||
+           JSON.stringify(tiers) !== JSON.stringify(initialTiers);
+  };
+
+  useEffect(() => {
+    const isDirty = hasUnsavedChanges();
+    (window as any).isFormDirty = isDirty; 
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      (window as any).isFormDirty = false; 
+    };
+  }, [baseCosts, tiers, initialBaseCosts, initialTiers]);
+  // ----------------------------------------
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
       const success = await saveDiamondPricing(baseCosts, tiers);
-      if (success) toast.success('Diamond pricing saved successfully!');
-      else toast.error('Failed to save diamond pricing. Please try again.');
-    } catch (error) { toast.error('An unexpected error occurred while saving.'); } finally { setIsSaving(false); }
+      if (success) {
+        (window as any).isFormDirty = false; // Successfully saved! Clear the dirty flag.
+        toast.success('Diamond pricing saved successfully!');
+      } else {
+        toast.error('Failed to save diamond pricing. Please try again.');
+      }
+    } catch (error) { 
+      toast.error('An unexpected error occurred while saving.'); 
+    } finally { 
+      setIsSaving(false); 
+    }
   };
 
   const getOffsetKey = (q: string): keyof DiamondPricingTier => {
@@ -57,7 +92,6 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
 
   return (
     <>
-      {/* STANDARD HEADER */}
       <div className="flex justify-between items-center mb-4 sm:mb-6">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Diamond Pricing</h2>
@@ -68,7 +102,6 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
         </button>
       </div>
 
-      {/* MATCHING TABLE CONTAINER */}
       <div className="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden mb-6">
         <div className="overflow-x-auto no-scrollbar">
           <table className="min-w-full divide-y divide-gray-200">
@@ -148,7 +181,6 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
           </table>
         </div>
         
-        {/* MATCHING FOOTER */}
         <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-start">
           <button onClick={() => setTiers([...tiers, { min_carat: 0, max_carat: 0.99, ef_vvs_offset: 0, fg_vvs_si_offset: 0, gh_vs_si_offset: 0, lab_grown_offset: 0 }])} className="text-xs sm:text-sm font-semibold text-yellow-700 flex items-center hover:text-yellow-900 transition-colors bg-yellow-50 hover:bg-yellow-100 px-3 sm:px-4 py-2 rounded-md border border-yellow-200 shadow-sm">
             <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5" /> Add Carat Tier

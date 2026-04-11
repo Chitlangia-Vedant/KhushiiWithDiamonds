@@ -20,14 +20,12 @@ export function AdminSettingsTab({
   updateSetting 
 }: Props) {
   
-  // 1. Local state for all form fields so they update instantly when typing/clicking
   const [localFallback, setLocalFallback] = useState(fallbackGoldPrice);
   const [localGst, setLocalGst] = useState(gstRate * 100);
   const [localMaking, setLocalMaking] = useState(globalGoldMakingCharges);
   const [localOverride, setLocalOverride] = useState(overrideLiveGoldPrice);
   const [isSaving, setIsSaving] = useState(false);
 
-  // 2. Sync props to local state when the component loads or the database fetches new data
   useEffect(() => {
     setLocalFallback(fallbackGoldPrice);
     setLocalGst(gstRate * 100);
@@ -35,7 +33,35 @@ export function AdminSettingsTab({
     setLocalOverride(overrideLiveGoldPrice);
   }, [fallbackGoldPrice, gstRate, globalGoldMakingCharges, overrideLiveGoldPrice]);
 
-  // 3. Save all settings to the database simultaneously
+  // --- UNSAVED CHANGES PROTECTION LOGIC ---
+  const hasUnsavedChanges = () => {
+    return (
+      localFallback !== fallbackGoldPrice ||
+      localGst !== (gstRate * 100) ||
+      localMaking !== globalGoldMakingCharges ||
+      localOverride !== overrideLiveGoldPrice
+    );
+  };
+
+  useEffect(() => {
+    const isDirty = hasUnsavedChanges();
+    (window as any).isFormDirty = isDirty; 
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      (window as any).isFormDirty = false; 
+    };
+  }, [localFallback, localGst, localMaking, localOverride, fallbackGoldPrice, gstRate, globalGoldMakingCharges, overrideLiveGoldPrice]);
+  // ----------------------------------------
+
   const handleSave = async () => {
     setIsSaving(true);
     const loadingToast = toast.loading('Saving settings...');
@@ -45,6 +71,7 @@ export function AdminSettingsTab({
       await updateSetting('globalGoldMakingCharges', localMaking);
       await updateSetting('overrideLiveGoldPrice', localOverride); 
       
+      (window as any).isFormDirty = false; // Successfully saved! Clear the dirty flag.
       toast.success('Settings updated successfully!', { id: loadingToast });
     } catch (error) { 
       toast.error('Failed to save settings.', { id: loadingToast }); 
@@ -55,7 +82,6 @@ export function AdminSettingsTab({
 
   return (
     <>
-      {/* STANDARD HEADER */}
       <div className="flex justify-between items-center mb-4 sm:mb-6">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Settings</h2>
@@ -66,7 +92,6 @@ export function AdminSettingsTab({
         </button>
       </div>
 
-      {/* MATCHING TABLE CONTAINER */}
       <div className="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden mb-6">
         <div className="divide-y divide-gray-100">
 

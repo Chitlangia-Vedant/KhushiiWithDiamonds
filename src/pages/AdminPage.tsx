@@ -7,7 +7,7 @@ import { AdminItemsTab } from '../components/admin/AdminItemsTab';
 import { AdminCategoriesTab } from '../components/admin/AdminCategoriesTab';
 import { AdminSettingsTab } from '../components/admin/AdminSettingsTab';
 import { AdminDiamondsTab } from '../components/admin/AdminDiamondsTab';
-import { LogOut, Shield, Folder, Package, Settings, Sparkles, Gem } from 'lucide-react';
+import { LogOut, Shield, Folder, Package, Settings, Sparkles, Gem, AlertTriangle } from 'lucide-react';
 import { useGoldPrice } from '../hooks/useGoldPrice';
 import { useAdminSettings } from '../hooks/useAdminSettings';
 import { useCategories } from '../hooks/useCategories';
@@ -54,17 +54,43 @@ export function AdminPage() {
     } catch (error) { console.error('Error loading items:', error); }
   };
 
-  // --- SAFE NAVIGATION HANDLER ---
+  // --- CUSTOM TOAST NAVIGATION HANDLER ---
   const handleTabClick = (path: string) => {
-    // Check if the global dirty flag is set by any form
     if ((window as any).isFormDirty) {
-      const confirmed = window.confirm("You have unsaved changes in the form. Are you sure you want to leave without saving?");
-      if (!confirmed) return; // Stop navigation!
-      
-      // If they confirmed, reset the flag so they can navigate freely
-      (window as any).isFormDirty = false;
+      toast((t) => (
+        <div className="flex flex-col p-1 min-w-[320px]">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-orange-50 rounded-full flex items-center justify-center flex-shrink-0 border border-orange-100">
+              <AlertTriangle className="h-5 w-5 text-orange-600" />
+            </div>
+            <h3 className="font-extrabold text-gray-900 text-lg">Unsaved Changes</h3>
+          </div>
+          <div className="text-sm text-gray-800 mb-5 pl-[52px] leading-relaxed">
+            <p className="mb-2 font-medium">You have unsaved changes on this page.</p>
+            <p className="bg-orange-50/80 p-2 border border-orange-100 rounded text-orange-900 text-xs">
+              <span className="font-bold text-orange-600">Warning:</span> Are you sure you want to leave without saving?
+            </p>
+          </div>
+          <div className="flex justify-end gap-3 mt-1">
+            <button onClick={() => toast.dismiss(t.id)} className="px-5 py-2 text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 rounded-lg transition-colors border border-gray-300 shadow-sm">
+              Stay Here
+            </button>
+            <button 
+              onClick={() => {
+                toast.dismiss(t.id);
+                (window as any).isFormDirty = false;
+                navigate(path);
+              }} 
+              className="px-5 py-2 text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors shadow-sm border border-orange-600"
+            >
+              Discard & Leave
+            </button>
+          </div>
+        </div>
+      ), { duration: Infinity, style: { maxWidth: '450px', padding: '16px', backgroundColor: '#ffffff', border: '1px solid #fed7aa' } });
+    } else {
+      navigate(path);
     }
-    navigate(path);
   };
 
   if (loading) {
@@ -92,7 +118,7 @@ export function AdminPage() {
               ].map(({ key, icon: Icon, label, path }) => (
                 <button
                   key={key} 
-                  onClick={() => handleTabClick(path)} // <-- USE SAFE NAVIGATION
+                  onClick={() => handleTabClick(path)} 
                   className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-md flex items-center text-[10px] sm:text-xs font-semibold whitespace-nowrap transition-colors ${
                     currentTab === key ? 'bg-yellow-50 text-yellow-700' : 'text-gray-600 hover:bg-gray-100'
                   }`}

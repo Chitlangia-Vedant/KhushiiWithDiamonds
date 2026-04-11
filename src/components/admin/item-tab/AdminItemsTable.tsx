@@ -1,10 +1,10 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { JewelleryItem } from '../../types';
+import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { JewelleryItem } from '../../../types';
 import { AdminTableRow } from './AdminTableRow';
 
 interface Props {
-  isLoading: boolean; // <-- NEW PROP
+  isLoading: boolean;
   paginatedItems: JewelleryItem[];
   filteredItemsLength: number;
   selectedItemIds: string[];
@@ -18,12 +18,40 @@ interface Props {
   startIndex: number;
   itemsPerPage: number;
   clearFilters: () => void;
+  sortConfig: { key: string; direction: 'asc' | 'desc' };
+  onSort: (key: string) => void;
 }
 
 export function AdminItemsTable({
   isLoading, paginatedItems, filteredItemsLength, selectedItemIds, onToggleSelection, onSelectAll,
-  onEdit, onDelete, currentPage, setCurrentPage, totalPages, startIndex, itemsPerPage, clearFilters
+  onEdit, onDelete, currentPage, setCurrentPage, totalPages, startIndex, itemsPerPage, clearFilters,
+  sortConfig, onSort
 }: Props) {
+  
+  // Reusable component for the clickable sorting headers
+  const SortableHeader = ({ label, sortKey, className = "" }: { label: string, sortKey: string, className?: string }) => {
+    const isActive = sortConfig.key === sortKey;
+    return (
+      <th 
+        className={`px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors select-none ${className}`}
+        onClick={() => onSort(sortKey)}
+      >
+        <div className="flex items-center space-x-1.5 group">
+          <span>{label}</span>
+          <span className="flex-shrink-0">
+            {isActive ? (
+              sortConfig.direction === 'asc' 
+                ? <ArrowUp className="h-3.5 w-3.5 text-yellow-600" /> 
+                : <ArrowDown className="h-3.5 w-3.5 text-yellow-600" />
+            ) : (
+              <ArrowUpDown className="h-3.5 w-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+            )}
+          </span>
+        </div>
+      </th>
+    );
+  };
+
   return (
     <div className="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden mb-6">
       <div className="overflow-x-auto">
@@ -39,17 +67,18 @@ export function AdminItemsTable({
                   onChange={(e) => onSelectAll(e.target.checked, paginatedItems.map(i => i.id))}
                 />
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Item</th>
-              <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Category</th>
-              <th className="hidden lg:table-cell px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Gold</th>
-              <th className="hidden xl:table-cell px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Diamonds</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Price (₹)</th>
+              {/* Replacing standard headers with Sortable Headers! */}
+              <SortableHeader label="Item" sortKey="name" />
+              <SortableHeader label="Category" sortKey="category" className="hidden md:table-cell" />
+              <SortableHeader label="Gold" sortKey="gold" className="hidden lg:table-cell" />
+              <SortableHeader label="Diamonds" sortKey="diamonds" className="hidden xl:table-cell" />
+              <SortableHeader label="Price (₹)" sortKey="price" />
+              
               <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">
             
-            {/* --- SKELETON LOADER --- */}
             {isLoading ? (
               [...Array(8)].map((_, i) => (
                 <tr key={`skeleton-${i}`} className="animate-pulse hover:bg-gray-50 transition-colors">
@@ -68,7 +97,6 @@ export function AdminItemsTable({
                 </tr>
               ))
             ) : (
-              /* --- ACTUAL DATA --- */
               paginatedItems.map((item, index) => (
                 <AdminTableRow 
                   key={item.id} 
@@ -85,7 +113,6 @@ export function AdminItemsTable({
           </tbody>
         </table>
         
-        {/* Make sure empty state doesn't flash while loading */}
         {!isLoading && paginatedItems.length === 0 && (
           <div className="text-center py-12">
             <p className="text-gray-500 font-medium">No items found matching your filters.</p>

@@ -66,39 +66,60 @@ export function AdminCategoriesTab() {
   };
 
   const handleDelete = async (id: string) => {
-    // We keep window.confirm as it's the safest, native way to prevent accidental clicks
-    if (window.confirm('Are you sure you want to delete this category? (Note: Ensure no items are using it first!)')) {
-      
-      // 1. Trigger a loading toast so the user knows it's working
-      const loadingToastId = toast.loading('Deleting category...');
-      
-      try {
-        const catToDelete = categories.find(c => c.id === id);
-        
-        // Clean up Google Drive images silently
-        if (catToDelete?.image_url) {
-          try { await deleteDriveImages([catToDelete.image_url]); } catch (e) { console.error(e); }
-        }
+    toast((t) => (
+      <div className="flex flex-col p-1 min-w-[280px]">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <Trash2 className="h-4 w-4 text-red-600" />
+          </div>
+          <h3 className="font-bold text-gray-900">Delete Category?</h3>
+        </div>
+        <p className="text-sm text-gray-600 mb-4 pl-11">
+          Are you sure you want to delete this category? <br/><br/>
+          <span className="font-semibold text-red-600">Note:</span> Ensure no items are using it first!
+        </p>
+        <div className="flex justify-end gap-2 mt-1">
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            className="px-4 py-1.5 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-md transition-colors border border-gray-200"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={async () => {
+              toast.dismiss(t.id); // Hide the confirm dialog
+              
+              // --- START BACKGROUND DELETION ---
+              const loadingToastId = toast.loading('Deleting category...');
+              try {
+                const catToDelete = categories.find(c => c.id === id);
+                if (catToDelete?.image_url) {
+                  try { await deleteDriveImages([catToDelete.image_url]); } catch (e) { console.error(e); }
+                }
 
-        // Delete from database
-        const { error } = await supabase.from('categories').delete().eq('id', id);
-        if (error) throw error;
-        
-        await refetchCategories();
-        
-        // 2. Replace the loading toast with a success message!
-        toast.success('Category deleted successfully!', { id: loadingToastId });
-        
-      } catch (error: any) {
-        console.error('Error deleting:', error);
-        
-        // 3. Replace the loading toast with an error message!
-        toast.error('Error deleting category. It might have subcategories or items attached to it.', { 
-          id: loadingToastId,
-          duration: 5000 // Give them a little extra time to read the error
-        });
-      }
-    }
+                const { error } = await supabase.from('categories').delete().eq('id', id);
+                if (error) throw error;
+                
+                await refetchCategories();
+                toast.success('Category deleted successfully!', { id: loadingToastId });
+              } catch (error: any) {
+                console.error('Error deleting:', error);
+                toast.error('Error deleting category. It might have subcategories or items attached to it.', { 
+                  id: loadingToastId,
+                  duration: 5000 
+                });
+              }
+            }}
+            className="px-4 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors shadow-sm"
+          >
+            Yes, delete
+          </button>
+        </div>
+      </div>
+    ), {
+      duration: Infinity, 
+      style: { maxWidth: '400px', padding: '16px' }
+    });
   };
 
   const CategoryTableRow = ({ category, level = 0 }: { category: Category; level?: number }) => {

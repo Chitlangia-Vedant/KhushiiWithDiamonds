@@ -11,17 +11,7 @@ interface DeleteResponse {
   results: Array<{ url: string; fileId: string | null; success: boolean; error?: string; }>;
 }
 
-
 export class GoogleDriveUploadService {
-  private static readonly EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_DATABASE_URL}/functions/v1/upload-to-drive`;
-  private static readonly DELETE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_DATABASE_URL}/functions/v1/delete-from-drive`;
-  private static readonly UPDATE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_DATABASE_URL}/functions/v1/update-in-drive`;
-
-  private static async getAuthHeader(): Promise<string> {
-    const { data: { session } } = await supabase.auth.getSession();
-    return `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY}`;
-  }
-
   private static getFolderPath(itemType: 'category' | 'jewellery', itemName?: string, category?: string, parentCategory?: string): string {
     const basePath = 'WebCatalog(DO NOT EDIT)';
     if (itemType === 'category') return basePath;
@@ -52,21 +42,14 @@ export class GoogleDriveUploadService {
       formData.append('itemType', itemType);
       if (itemDescription) formData.append('itemDescription', itemDescription);
       
-      const authHeader = await this.getAuthHeader();
-      
-      const response = await fetch(this.EDGE_FUNCTION_URL, {
-        method: 'POST',
-        headers: { 
-          'Authorization': authHeader,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY // <-- Added Project Key Header
-        },
+      // Native Supabase SDK handles Auth, Token Refresh, and API Keys automatically!
+      const { data, error } = await supabase.functions.invoke('upload-to-drive', {
         body: formData, 
       });
 
-      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      const result: UploadResponse = await response.json();
-      if (!result.success) throw new Error(result.error || 'Upload failed');
-      return result;
+      if (error) throw new Error(error.message || 'Upload failed');
+      if (!data?.success) throw new Error(data?.error || 'Upload failed');
+      return data as UploadResponse;
     } catch (error) {
       console.error('Google Drive upload error:', error);
       throw error;
@@ -76,18 +59,11 @@ export class GoogleDriveUploadService {
   static async deleteFiles(imageUrls: string[]): Promise<DeleteResponse> {
     try {
       if (!imageUrls || imageUrls.length === 0) throw new Error('No image URLs provided');
-      const authHeader = await this.getAuthHeader();
-      const response = await fetch(this.DELETE_FUNCTION_URL, {
-        method: 'POST', 
-        headers: { 
-          'Content-Type': 'application/json', 
-          'Authorization': authHeader,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY // <-- Added Project Key Header
-        },
-        body: JSON.stringify({ imageUrls }),
+      const { data, error } = await supabase.functions.invoke('delete-from-drive', {
+        body: { imageUrls },
       });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return await response.json();
+      if (error) throw new Error(error.message);
+      return data as DeleteResponse;
     } catch (error) { console.error('Delete error:', error); throw error; }
   }
 
@@ -103,49 +79,31 @@ export class GoogleDriveUploadService {
     try {
       if (!imageUrls || imageUrls.length === 0) return true;
       const folderPath = this.getFolderPath(itemType, itemName, category, parentCategory);
-      const authHeader = await this.getAuthHeader();
-      const response = await fetch(this.UPDATE_FUNCTION_URL, {
-        method: 'POST', 
-        headers: { 
-          'Content-Type': 'application/json', 
-          'Authorization': authHeader,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY // <-- Added Project Key Header
-        },
-        body: JSON.stringify({ imageUrls, folderPath, itemDescription, itemName }),
+      const { data, error } = await supabase.functions.invoke('update-in-drive', {
+        body: { imageUrls, folderPath, itemDescription, itemName },
       });
-      return response.ok;
+      if (error) return false;
+      return data?.success || false;
     } catch (error) { return false; }
   }
 
   static async deleteFolder(folderPath: string): Promise<boolean> {
     try {
-      const authHeader = await this.getAuthHeader();
-      const response = await fetch(this.DELETE_FUNCTION_URL, {
-        method: 'POST', 
-        headers: { 
-          'Content-Type': 'application/json', 
-          'Authorization': authHeader,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY // <-- Added Project Key Header
-        },
-        body: JSON.stringify({ imageUrls: [], folderPaths: [folderPath] }),
+      const { data, error } = await supabase.functions.invoke('delete-from-drive', {
+        body: { imageUrls: [], folderPaths: [folderPath] },
       });
-      return response.ok;
+      if (error) return false;
+      return data?.success || false;
     } catch (error) { return false; }
   }
 
   static async moveCategoryFolder(oldFolderPath: string, newFolderPath: string): Promise<boolean> {
     try {
-      const authHeader = await this.getAuthHeader();
-      const response = await fetch(this.UPDATE_FUNCTION_URL, {
-        method: 'POST', 
-        headers: { 
-          'Content-Type': 'application/json', 
-          'Authorization': authHeader,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY // <-- Added Project Key Header
-        },
-        body: JSON.stringify({ action: 'move_folder', oldFolderPath, newFolderPath }),
+      const { data, error } = await supabase.functions.invoke('update-in-drive', {
+        body: { action: 'move_folder', oldFolderPath, newFolderPath },
       });
-      return response.ok;
+      if (error) return false;
+      return data?.success || false;
     } catch (error) { return false; }
   }
 }

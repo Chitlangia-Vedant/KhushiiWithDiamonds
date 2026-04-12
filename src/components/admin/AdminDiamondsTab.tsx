@@ -50,16 +50,23 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
     const loadingToastId = toast.loading('Saving diamond pricing...');
     
     try {
-      // 2. Clear dirty state so the user can navigate away safely
-      (window as any).isFormDirty = false;
+      // 2. Capture the result from the hook
+      // The hook now uses RPC for an atomic transaction
+      const success = await saveDiamondPricing(baseCosts, tiers); 
       
-      // 3. Execute the save prop passed from AdminPage
-      await saveDiamondPricing(baseCosts, tiers); 
-      
-      // 4. Transform the loading toast into a success toast!
-      toast.success('Diamond pricing saved successfully!', { id: loadingToastId });
+      if (success) {
+        // 3. Clear dirty state only on actual success
+        (window as any).isFormDirty = false;
+        
+        // 4. Transform the loading toast into a success toast
+        toast.success('Diamond pricing saved successfully!', { id: loadingToastId });
+      } else {
+        // Handle the case where the hook caught an error and returned false
+        throw new Error('Database operation failed');
+      }
     } catch (error) {
-      toast.error('Failed to save diamond pricing. Please try again.', { id: loadingToastId });
+      console.error('Save failed:', error);
+      toast.error('Failed to save diamond pricing. Data was preserved.', { id: loadingToastId });
     }
   };
 

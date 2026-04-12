@@ -111,29 +111,42 @@ export function AdminItemsTab() {
         ); 
       }
 
-      // 5. Delete Trash Google Drive Images
-      if (payload.imagesToDelete.length > 0) {
-        try { await deleteDriveImages(payload.imagesToDelete); } 
-        catch (deleteError) { console.error('Failed to delete images:', deleteError); }
-      }
-
-      // 6. Compile Final URLs based on drag-and-drop order
+      // 5. Compile Final URLs based on drag-and-drop order
       let finalImageUrls: string[] = [];
       if (payload.combinedOrder.length > 0) {
         const newUrlMap: Record<string, string> = {};
-        payload.selectedImages.forEach((file: File, index: number) => { newUrlMap[`${file.name}-${file.size}`] = newlyUploadedUrls[index]; });
-        finalImageUrls = payload.combinedOrder.map((id: string) => payload.currentImages.includes(id) ? id : newUrlMap[id]).filter(Boolean) as string[];
+        
+        // --- THE FIX IS HERE: Use the unique ID instead of name-size ---
+        payload.selectedImages.forEach((file: any, index: number) => { 
+          const uniqueId = file.uniqueId; 
+          newUrlMap[uniqueId] = newlyUploadedUrls[index]; 
+        });
+        
+        finalImageUrls = payload.combinedOrder.map((id: string) => 
+          payload.currentImages.includes(id) ? id : newUrlMap[id]
+        ).filter(Boolean) as string[];
       } else {
         finalImageUrls = [...payload.currentImages, ...newlyUploadedUrls];
       }
       
       const finalItemData = { ...payload.itemData, image_url: finalImageUrls };
 
-      // 7. Push to Supabase Database
+      // 6. Push to Supabase Database FIRST (The Gatekeeper)
       if (payload.isEditing) {
-        await supabase.from('jewellery_items').update({ ...finalItemData, updated_at: new Date().toISOString() }).eq('id', payload.itemId);
+        const { error } = await supabase.from('jewellery_items').update({ ...finalItemData, updated_at: new Date().toISOString() }).eq('id', payload.itemId);
+        if (error) throw error; // Fails safely to catch block!
       } else {
-        await supabase.from('jewellery_items').insert([finalItemData]);
+        const { error } = await supabase.from('jewellery_items').insert([finalItemData]);
+        if (error) throw error; // Fails safely to catch block!
+      }
+
+      // 7. SAFE DELETION: Only delete from Drive if the Database was 100% successful
+      if (payload.imagesToDelete.length > 0) {
+        try { 
+          await deleteDriveImages(payload.imagesToDelete); 
+        } catch (deleteError) { 
+          console.error('Failed to delete trashed images from Drive, but database is safe:', deleteError); 
+        }
       }
       
       // 8. Silent refresh of the table and display success!
@@ -141,7 +154,7 @@ export function AdminItemsTab() {
       toast.success(payload.isEditing ? 'Item updated successfully!' : 'Item added successfully!', { id: loadingToastId });
       
     } catch (error) {
-      // The Rollback Safety Net
+      // The Rollback Safety Net: Reverts the NEW images if DB fails
       if (newlyUploadedUrls.length > 0) {
         console.warn("Rolling back Google Drive uploads due to Database failure...");
         try { await deleteDriveImages(newlyUploadedUrls); } catch (e) {}

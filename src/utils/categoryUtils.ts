@@ -1,20 +1,34 @@
 import { Category } from '../types';
 
 // 1. New: Recursively find ALL descendant names for the filter logic
-export const getValidCategoryNames = (categoryId: string, categories: Category[]): string[] => {
-  if (categoryId === 'All') return [];
+export const getValidCategoryNames = (
+  categoryId: string, 
+  categories: Category[], 
+  visited = new Set<string>() // <-- Failsafe added here
+): string[] => {
+  if (visited.has(categoryId)) return []; // Break loop immediately
+  visited.add(categoryId);
   
-  const parentCat = categories.find(c => c.id === categoryId);
-  if (!parentCat) return [];
+  const category = categories.find((c) => c.id === categoryId);
+  if (!category) return [];
 
-  let names = [parentCat.name];
-  const children = categories.filter(c => c.parent_id === categoryId);
+  const childCategories = categories.filter((c) => c.parent_id === categoryId);
+  if (childCategories.length === 0) return [category.name];
 
-  children.forEach(child => {
-    names = [...names, ...getValidCategoryNames(child.id, categories)];
-  });
+  return childCategories.flatMap((child) => getValidCategoryNames(child.id, categories, visited));
+};
 
-  return names;
+export const getDescendantCategoryIds = (categoryId: string, categories: Category[]): string[] => {
+  const descendants: string[] = [];
+  const traverse = (currentId: string) => {
+    const children = categories.filter(c => c.parent_id === currentId);
+    children.forEach(child => {
+      descendants.push(child.id);
+      traverse(child.id);
+    });
+  };
+  traverse(categoryId);
+  return descendants;
 };
 
 // 2. Upgraded: Infinite-depth breadcrumb string (e.g. "Rings → Engagement → Solitaire")

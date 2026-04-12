@@ -26,7 +26,7 @@ export function PricePreviewSection({
             value={previewGoldPurity} onChange={(e) => setPreviewGoldPurity(e.target.value)}
             className="text-xs border border-gray-300 rounded px-2 py-1 font-medium bg-gray-50 focus:ring-0 cursor-pointer"
           >
-            {['14K', '18K', '22K', '24K'].map(q => <option key={q} value={q}>{q} Gold</option>)}
+            {['14K', '18K', '22K'].map(q => <option key={q} value={q}>{q} Gold</option>)}
           </select>
           {mockItem.diamonds.length > 0 && (
             <select 

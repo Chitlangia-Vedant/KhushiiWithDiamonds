@@ -2,7 +2,7 @@
 export const GOLD_QUALITIES = [
   { value: '14K', label: '14K Gold', purity: '58.3%' },
   { value: '18K', label: '18K Gold', purity: '75.0%' },
-  { value: '24K', label: '24K Gold', purity: '100%' },
+  { value: '22K', label: '22K Gold', purity: '91.6%' },
 ] as const;
 
 export const DEFAULT_MAKING_CHARGES = 500;

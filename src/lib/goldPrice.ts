@@ -34,7 +34,7 @@ export const getCurrentGoldPrice = async (): Promise<number> => {
 };
 
 const purityMultipliers = {
-  '14K': 0.600, '18K': 0.780, '24K': 1.000
+  '14K': 0.600, '18K': 0.780, '22K': 0.916, '24K': 1.000 
 };
 
 export const getPriceBreakdown = (

@@ -50,22 +50,25 @@ export function AdminCategoriesTab() {
     );
 
     let newlyUploadedUrls: string[] = [];
+    
+    // --- FIX: Create a queue for deferred deletion ---
+    let urlsToDelete: string[] = []; 
 
     try {
       let finalImageUrl = payload.oldCategory?.image_url || null;
 
-      // 1. Delete the old image if user explicitly removed it via the 'X' button
+      // 1. Queue the old image for deletion if explicitly removed
       if (payload.removeOldImage && finalImageUrl) {
-        try { await deleteDriveImages([finalImageUrl]); } catch (e) { }
+        urlsToDelete.push(finalImageUrl); // <-- Queue it, do NOT delete yet
         finalImageUrl = null;
       }
 
       // 2. Upload the new image
       if (payload.selectedImages.length > 0) {
         
-        // If they are replacing an old image, delete the old one from Google Drive first!
+        // Queue old image for deletion if being replaced
         if (payload.isEditing && finalImageUrl) {
-          try { await deleteDriveImages([finalImageUrl]); } catch (e) { }
+          urlsToDelete.push(finalImageUrl); // <-- Queue it, do NOT delete yet
         }
 
         newlyUploadedUrls = await uploadCategoryImages(payload.selectedImages, payload.categoryData.name, payload.itemDescription);
@@ -74,7 +77,7 @@ export function AdminCategoriesTab() {
 
       const finalData = { ...payload.categoryData, image_url: finalImageUrl };
 
-      // 3. Move Folders & Update Database
+      // 3. Move Folders & Update Database FIRST
       if (payload.isEditing) {
         const oldParentCat = categories.find(c => c.id === payload.oldCategory.parent_id);
         const newParentCat = categories.find(c => c.id === payload.categoryData.parent_id);
@@ -85,11 +88,35 @@ export function AdminCategoriesTab() {
           console.error("Failed to move folder in Drive:", folderError);
         }
 
+        // --- DATABASE UPDATE ---
         const { error } = await supabase.from('categories').update(finalData).eq('id', payload.categoryId);
-        if (error) throw error;
+        if (error) throw error; // If this fails, the code jumps to catch()
+
+        // --- FIX: ORPHANED ITEMS SYNC ---
+        // If the category name was changed, update all associated jewellery items
+        if (payload.oldCategory.name !== payload.categoryData.name) {
+          const { error: orphanError } = await supabase
+            .from('jewellery_items')
+            .update({ category: payload.categoryData.name })
+            .eq('category', payload.oldCategory.name);
+            
+          if (orphanError) {
+             throw new Error(`Category renamed, but failed to sync items: ${orphanError.message}`);
+          }
+        }
       } else {
         const { error } = await supabase.from('categories').insert([finalData]);
         if (error) throw error;
+      }
+
+      // 4. --- SAFE DELETION ---
+      // This block only executes if the Database update/insert above was 100% successful.
+      if (urlsToDelete.length > 0) {
+        try { 
+          await deleteDriveImages(urlsToDelete); 
+        } catch (e) {
+          console.error("Drive cleanup failed, but DB is safe:", e);
+        }
       }
 
       await refetchCategories(); 
@@ -97,7 +124,7 @@ export function AdminCategoriesTab() {
       
     } catch (error: any) {
       if (newlyUploadedUrls.length > 0) {
-        console.warn("Rolling back Google Drive uploads due to Database failure...");
+        console.warn("Rolling back newly uploaded images due to Database failure...");
         try { await deleteDriveImages(newlyUploadedUrls); } catch (rollbackError) { }
       }
       toast.error(error.message || 'Error saving category. Please check your connection.', { id: loadingToastId, duration: 4000 });

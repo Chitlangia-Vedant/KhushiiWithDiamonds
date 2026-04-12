@@ -9,7 +9,7 @@ interface CategoryDropdownProps {
   onSelect: (categoryId: string, categoryName: string) => void;
   onClear?: () => void;
   clearLabel?: string;
-  excludeCategoryId?: string;
+  excludeCategoryIds?: string[];
   disabled?: boolean;
   triggerClassName?: string;
 }
@@ -19,7 +19,7 @@ export function CategoryDropdown({
   onSelect,
   onClear,
   clearLabel = 'Clear Selection',
-  excludeCategoryId,
+  excludeCategoryIds,
   disabled,
   triggerClassName
 }: CategoryDropdownProps) {
@@ -48,8 +48,8 @@ export function CategoryDropdown({
   };
 
   const CategoryMenuItem = ({ category, level = 0 }: { category: Category; level?: number }) => {
-    // Prevent self-nesting if an exclude ID is provided
-    if (excludeCategoryId && category.id === excludeCategoryId) return null;
+    // --- FIX: Check against the new array of blocked IDs instead of a single ID ---
+    if (excludeCategoryIds && excludeCategoryIds.includes(category.id)) return null;
 
     const subcategories = getSubcategories(category.id);
     const hasSubcategories = subcategories.length > 0;

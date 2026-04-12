@@ -190,3 +190,30 @@ INSERT INTO public.admin_settings (setting_key, setting_value, description) VALU
   ('fallback_gold_price', '5450', 'Fallback gold price per gram in INR when API fails'),
   ('gst_rate', '0.18', 'GST rate for jewelry (18% = 0.18)')
 ON CONFLICT (setting_key) DO NOTHING;
+
+-- =====================================
+-- CASCADE SYNC FOR CATEGORY RENAMES
+-- =====================================
+
+-- 1. Create the function that performs the sync
+CREATE OR REPLACE FUNCTION public.sync_category_name_change()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- If the category name was actually changed
+  IF OLD.name <> NEW.name THEN
+    -- Update all jewellery items to match the new name
+    UPDATE public.jewellery_items
+    SET category = NEW.name
+    WHERE category = OLD.name;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 2. Attach the function to the categories table
+DROP TRIGGER IF EXISTS trigger_sync_category_name ON public.categories;
+CREATE TRIGGER trigger_sync_category_name
+  AFTER UPDATE OF name ON public.categories
+  FOR EACH ROW
+  EXECUTE FUNCTION public.sync_category_name_change();

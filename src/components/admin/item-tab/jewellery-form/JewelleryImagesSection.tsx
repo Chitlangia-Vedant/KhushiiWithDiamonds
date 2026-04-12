@@ -30,7 +30,7 @@ interface JewelleryImagesSectionProps {
   setCombinedOrder?: (order: string[]) => void; 
 }
 
-const getFileId = (file: File) => `${file.name}-${file.size}`;
+const getFileId = (file: any) => file.uniqueId;
 
 function SortableImageItem({ id, children, disabled = false, className = '' }: { id: string, children: React.ReactNode, disabled?: boolean, className?: string }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled });
@@ -85,7 +85,16 @@ export function JewelleryImagesSection({
 
   // --- Handlers ---
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) setSelectedImages([...selectedImages, ...Array.from(e.target.files)]);
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files).map(file => {
+        // Create a unique memory reference (Blob URL) and attach it directly to the file
+        // This guarantees a 100% unique ID even if the user uploads the exact same file twice
+        Object.assign(file, { uniqueId: URL.createObjectURL(file) });
+        return file;
+      });
+      
+      setSelectedImages([...selectedImages, ...newFiles]);
+    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {

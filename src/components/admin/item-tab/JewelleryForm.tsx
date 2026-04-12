@@ -171,7 +171,7 @@ export function JewelleryForm({ editingItem, onSubmit, onCancel }: JewelleryForm
       parts.push('--- Breakdown ---');
       formData.other_stones.forEach((stone, index) => {
         const name = stone.name || `Stone ${index + 1}`;
-        parts.push(`  ↳ ${name}: ${stone.carat}ct (Cost: ${formatCurrency(stone.amount || 0)})`);
+        parts.push(`  ↳ ${name}: ${stone.carat}ct (Cost: ${formatCurrency(stone.cost_per_carat || 0)})`);
       });
       parts.push(''); 
     }

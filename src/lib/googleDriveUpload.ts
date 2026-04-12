@@ -1,4 +1,4 @@
-import { supabase } from './supabase'; // <-- Make sure to import supabase at the top!
+import { supabase } from './supabase'; 
 
 interface UploadResponse {
   success: boolean; folderId: string; folderPath: string;
@@ -19,7 +19,6 @@ export class GoogleDriveUploadService {
 
   private static async getAuthHeader(): Promise<string> {
     const { data: { session } } = await supabase.auth.getSession();
-    // If logged in, use their secure JWT. Fallback to ANON key for safety.
     return `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY}`;
   }
 
@@ -32,7 +31,6 @@ export class GoogleDriveUploadService {
     return `${basePath}${safeItemName}`;
   }
 
-  // --- OPTIMIZATION 2: Multipart/Form-Data Binary Uploads ---
   static async uploadFiles(
     files: File[], itemName: string, itemType: 'category' | 'jewellery',
     category?: string, parentCategory?: string, itemDescription?: string
@@ -45,7 +43,7 @@ export class GoogleDriveUploadService {
       for (const file of files) {
         if (file.size > 10 * 1024 * 1024) throw new Error(`File "${file.name}" is too large. Max 10MB.`);
         if (!allowedTypes.includes(file.type)) throw new Error(`File "${file.name}" has unsupported type.`);
-        formData.append('files', file); // Append raw binary file!
+        formData.append('files', file); 
       }
 
       const folderPath = this.getFolderPath(itemType, itemName, category, parentCategory);
@@ -53,11 +51,16 @@ export class GoogleDriveUploadService {
       formData.append('itemName', itemName);
       formData.append('itemType', itemType);
       if (itemDescription) formData.append('itemDescription', itemDescription);
+      
       const authHeader = await this.getAuthHeader();
+      
       const response = await fetch(this.EDGE_FUNCTION_URL, {
         method: 'POST',
-        headers: { 'Authorization': authHeader },
-        body: formData, // Browser automatically sets Content-Type to multipart/form-data with bounds
+        headers: { 
+          'Authorization': authHeader,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY // <-- Added Project Key Header
+        },
+        body: formData, 
       });
 
       if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -75,7 +78,12 @@ export class GoogleDriveUploadService {
       if (!imageUrls || imageUrls.length === 0) throw new Error('No image URLs provided');
       const authHeader = await this.getAuthHeader();
       const response = await fetch(this.DELETE_FUNCTION_URL, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
+        method: 'POST', 
+        headers: { 
+          'Content-Type': 'application/json', 
+          'Authorization': authHeader,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY // <-- Added Project Key Header
+        },
         body: JSON.stringify({ imageUrls }),
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -97,7 +105,12 @@ export class GoogleDriveUploadService {
       const folderPath = this.getFolderPath(itemType, itemName, category, parentCategory);
       const authHeader = await this.getAuthHeader();
       const response = await fetch(this.UPDATE_FUNCTION_URL, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
+        method: 'POST', 
+        headers: { 
+          'Content-Type': 'application/json', 
+          'Authorization': authHeader,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY // <-- Added Project Key Header
+        },
         body: JSON.stringify({ imageUrls, folderPath, itemDescription, itemName }),
       });
       return response.ok;
@@ -108,7 +121,12 @@ export class GoogleDriveUploadService {
     try {
       const authHeader = await this.getAuthHeader();
       const response = await fetch(this.DELETE_FUNCTION_URL, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
+        method: 'POST', 
+        headers: { 
+          'Content-Type': 'application/json', 
+          'Authorization': authHeader,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY // <-- Added Project Key Header
+        },
         body: JSON.stringify({ imageUrls: [], folderPaths: [folderPath] }),
       });
       return response.ok;
@@ -119,7 +137,12 @@ export class GoogleDriveUploadService {
     try {
       const authHeader = await this.getAuthHeader();
       const response = await fetch(this.UPDATE_FUNCTION_URL, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
+        method: 'POST', 
+        headers: { 
+          'Content-Type': 'application/json', 
+          'Authorization': authHeader,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY // <-- Added Project Key Header
+        },
         body: JSON.stringify({ action: 'move_folder', oldFolderPath, newFolderPath }),
       });
       return response.ok;

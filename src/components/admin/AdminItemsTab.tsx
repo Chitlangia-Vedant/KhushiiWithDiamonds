@@ -54,7 +54,7 @@ export function AdminItemsTab() {
     direction: 'desc' 
   });
 
-  useEffect(() => { return () => { toast.dismiss(); }; }, []);
+  // --- FIX: Removed the `toast.dismiss()` cleanup effect so background tasks don't get hidden! ---
   useEffect(() => { loadItems(); }, []);
 
   useEffect(() => {

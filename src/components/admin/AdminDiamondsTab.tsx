@@ -46,19 +46,20 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
   // ----------------------------------------
 
   const handleSave = async () => {
-    setIsSaving(true);
+    // 1. Trigger the indestructible background toast
+    const loadingToastId = toast.loading('Saving diamond pricing...');
+    
     try {
-      const success = await saveDiamondPricing(baseCosts, tiers);
-      if (success) {
-        (window as any).isFormDirty = false; // Successfully saved! Clear the dirty flag.
-        toast.success('Diamond pricing saved successfully!');
-      } else {
-        toast.error('Failed to save diamond pricing. Please try again.');
-      }
-    } catch (error) { 
-      toast.error('An unexpected error occurred while saving.'); 
-    } finally { 
-      setIsSaving(false); 
+      // 2. Clear dirty state so the user can navigate away safely
+      (window as any).isFormDirty = false;
+      
+      // 3. Execute the save prop passed from AdminPage
+      await saveDiamondPricing(baseCosts, tiers); 
+      
+      // 4. Transform the loading toast into a success toast!
+      toast.success('Diamond pricing saved successfully!', { id: loadingToastId });
+    } catch (error) {
+      toast.error('Failed to save diamond pricing. Please try again.', { id: loadingToastId });
     }
   };
 
@@ -70,22 +71,12 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
   };
 
   const handleDeleteTier = (index: number) => {
-    toast((t) => (
-      <div className="flex flex-col p-1 min-w-[320px]">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center flex-shrink-0 border border-red-100"><Trash2 className="h-5 w-5 text-red-600" /></div>
-          <h3 className="font-extrabold text-gray-900 text-lg">Delete Tier?</h3>
-        </div>
-        <div className="text-sm text-gray-800 mb-5 pl-[52px] leading-relaxed">
-          <p className="mb-2 font-medium">Are you sure you want to permanently delete this carat tier?</p>
-          <p className="bg-red-50/80 p-2 border border-red-100 rounded text-red-800 text-xs"><span className="font-bold text-red-600">Warning:</span> You must click "Save Grid" to apply this change.</p>
-        </div>
-        <div className="flex justify-end gap-3 mt-1">
-          <button onClick={() => toast.dismiss(t.id)} className="px-5 py-2 text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 rounded-lg transition-colors border border-gray-300 shadow-sm">Cancel</button>
-          <button onClick={() => { toast.dismiss(t.id); setTiers(tiers.filter((_, i) => i !== index)); }} className="px-5 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors shadow-sm border border-red-700">Yes, delete</button>
-        </div>
-      </div>
-    ), { duration: Infinity, style: { maxWidth: '450px', padding: '16px', backgroundColor: '#ffffff', border: '1px solid #fecaca' } });
+    setTiers(tiers.filter((_, i) => i !== index));
+    // Mark the form as dirty so the user remembers to hit "Save Grid"
+    (window as any).isFormDirty = true;
+    
+    // Optional: Add a quick, non-intrusive success toast
+    toast.success('Row removed (Click Save to apply)');
   };
 
   const inputCss = "w-16 sm:w-24 px-2 sm:px-3 py-1 sm:py-1.5 border border-gray-300 rounded shadow-sm text-xs sm:text-sm focus:ring-1 focus:ring-yellow-500 outline-none transition-all font-medium text-gray-800 text-center sm:text-left";

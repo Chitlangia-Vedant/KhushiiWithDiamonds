@@ -1,21 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Category } from '../../types';
-import { Save, X, Upload, Loader, AlertTriangle } from 'lucide-react'; 
+import { Save, X, Upload, AlertTriangle } from 'lucide-react'; 
 import { useCategories } from '../../hooks/useCategories';
-import { uploadCategoryImages, moveDriveCategoryFolder } from '../../utils/uploadUtils';
-import { CategoryDropdown } from '../shared/CategoryDropdown'; // <-- Import the new utilityimport { CategoryDropdown } from '../shared/CategoryDropdown';
+import { CategoryDropdown } from '../shared/CategoryDropdown';
 import toast from 'react-hot-toast';
-import { supabase } from '../../lib/supabase'; 
 
 interface CategoryFormProps {
   editingCategory: Category | null;
-  onSuccess: () => void;
+  onSubmit: (payload: any) => void; // Changed from onSuccess to accept background payload
   onCancel: () => void;
 }
 
-export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryFormProps) {
+export function CategoryForm({ editingCategory, onSubmit, onCancel }: CategoryFormProps) {
   const { categories } = useCategories(); 
-  const [uploading, setUploading] = useState(false);
+  
   const [categoryFormData, setCategoryFormData] = useState({
     name: editingCategory?.name || '', 
     description: editingCategory?.description || '', 
@@ -47,7 +45,6 @@ export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryF
     };
   }, [categoryFormData, selectedImages, initialDataStr]);
 
-  // --- CUSTOM TOAST CANCEL HANDLER ---
   const handleSafeCancel = () => {
     if (hasUnsavedChanges()) {
       toast((t) => (
@@ -113,71 +110,25 @@ export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryF
     return description;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setUploading(true);
     
-    const loadingToastId = toast.loading(editingCategory ? 'Updating category...' : 'Saving category...');
-    
-    // --- NEW: Track uploaded URLs for rollback ---
-    let newlyUploadedUrls: string[] = [];
+    const itemDescription = generateCategoryDescription(); 
+    (window as any).isFormDirty = false;
 
-    try {
-      let finalImageUrl = editingCategory?.image_url || null;
-
-      if (selectedImages.length > 0) {
-        const itemDescription = generateCategoryDescription(); 
-        newlyUploadedUrls = await uploadCategoryImages(selectedImages, categoryFormData.name, itemDescription);
-        if (newlyUploadedUrls.length > 0) finalImageUrl = newlyUploadedUrls[0];
-      }
-
-      const finalData = {
+    // Instantly pass all workload to parent and allow modal to close!
+    onSubmit({
+      isEditing: !!editingCategory,
+      categoryId: editingCategory?.id,
+      oldCategory: editingCategory,
+      categoryData: {
         name: categoryFormData.name,
         description: categoryFormData.description,
         parent_id: categoryFormData.parent_id || null, 
-        image_url: finalImageUrl
-      };
-
-      if (editingCategory) {
-        const oldParentCat = categories.find(c => c.id === editingCategory.parent_id);
-        const newParentCat = categories.find(c => c.id === categoryFormData.parent_id);
-        
-        try {
-          await moveDriveCategoryFolder(editingCategory.name, oldParentCat?.name, categoryFormData.name, newParentCat?.name);
-        } catch (folderError) {
-          console.error("Failed to move folder in Drive:", folderError);
-        }
-
-        const { error } = await supabase.from('categories').update(finalData).eq('id', editingCategory.id);
-        if (error) throw error; // Triggers the catch block below
-
-      } else {
-        const { error } = await supabase.from('categories').insert([finalData]);
-        if (error) throw error; // Triggers the catch block below
-      }
-
-      (window as any).isFormDirty = false;
-      await onSuccess(); 
-      toast.success(editingCategory ? 'Category updated successfully!' : 'Category added successfully!', { id: loadingToastId });
-      
-    } catch (error: any) {
-      
-      // --- THE ROLLBACK ---
-      if (newlyUploadedUrls.length > 0) {
-        console.warn("Rolling back Google Drive uploads due to Database failure...");
-        try {
-           // Reuse your existing utility to delete the orphaned category images
-           await deleteDriveImages(newlyUploadedUrls);
-        } catch (rollbackError) {
-           console.error("CRITICAL: Rollback failed.", rollbackError);
-        }
-      }
-
-      console.error('Error saving category:', error);
-      toast.error(error.message || 'Error saving category. Please check your connection.', { id: loadingToastId, duration: 4000 });
-    } finally {
-      setUploading(false);
-    }
+      },
+      selectedImages,
+      itemDescription
+    });
   };
 
   return (
@@ -195,29 +146,29 @@ export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryF
           <form id="category-form" onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-semibold text-gray-800 mb-1">Parent Category (Optional)</label>
-              <CategoryDropdown valueLabel={categoryFormData.parent_id ? categories.find(c => c.id === categoryFormData.parent_id)?.name || 'Unknown' : 'None (Top-level category)'} onSelect={(categoryId) => setCategoryFormData({ ...categoryFormData, parent_id: categoryId })} onClear={() => setCategoryFormData({ ...categoryFormData, parent_id: '' })} clearLabel="None (Top Level Category)" excludeCategoryId={editingCategory?.id} disabled={uploading} />
+              <CategoryDropdown valueLabel={categoryFormData.parent_id ? categories.find(c => c.id === categoryFormData.parent_id)?.name || 'Unknown' : 'None (Top-level category)'} onSelect={(categoryId) => setCategoryFormData({ ...categoryFormData, parent_id: categoryId })} onClear={() => setCategoryFormData({ ...categoryFormData, parent_id: '' })} clearLabel="None (Top Level Category)" excludeCategoryId={editingCategory?.id} />
               <p className="text-xs text-gray-500 mt-1">Leave empty to create a top-level category, or select a parent to create a subcategory.</p>
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-800 mb-1">Name *</label>
-              <input type="text" required value={categoryFormData.name} onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500" placeholder="e.g., Heavy Rings, Light Rings" disabled={uploading} />
+              <input type="text" required value={categoryFormData.name} onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500" placeholder="e.g., Heavy Rings, Light Rings" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-800 mb-1">Description</label>
-              <textarea value={categoryFormData.description} onChange={(e) => setCategoryFormData({ ...categoryFormData, description: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500" rows={3} placeholder="Brief description of the category" disabled={uploading} />
+              <textarea value={categoryFormData.description} onChange={(e) => setCategoryFormData({ ...categoryFormData, description: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500" rows={3} placeholder="Brief description of the category" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-800 mb-2">Category Images</label>
               <div className="grid grid-cols-3 gap-3">
-                <label className={`flex flex-col items-center justify-center aspect-square border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                <label className="flex flex-col items-center justify-center aspect-square border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
                   <Upload className="w-6 h-6 text-gray-400 mb-1" />
                   <span className="text-xs text-gray-500 font-medium">Add Photo</span>
-                  <input type="file" multiple accept="image/*" onChange={handleImageChange} className="hidden" disabled={uploading} />
+                  <input type="file" multiple accept="image/*" onChange={handleImageChange} className="hidden" />
                 </label>
                 {selectedImages.map((file, index) => (
                   <div key={index} className="relative group aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-green-200">
                     <img src={URL.createObjectURL(file)} alt={`New ${index + 1}`} className="w-full h-full object-cover" />
-                    <button type="button" onClick={() => removeImage(index)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 shadow-md" disabled={uploading}>
+                    <button type="button" onClick={() => removeImage(index)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 shadow-md">
                       <X className="h-3 w-3" />
                     </button>
                   </div>
@@ -228,9 +179,9 @@ export function CategoryForm({ editingCategory, onSuccess, onCancel }: CategoryF
         </div>
 
         <div className="p-5 border-t border-gray-200 bg-gray-50 rounded-b-xl flex justify-end space-x-3 shrink-0">
-          <button type="button" onClick={handleSafeCancel} disabled={uploading} className="px-4 py-2 text-gray-700 font-medium rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50">Cancel</button>
-          <button type="submit" form="category-form" disabled={uploading} className="bg-yellow-600 text-white px-5 py-2 rounded-md hover:bg-yellow-700 font-medium flex items-center space-x-2 transition-colors disabled:opacity-70 shadow-sm">
-            {uploading ? <><Loader className="h-4 w-4 animate-spin" /><span>Saving...</span></> : <><Save className="h-4 w-4" /><span>{editingCategory ? 'Update' : 'Add'} Category</span></>}
+          <button type="button" onClick={handleSafeCancel} className="px-4 py-2 text-gray-700 font-medium rounded-md hover:bg-gray-200 transition-colors">Cancel</button>
+          <button type="submit" form="category-form" className="bg-yellow-600 text-white px-5 py-2 rounded-md hover:bg-yellow-700 font-medium flex items-center space-x-2 transition-colors shadow-sm">
+            <Save className="h-4 w-4" /><span>{editingCategory ? 'Update' : 'Add'} Category</span>
           </button>
         </div>
 

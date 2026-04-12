@@ -6,7 +6,7 @@ import { CategoryForm } from './CategoryForm';
 import { useCategories } from '../../hooks/useCategories';
 import { getValidCategoryNames } from '../../utils/categoryUtils'; 
 import toast from 'react-hot-toast';
-import { deleteDriveImages, deleteDriveFolder } from '../../utils/uploadUtils'; // <-- Ensure deleteDriveFolder is imported
+import { deleteDriveImages, deleteDriveFolder, uploadCategoryImages, moveDriveCategoryFolder } from '../../utils/uploadUtils';
 
 export function AdminCategoriesTab() {
   const { categories, topLevelCategories, getSubcategories, refetchCategories } = useCategories();
@@ -17,6 +17,7 @@ export function AdminCategoriesTab() {
   const [itemCounts, setItemCounts] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
 
+  // --- FIX: Removed the toast.dismiss() unmount bug from here! ---
   useEffect(() => { loadItemCounts(); }, []);
 
   const loadItemCounts = async () => {
@@ -40,10 +41,65 @@ export function AdminCategoriesTab() {
     setExpandedCategories(newExpanded);
   };
 
+  // --- NEW: BACKGROUND SAVING LOGIC ---
+  const handleSubmit = async (payload: any) => {
+    // 1. Instantly close modal!
+    resetForm();
+
+    const loadingToastId = toast.loading(
+      payload.isEditing ? 'Updating category in background...' : 'Saving new category in background...'
+    );
+
+    let newlyUploadedUrls: string[] = [];
+
+    try {
+      let finalImageUrl = payload.oldCategory?.image_url || null;
+
+      // 2. Upload images to Drive
+      if (payload.selectedImages.length > 0) {
+        newlyUploadedUrls = await uploadCategoryImages(payload.selectedImages, payload.categoryData.name, payload.itemDescription);
+        if (newlyUploadedUrls.length > 0) finalImageUrl = newlyUploadedUrls[0];
+      }
+
+      const finalData = { ...payload.categoryData, image_url: finalImageUrl };
+
+      // 3. Move Folders & Update Database
+      if (payload.isEditing) {
+        const oldParentCat = categories.find(c => c.id === payload.oldCategory.parent_id);
+        const newParentCat = categories.find(c => c.id === payload.categoryData.parent_id);
+        
+        try {
+          await moveDriveCategoryFolder(payload.oldCategory.name, oldParentCat?.name, payload.categoryData.name, newParentCat?.name);
+        } catch (folderError) {
+          console.error("Failed to move folder in Drive:", folderError);
+        }
+
+        const { error } = await supabase.from('categories').update(finalData).eq('id', payload.categoryId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('categories').insert([finalData]);
+        if (error) throw error;
+      }
+
+      await refetchCategories(); 
+      toast.success(payload.isEditing ? 'Category updated successfully!' : 'Category added successfully!', { id: loadingToastId });
+      
+    } catch (error: any) {
+      if (newlyUploadedUrls.length > 0) {
+        console.warn("Rolling back Google Drive uploads due to Database failure...");
+        try { await deleteDriveImages(newlyUploadedUrls); } catch (rollbackError) { }
+      }
+      toast.error(error.message || 'Error saving category. Please check your connection.', { id: loadingToastId, duration: 4000 });
+    }
+  };
+
   const handleDelete = async (id: string) => {
     toast((t) => (
       <div className="flex flex-col p-1 min-w-[320px]">
-        {/* ... (toast UI code remains the same) ... */}
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center flex-shrink-0 border border-red-100"><Trash2 className="h-5 w-5 text-red-600" /></div>
+          <h3 className="font-extrabold text-gray-900 text-lg">Delete Category?</h3>
+        </div>
         <div className="flex justify-end gap-3 mt-1">
           <button onClick={() => toast.dismiss(t.id)} className="px-5 py-2 text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 rounded-lg transition-colors border border-gray-300 shadow-sm">Cancel</button>
           <button onClick={async () => {
@@ -52,18 +108,15 @@ export function AdminCategoriesTab() {
               try {
                 const catToDelete = categories.find(c => c.id === id);
                 
-                // 1. Delete the category's thumbnail image
                 if (catToDelete?.image_url) { 
                   try { await deleteDriveImages([catToDelete.image_url]); } catch (e) { } 
                 }
 
-                // 2. Delete the actual category folder in Google Drive
                 if (catToDelete) {
                   const parentCat = categories.find(c => c.id === catToDelete.parent_id);
                   try { await deleteDriveFolder(catToDelete.name, parentCat?.name); } catch (e) { }
                 }
 
-                // 3. Delete from Supabase Database
                 const { error } = await supabase.from('categories').delete().eq('id', id);
                 if (error) throw error;
                 
@@ -116,7 +169,6 @@ export function AdminCategoriesTab() {
 
   return (
     <>
-      {/* STANDARD HEADER */}
       <div className="flex justify-between items-center mb-4 sm:mb-6">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Categories</h2>
@@ -127,7 +179,6 @@ export function AdminCategoriesTab() {
         </button>
       </div>
 
-      {/* MATCHING TABLE CONTAINER */}
       <div className="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden mb-6">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -160,7 +211,7 @@ export function AdminCategoriesTab() {
         </div>
       </div>
 
-      {showAddForm && <CategoryForm editingCategory={editingCategory} onSuccess={() => { refetchCategories(); resetForm(); }} onCancel={resetForm} />}
+      {showAddForm && <CategoryForm editingCategory={editingCategory} onSubmit={handleSubmit} onCancel={resetForm} />}
     </>
   );
 }

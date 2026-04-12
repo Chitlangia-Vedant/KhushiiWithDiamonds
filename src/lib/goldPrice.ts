@@ -1,5 +1,5 @@
 import { Diamond, JewelleryItem, DiamondPricingTier, StoneSlot } from '../types/index';
-import { DiamondQuality } from '../constants/jewellery';
+import { DiamondQuality, GOLD_QUALITIES } from '../constants/jewellery';
 
 const GOLD_API_KEY = import.meta.env.VITE_GOLD_API_KEY || '9886e90c5c52f1a75a3ca50daccd91d4';
 const GOLD_API_URL = `https://api.metalpriceapi.com/v1/latest?api_key=${GOLD_API_KEY}&base=INR&currencies=XAU`;
@@ -33,8 +33,9 @@ export const getCurrentGoldPrice = async (): Promise<number> => {
   return 0; 
 };
 
-const purityMultipliers = {
-  '14K': 0.600, '18K': 0.780, '22K': 0.916, '24K': 1.000 
+const getGoldMultiplier = (qualityValue: string): number => {
+  const quality = GOLD_QUALITIES.find(q => q.value === qualityValue);
+  return quality ? quality.multiplier : 1.000; // Defaults to 24K multiplier if not found
 };
 
 export const getPriceBreakdown = (
@@ -48,9 +49,9 @@ export const getPriceBreakdown = (
   gstRate: number = 0.18,
   otherStones: StoneSlot[] = []
 ) => {
-  const purity = purityMultipliers[goldQuality as keyof typeof purityMultipliers] || 0.583;
-  const goldValue = goldWeight * goldPricePerGram * purity;
-  
+  const goldMultiplier = getGoldMultiplier(goldQuality);  
+  const goldValue = goldWeight * goldPricePerGram * goldMultiplier;
+
   const totalDiamondCost = diamondsData.diamonds.reduce((total, diamond) => {
     return total + (diamond.carat * diamond.cost_per_carat);
   }, 0);

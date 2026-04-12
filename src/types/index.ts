@@ -53,6 +53,7 @@ export type DiamondPricingTier = {
   fg_vvs_si_offset: number;
   gh_vs_si_offset: number;
   lab_grown_offset: number;
+  created_at?: string;
 };
 
 export type StoneSlot = {

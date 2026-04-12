@@ -127,7 +127,7 @@ export function AdminPage() {
                 <div className="flex items-center bg-blue-50 rounded pl-1 pr-0.5 py-0.5">
                   <Sparkles className="h-2.5 w-2.5 text-blue-500 mr-0.5 sm:mr-1" />
                   <select value={globalDiamondQuality} onChange={(e) => setGlobalDiamondQuality(e.target.value as DiamondQuality)} className="text-[10px] sm:text-[11px] border-none bg-transparent text-blue-800 p-0 pr-3 sm:pr-4 focus:ring-0 cursor-pointer font-bold">
-                    {DIAMOND_QUALITIES.map((quality) => <option key={quality} value={quality}>{quality}</option>)}
+                    {DIAMOND_QUALITIES.map((quality) => <option key={quality.value} value={quality.value}>{quality.value}</option>)}
                   </select>
                 </div>
               </div>

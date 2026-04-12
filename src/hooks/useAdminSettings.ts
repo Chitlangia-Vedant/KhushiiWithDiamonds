@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { DiamondPricingTier } from '../types';
+import { DIAMOND_QUALITIES } from '../constants/jewellery';
 
 export function useAdminSettings() {
   const [fallbackGoldPrice, setFallbackGoldPrice] = useState(0);
@@ -10,21 +11,30 @@ export function useAdminSettings() {
   const [loading, setLoading] = useState(true);
   
   // NEW Diamond State
-  const [diamondBaseCosts, setDiamondBaseCosts] = useState<Record<string, number>>({
-    'EF/VVS': 0, 'FG/VVS-SI': 0, 'GH/VS-SI': 0, 'Lab Grown': 0
-  });
+  const initialDiamondCosts = DIAMOND_QUALITIES.reduce((acc, q) => {
+    acc[q.value] = 0;
+    return acc;
+  }, {} as Record<string, number>);
+  const [diamondBaseCosts, setDiamondBaseCosts] = useState<Record<string, number>>(initialDiamondCosts);
   const [diamondTiers, setDiamondTiers] = useState<DiamondPricingTier[]>([]);
 
   const loadSettings = async () => {
     try {
+      // --- 3. Dynamically build the fetch keys ---
+      const diamondCostKeys = DIAMOND_QUALITIES.map(q => `${q}_base_costs`);
+      const allSettingKeys = [
+        'fallback_gold_price', 
+        'gst_rate', 
+        'override_live_gold_price', 
+        'gold_making_charges_per_gram',
+        ...diamondCostKeys // Injects all diamond keys dynamically!
+      ];
+
       const [settingsRes, tiersRes] = await Promise.all([
         supabase
           .from('admin_settings')
           .select('setting_key, setting_value')
-          .in('setting_key', [
-            'fallback_gold_price', 'gst_rate', 'override_live_gold_price', 'gold_making_charges_per_gram',
-            'EF/VVS_base_costs', 'FG/VVS-SI_base_costs', 'GH/VS-SI_base_costs', 'Lab Grown_base_costs'
-          ]),
+          .in('setting_key', allSettingKeys), // <-- Uses the dynamic array
         supabase.from('diamond_pricing_tiers').select('*').order('min_carat', { ascending: true })
       ]);
 
@@ -71,33 +81,25 @@ export function useAdminSettings() {
         setting_value: cost.toString()
       }));
       
-      // FIX 1: Added the onConflict parameter so Supabase knows how to overwrite!
       const { error: baseError } = await supabase
         .from('admin_settings')
         .upsert(baseCostUpserts, { onConflict: 'setting_key' });
         
       if (baseError) throw baseError;
 
-      const { error: deleteError } = await supabase
-        .from('diamond_pricing_tiers')
-        .delete()
-        .neq('min_carat', -1);
-        
-      if (deleteError) throw deleteError;
-      
-      if (tiers.length > 0) {
-        const cleanTiers = tiers.map(({ id, ...rest }) => rest);
-        const { error: insertError } = await supabase
-          .from('diamond_pricing_tiers')
-          .insert(cleanTiers);
-          
-        if (insertError) throw insertError;
-      }
+      // --- THE FIX: Replace .delete() & .insert() with the Atomic RPC call ---
+      const cleanTiers = tiers.map(({ id, created_at, ...rest }) => rest);
+
+      const { error: tierError } = await supabase.rpc('save_diamond_pricing_tiers', {
+        new_tiers: cleanTiers
+      });
+
+      if (tierError) throw tierError;
+      // -----------------------------------------------------------------------
       
       await loadSettings(); 
       return true;
     } catch (err) {
-      // FIX 2: Actually log the error so you can see it in F12 Developer Tools
       console.error('Error saving diamond grid:', err);
       return false;
     }

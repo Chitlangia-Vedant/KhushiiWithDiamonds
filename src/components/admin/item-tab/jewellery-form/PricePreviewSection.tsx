@@ -1,7 +1,8 @@
 import React from 'react';
 import { JewelleryItem } from '../../../../types';
 import { formatCurrency } from '../../../../lib/goldPrice';
-import { DIAMOND_QUALITIES, DiamondQuality } from '../../../../constants/jewellery';
+import { DIAMOND_QUALITIES, DiamondQuality, GOLD_QUALITIES } from '../../../../constants/jewellery';
+
 
 interface PricePreviewSectionProps {
   mockItem: JewelleryItem;
@@ -26,14 +27,16 @@ export function PricePreviewSection({
             value={previewGoldPurity} onChange={(e) => setPreviewGoldPurity(e.target.value)}
             className="text-xs border border-gray-300 rounded px-2 py-1 font-medium bg-gray-50 focus:ring-0 cursor-pointer"
           >
-            {['14K', '18K', '22K'].map(q => <option key={q} value={q}>{q} Gold</option>)}
+            {GOLD_QUALITIES.map(q => (
+                  <option key={q.value} value={q.value}>{q.label}</option>
+                ))}
           </select>
           {mockItem.diamonds.length > 0 && (
             <select 
               value={previewDiamondQuality} onChange={(e) => setPreviewDiamondQuality(e.target.value as DiamondQuality)}
               className="text-xs border border-gray-300 rounded px-2 py-1 font-medium bg-gray-50 focus:ring-0 cursor-pointer"
             >
-              {DIAMOND_QUALITIES.map(q => <option key={q} value={q}>{q}</option>)}
+              {DIAMOND_QUALITIES.map(q => <option key={q.value} value={q.value}>{q.value}</option>)}
             </select>
           )}
         </div>

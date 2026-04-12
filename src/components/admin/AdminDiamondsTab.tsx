@@ -71,10 +71,11 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
   };
 
   const getOffsetKey = (q: string): keyof DiamondPricingTier => {
-    if (q === 'Lab Grown') return 'lab_grown_offset';
-    if (q === 'GH/VS-SI') return 'gh_vs_si_offset';
-    if (q === 'FG/VVS-SI') return 'fg_vvs_si_offset';
-    return 'ef_vvs_offset'; 
+    // Dynamically find the matching diamond quality from the master constant
+    const quality = DIAMOND_QUALITIES.find(diamond => diamond.value === q);
+    
+    // Return its specific database key (fallback to EF/VVS just in case)
+    return (quality?.offsetKey || 'ef_vvs_offset') as keyof DiamondPricingTier;
   };
 
   const handleDeleteTier = (index: number) => {
@@ -106,7 +107,7 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Carat Range</th>
-                {DIAMOND_QUALITIES.map(q => <th key={q} className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{q.replace(' Grown', '')} <span className="lowercase font-normal">(₹/ct)</span></th>)}
+                {DIAMOND_QUALITIES.map(q => <th key={q.value} className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{q.value.replace(' Grown', '')} <span className="lowercase font-normal">(₹/ct)</span></th>)}
                 <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -116,10 +117,10 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
               <tr className="bg-gray-50/50">
                 <td className="px-4 py-3 sm:py-4 font-bold text-gray-800 text-xs sm:text-sm">BASE COST</td>
                 {DIAMOND_QUALITIES.map(q => (
-                  <td key={q} className="px-4 py-3 sm:py-4">
+                  <td key={q.value} className="px-4 py-3 sm:py-4">
                     <div className="flex items-center">
                       <div className="w-6 h-6 sm:w-8 sm:h-8 mr-1 sm:mr-2 flex-shrink-0"></div>
-                      <input type="number" min="0" step="any" value={baseCosts[q] === 0 || baseCosts[q] === undefined ? '' : baseCosts[q]} onChange={(e) => { const parsed = parseFloat(e.target.value); setBaseCosts({ ...baseCosts, [q]: isNaN(parsed) ? 0 : parsed }); }} placeholder="0" className={inputCss} />
+                      <input type="number" min="0" step="any" value={baseCosts[q.value] === 0 || baseCosts[q.value] === undefined ? '' : baseCosts[q.value]} onChange={(e) => { const parsed = parseFloat(e.target.value); setBaseCosts({ ...baseCosts, [q.value]: isNaN(parsed) ? 0 : parsed }); }} placeholder="0" className={inputCss} />
                     </div>
                   </td>
                 ))}
@@ -136,13 +137,13 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
                   </td>
                   
                   {DIAMOND_QUALITIES.map(q => {
-                    const oKey = getOffsetKey(q);
+                    const oKey = getOffsetKey(q.value);
                     const currentVal = tier[oKey];
                     const rawVal = currentVal === undefined || currentVal === null ? 0 : Number(currentVal);
                     const isNegative = rawVal < 0 || Object.is(rawVal, -0);
                     
                     return (
-                      <td key={q} className="px-4 py-3 sm:py-4">
+                      <td key={q.value} className="px-4 py-3 sm:py-4">
                         <div className="flex items-center">
                           <button 
                             type="button"

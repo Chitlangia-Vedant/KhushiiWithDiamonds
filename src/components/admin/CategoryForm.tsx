@@ -4,6 +4,7 @@ import { Save, X, Upload, AlertTriangle } from 'lucide-react';
 import { useCategories } from '../../hooks/useCategories';
 import { CategoryDropdown } from '../shared/CategoryDropdown';
 import toast from 'react-hot-toast';
+import { getDescendantCategoryIds } from '../../utils/categoryUtils';
 
 interface CategoryFormProps {
   editingCategory: Category | null;
@@ -128,6 +129,10 @@ export function CategoryForm({ editingCategory, onSubmit, onCancel }: CategoryFo
     });
   };
 
+  const invalidParentIds = editingCategory 
+    ? [editingCategory.id, ...getDescendantCategoryIds(editingCategory.id, categories)]
+    : [];
+
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
       <div className="bg-white rounded-xl w-full max-w-md shadow-2xl flex flex-col max-h-[95vh] relative">
@@ -143,7 +148,13 @@ export function CategoryForm({ editingCategory, onSubmit, onCancel }: CategoryFo
           <form id="category-form" onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-semibold text-gray-800 mb-1">Parent Category (Optional)</label>
-              <CategoryDropdown valueLabel={categoryFormData.parent_id ? categories.find(c => c.id === categoryFormData.parent_id)?.name || 'Unknown' : 'None (Top-level category)'} onSelect={(categoryId) => setCategoryFormData({ ...categoryFormData, parent_id: categoryId })} onClear={() => setCategoryFormData({ ...categoryFormData, parent_id: '' })} clearLabel="None (Top Level Category)" excludeCategoryId={editingCategory?.id} />
+              <CategoryDropdown 
+                valueLabel={categoryFormData.parent_id ? categories.find(c => c.id === categoryFormData.parent_id)?.name || 'Unknown' : 'None (Top-level category)'} 
+                onSelect={(categoryId) => setCategoryFormData({ ...categoryFormData, parent_id: categoryId })} 
+                onClear={() => setCategoryFormData({ ...categoryFormData, parent_id: '' })} 
+                clearLabel="None (Top Level Category)" 
+                excludeCategoryIds={invalidParentIds} /* <-- FIX IS HERE */
+              />
               <p className="text-xs text-gray-500 mt-1">Leave empty to create a top-level category, or select a parent to create a subcategory.</p>
             </div>
             <div>

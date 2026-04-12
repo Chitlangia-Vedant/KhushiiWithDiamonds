@@ -2,13 +2,32 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
 const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 4): Promise<Response> {
+  for (let i = 0; i < maxRetries; i++) {
+    const res = await fetch(url, options);
+    
+    // 403 User Rate Limit Exceeded or 429 Too Many Requests
+    if (res.ok || (res.status !== 403 && res.status !== 429 && res.status < 500)) {
+      return res;
+    }
+    
+    if (i === maxRetries - 1) return res; // Give up on the last try
+    
+    // Exponential backoff: Wait 1s, then 2s, then 4s, plus random jitter
+    const waitTime = Math.pow(2, i) * 1000 + Math.random() * 500;
+    console.log(`Google API Rate Limit hit (${res.status}). Retrying in ${Math.round(waitTime)}ms...`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+  }
+  throw new Error('Unreachable');
+}
+
 class GoogleDriveService {
   clientId = Deno.env.get('GOOGLE_CLIENT_ID') || '';
   clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET') || '';
   refreshToken = Deno.env.get('GOOGLE_REFRESH_TOKEN') || '';
   accessToken: string | null = null;
   supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-  supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
+  supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
   async getAccessToken() {
     if (this.accessToken) return this.accessToken;
@@ -38,7 +57,7 @@ class GoogleDriveService {
 
   async verifyFolderExists(folderId: string) {
     const accessToken = await this.getAccessToken();
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,trashed`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const res = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,trashed`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
     if (!res.ok) return false;
     return !(await res.json()).trashed;
   }
@@ -55,12 +74,12 @@ class GoogleDriveService {
     for (const folderName of pathParts) {
       currentPath += currentPath ? `/${folderName}` : folderName;
       const searchQuery = `name='${folderName.replace(/'/g, "\\'")}' and parents in '${currentFolderId}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-      const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(searchQuery)}&fields=files(id)`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+      const searchRes = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(searchQuery)}&fields=files(id)`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
       const searchData = await searchRes.json();
       
       if (searchData.files && searchData.files.length > 0) { currentFolderId = searchData.files[0].id; } 
       else {
-        const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+        const createRes = await fetchWithRetry('https://www.googleapis.com/drive/v3/files', {
           method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: folderName, mimeType: 'application/vnd.google-apps.folder', parents: [currentFolderId] })
         });
@@ -79,7 +98,7 @@ class GoogleDriveService {
 
   async renameAndMoveFolder(folderId: string, newParentId: string, newName: string) {
     const accessToken = await this.getAccessToken();
-    const getRes = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}?fields=parents`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const getRes = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files/${folderId}?fields=parents`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
     const currentParents: string[] = (await getRes.json()).parents || [];
 
     let patchUrl = `https://www.googleapis.com/drive/v3/files/${folderId}`;
@@ -89,29 +108,29 @@ class GoogleDriveService {
     if (parentsToRemove) queryParams.push(`removeParents=${parentsToRemove}`);
     if (queryParams.length > 0) patchUrl += '?' + queryParams.join('&');
 
-    await fetch(patchUrl, { method: 'PATCH', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newName }) });
+    await fetchWithRetry(patchUrl, { method: 'PATCH', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newName }) });
   }
 
   async isFolderEmpty(folderId: string) {
     const accessToken = await this.getAccessToken();
-    const response = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`'${folderId}' in parents and trashed=false`)}&pageSize=1`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const response = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`'${folderId}' in parents and trashed=false`)}&pageSize=1`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
     const data = await response.json();
     return data.files && data.files.length === 0;
   }
 
   async deleteFolder(folderId: string) {
     const accessToken = await this.getAccessToken();
-    await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${accessToken}` } });
+    await fetchWithRetry(`https://www.googleapis.com/drive/v3/files/${folderId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${accessToken}` } });
   }
 
   async updateFolderDescription(folderId: string, description: string) {
     const accessToken = await this.getAccessToken();
-    await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ description }) });
+    await fetchWithRetry(`https://www.googleapis.com/drive/v3/files/${folderId}`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ description }) });
   }
 
   async updateFile(fileId: string, newFolderId: string, newDescription: string, newBaseName?: string, index?: number, totalFiles?: number) {
     const accessToken = await this.getAccessToken();
-    const getRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=parents,name,fileExtension`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const getRes = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=parents,name,fileExtension`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
     const fileData = await getRes.json();
     const currentParents: string[] = fileData.parents || [];
     
@@ -127,7 +146,7 @@ class GoogleDriveService {
        const ext = fileData.fileExtension || (fileData.name || '').split('.').pop() || 'jpg';
        updateBody.name = totalFiles === 1 ? `${newBaseName}.${ext}` : `${newBaseName}_${index + 1}.${ext}`;
     }
-    await fetch(patchUrl, { method: 'PATCH', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(updateBody) });
+    await fetchWithRetry(patchUrl, { method: 'PATCH', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(updateBody) });
     return currentParents.filter(id => id !== newFolderId);
   }
 }

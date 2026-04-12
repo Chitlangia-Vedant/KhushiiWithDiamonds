@@ -2,13 +2,32 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
 const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 4): Promise<Response> {
+  for (let i = 0; i < maxRetries; i++) {
+    const res = await fetch(url, options);
+    
+    // 403 User Rate Limit Exceeded or 429 Too Many Requests
+    if (res.ok || (res.status !== 403 && res.status !== 429 && res.status < 500)) {
+      return res;
+    }
+    
+    if (i === maxRetries - 1) return res; // Give up on the last try
+    
+    // Exponential backoff: Wait 1s, then 2s, then 4s, plus random jitter
+    const waitTime = Math.pow(2, i) * 1000 + Math.random() * 500;
+    console.log(`Google API Rate Limit hit (${res.status}). Retrying in ${Math.round(waitTime)}ms...`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+  }
+  throw new Error('Unreachable');
+}
+
 class GoogleDriveService {
   clientId = Deno.env.get('GOOGLE_CLIENT_ID') || '';
   clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET') || '';
   refreshToken = Deno.env.get('GOOGLE_REFRESH_TOKEN') || '';
   accessToken: string | null = null;
   supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-  supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
+  supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
   async getAccessToken() {
     if (this.accessToken) return this.accessToken;
@@ -36,19 +55,19 @@ class GoogleDriveService {
 
   async getFileParents(fileId: string): Promise<string[]> {
     const accessToken = await this.getAccessToken();
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=parents`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const res = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=parents`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
     return res.ok ? (await res.json()).parents || [] : [];
   }
 
   async isFolderEmpty(folderId: string) {
     const accessToken = await this.getAccessToken();
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`'${folderId}' in parents and trashed=false`)}&pageSize=1`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const res = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`'${folderId}' in parents and trashed=false`)}&pageSize=1`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
     return res.ok && (await res.json()).files?.length === 0;
   }
 
   async deleteFile(fileId: string) {
     const accessToken = await this.getAccessToken();
-    await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${accessToken}` } });
+    await fetchWithRetry(`https://www.googleapis.com/drive/v3/files/${fileId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${accessToken}` } });
   }
 }
 

@@ -3,14 +3,33 @@ import { encodeBase64 } from 'https://deno.land/std@0.208.0/encoding/base64.ts';
 
 const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 4): Promise<Response> {
+  for (let i = 0; i < maxRetries; i++) {
+    const res = await fetch(url, options);
+    
+    // 403 User Rate Limit Exceeded or 429 Too Many Requests
+    if (res.ok || (res.status !== 403 && res.status !== 429 && res.status < 500)) {
+      return res;
+    }
+    
+    if (i === maxRetries - 1) return res; // Give up on the last try
+    
+    // Exponential backoff: Wait 1s, then 2s, then 4s, plus random jitter
+    const waitTime = Math.pow(2, i) * 1000 + Math.random() * 500;
+    console.log(`Google API Rate Limit hit (${res.status}). Retrying in ${Math.round(waitTime)}ms...`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+  }
+  throw new Error('Unreachable');
+}
+
 class GoogleDriveService {
   clientId = Deno.env.get('GOOGLE_CLIENT_ID') || '';
   clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET') || '';
   refreshToken = Deno.env.get('GOOGLE_REFRESH_TOKEN') || '';
   accessToken: string | null = null;
   supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-  supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
-
+  supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+  
   async getAccessToken() {
     if (this.accessToken) return this.accessToken;
     const res = await fetch('https://oauth2.googleapis.com/token', {
@@ -40,7 +59,7 @@ class GoogleDriveService {
 
   async verifyFolderExists(folderId: string) {
     const accessToken = await this.getAccessToken();
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,trashed`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const res = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,trashed`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
     if (!res.ok) return false;
     const data = await res.json();
     return !data.trashed;
@@ -60,13 +79,13 @@ class GoogleDriveService {
       currentPath += currentPath ? `/${folderName}` : folderName;
       
       const searchQuery = `name='${folderName.replace(/'/g, "\\'")}' and parents in '${currentFolderId}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-      const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(searchQuery)}&fields=files(id)`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+      const searchRes = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(searchQuery)}&fields=files(id)`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
       const searchData = await searchRes.json();
       
       if (searchData.files && searchData.files.length > 0) {
         currentFolderId = searchData.files[0].id;
       } else {
-        const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+        const createRes = await fetchWithRetry('https://www.googleapis.com/drive/v3/files', {
           method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: folderName, mimeType: 'application/vnd.google-apps.folder', parents: [currentFolderId] })
         });
@@ -79,7 +98,7 @@ class GoogleDriveService {
 
   async updateFolderDescription(folderId: string, description: string) {
     const accessToken = await this.getAccessToken();
-    await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}`, {
+    await fetchWithRetry(`https://www.googleapis.com/drive/v3/files/${folderId}`, {
       method: 'PATCH', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ description })
     });
   }
@@ -89,13 +108,13 @@ class GoogleDriveService {
     const boundary = '-------314159265358979323846';
     const multipartBody = `\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify({ name: fileName, parents: [folderId], description })}\r\n--${boundary}\r\nContent-Type: ${mimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n${fileData}\r\n--${boundary}--`;
     
-    const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink', {
+    const res = await fetchWithRetry('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink', {
       method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': `multipart/related; boundary="${boundary}"` }, body: multipartBody
     });
     if (!res.ok) throw new Error(await res.text());
     
     const driveFile = await res.json();
-    await fetch(`https://www.googleapis.com/drive/v3/files/${driveFile.id}/permissions`, {
+    await fetchWithRetry(`https://www.googleapis.com/drive/v3/files/${driveFile.id}/permissions`, {
       method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ role: 'reader', type: 'anyone' })
     });
     return { ...driveFile, directUrl: `https://drive.google.com/thumbnail?id=${driveFile.id}` };

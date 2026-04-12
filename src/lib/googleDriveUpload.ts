@@ -1,3 +1,5 @@
+import { supabase } from './supabase'; // <-- Make sure to import supabase at the top!
+
 interface UploadResponse {
   success: boolean; folderId: string; folderPath: string;
   files: Array<{ originalName: string; driveFileId: string; fileName: string; directUrl: string; webViewLink: string; }>;
@@ -9,10 +11,17 @@ interface DeleteResponse {
   results: Array<{ url: string; fileId: string | null; success: boolean; error?: string; }>;
 }
 
+
 export class GoogleDriveUploadService {
   private static readonly EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_DATABASE_URL}/functions/v1/upload-to-drive`;
   private static readonly DELETE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_DATABASE_URL}/functions/v1/delete-from-drive`;
   private static readonly UPDATE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_DATABASE_URL}/functions/v1/update-in-drive`;
+
+  private static async getAuthHeader(): Promise<string> {
+    const { data: { session } } = await supabase.auth.getSession();
+    // If logged in, use their secure JWT. Fallback to ANON key for safety.
+    return `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY}`;
+  }
 
   private static getFolderPath(itemType: 'category' | 'jewellery', itemName?: string, category?: string, parentCategory?: string): string {
     const basePath = 'WebCatalog(DO NOT EDIT)';
@@ -44,10 +53,10 @@ export class GoogleDriveUploadService {
       formData.append('itemName', itemName);
       formData.append('itemType', itemType);
       if (itemDescription) formData.append('itemDescription', itemDescription);
-
+      const authHeader = await this.getAuthHeader();
       const response = await fetch(this.EDGE_FUNCTION_URL, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+        headers: { 'Authorization': authHeader },
         body: formData, // Browser automatically sets Content-Type to multipart/form-data with bounds
       });
 
@@ -64,8 +73,9 @@ export class GoogleDriveUploadService {
   static async deleteFiles(imageUrls: string[]): Promise<DeleteResponse> {
     try {
       if (!imageUrls || imageUrls.length === 0) throw new Error('No image URLs provided');
+      const authHeader = await this.getAuthHeader();
       const response = await fetch(this.DELETE_FUNCTION_URL, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
         body: JSON.stringify({ imageUrls }),
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -85,8 +95,9 @@ export class GoogleDriveUploadService {
     try {
       if (!imageUrls || imageUrls.length === 0) return true;
       const folderPath = this.getFolderPath(itemType, itemName, category, parentCategory);
+      const authHeader = await this.getAuthHeader();
       const response = await fetch(this.UPDATE_FUNCTION_URL, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
         body: JSON.stringify({ imageUrls, folderPath, itemDescription, itemName }),
       });
       return response.ok;
@@ -95,8 +106,9 @@ export class GoogleDriveUploadService {
 
   static async deleteFolder(folderPath: string): Promise<boolean> {
     try {
+      const authHeader = await this.getAuthHeader();
       const response = await fetch(this.DELETE_FUNCTION_URL, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
         body: JSON.stringify({ imageUrls: [], folderPaths: [folderPath] }),
       });
       return response.ok;
@@ -105,8 +117,9 @@ export class GoogleDriveUploadService {
 
   static async moveCategoryFolder(oldFolderPath: string, newFolderPath: string): Promise<boolean> {
     try {
+      const authHeader = await this.getAuthHeader();
       const response = await fetch(this.UPDATE_FUNCTION_URL, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
         body: JSON.stringify({ action: 'move_folder', oldFolderPath, newFolderPath }),
       });
       return response.ok;

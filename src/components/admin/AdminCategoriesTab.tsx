@@ -43,7 +43,6 @@ export function AdminCategoriesTab() {
 
   // --- NEW: BACKGROUND SAVING LOGIC ---
   const handleSubmit = async (payload: any) => {
-    // 1. Instantly close modal!
     resetForm();
 
     const loadingToastId = toast.loading(
@@ -55,8 +54,20 @@ export function AdminCategoriesTab() {
     try {
       let finalImageUrl = payload.oldCategory?.image_url || null;
 
-      // 2. Upload images to Drive
+      // 1. Delete the old image if user explicitly removed it via the 'X' button
+      if (payload.removeOldImage && finalImageUrl) {
+        try { await deleteDriveImages([finalImageUrl]); } catch (e) { }
+        finalImageUrl = null;
+      }
+
+      // 2. Upload the new image
       if (payload.selectedImages.length > 0) {
+        
+        // If they are replacing an old image, delete the old one from Google Drive first!
+        if (payload.isEditing && finalImageUrl) {
+          try { await deleteDriveImages([finalImageUrl]); } catch (e) { }
+        }
+
         newlyUploadedUrls = await uploadCategoryImages(payload.selectedImages, payload.categoryData.name, payload.itemDescription);
         if (newlyUploadedUrls.length > 0) finalImageUrl = newlyUploadedUrls[0];
       }
@@ -171,7 +182,9 @@ export function AdminCategoriesTab() {
     <>
       <div className="flex justify-between items-center mb-4 sm:mb-6">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Categories</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+            Categories <span className="text-gray-500 text-lg sm:text-xl font-medium">({categories.length})</span>
+          </h2>
           <p className="text-[10px] sm:text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Organize your inventory structure.</p>
         </div>
         <button onClick={() => setShowAddForm(true)} className="bg-yellow-600 text-white p-2 sm:px-4 sm:py-2 rounded-lg hover:bg-yellow-700 flex items-center shadow-sm flex-shrink-0 transition-colors">

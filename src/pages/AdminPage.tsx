@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { JewelleryItem } from '../types';
 import { AdminLogin } from '../components/AdminLogin';
 import { AdminItemsTab } from '../components/admin/AdminItemsTab';
 import { AdminCategoriesTab } from '../components/admin/AdminCategoriesTab';
@@ -10,7 +9,6 @@ import { AdminDiamondsTab } from '../components/admin/AdminDiamondsTab';
 import { LogOut, Shield, Folder, Package, Settings, Sparkles, Gem, AlertTriangle } from 'lucide-react';
 import { useGoldPrice } from '../hooks/useGoldPrice';
 import { useAdminSettings } from '../hooks/useAdminSettings';
-import { useCategories } from '../hooks/useCategories';
 import { useQualityContext } from '../context/QualityContext';
 import { GOLD_QUALITIES, DIAMOND_QUALITIES, DiamondQuality } from '../constants/jewellery';
 import toast from 'react-hot-toast';
@@ -20,17 +18,14 @@ export function AdminPage() {
   const navigate = useNavigate();
   const currentTab = location.pathname.split('/').pop() || 'items';
 
-  const { categories } = useCategories();
   const { globalGoldPurity, setGlobalGoldPurity, globalDiamondQuality, setGlobalDiamondQuality } = useQualityContext();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<JewelleryItem[]>([]);
   
   const { goldPrice, rawApiPrice } = useGoldPrice();
   const { fallbackGoldPrice, gstRate, overrideLiveGoldPrice, globalGoldMakingCharges, updateSetting, diamondBaseCosts, diamondTiers, saveDiamondPricing } = useAdminSettings();
 
   useEffect(() => { checkAuthStatus(); }, []);
-  useEffect(() => { if (isAuthenticated) loadData(); }, [isAuthenticated]);
 
   const checkAuthStatus = async () => {
     try {
@@ -42,19 +37,11 @@ export function AdminPage() {
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
-      setIsAuthenticated(false); setItems([]);
+      setIsAuthenticated(false);
       toast.success('Logged out successfully.');
     } catch (error) { toast.error('Error signing out.'); }
   };
 
-  const loadData = async () => {
-    try {
-      const { data } = await supabase.from('jewellery_items').select('*').order('created_at', { ascending: false });
-      if (data) setItems(data);
-    } catch (error) { console.error('Error loading items:', error); }
-  };
-
-  // --- CUSTOM TOAST NAVIGATION HANDLER ---
   const handleTabClick = (path: string) => {
     if ((window as any).isFormDirty) {
       toast((t) => (
@@ -111,8 +98,8 @@ export function AdminPage() {
 
             <div className="flex items-center gap-1 sm:border-l sm:border-gray-200 sm:pl-3">
               {[
-                { key: 'items', icon: Package, label: `Items (${items.length})`, path: '/admin/items' },
-                { key: 'categories', icon: Folder, label: `Categories (${categories.length})`, path: '/admin/categories' },
+                { key: 'items', icon: Package, label: 'Items', path: '/admin/items' },
+                { key: 'categories', icon: Folder, label: 'Categories', path: '/admin/categories' },
                 { key: 'settings', icon: Settings, label: 'Settings', path: '/admin/settings' },
                 { key: 'diamonds', icon: Gem, label: 'Diamond Pricing', path: '/admin/diamonds' }
               ].map(({ key, icon: Icon, label, path }) => (

@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 
 interface CategoryFormProps {
   editingCategory: Category | null;
-  onSubmit: (payload: any) => void; // Changed from onSuccess to accept background payload
+  onSubmit: (payload: any) => void; 
   onCancel: () => void;
 }
 
@@ -19,12 +19,15 @@ export function CategoryForm({ editingCategory, onSubmit, onCancel }: CategoryFo
     description: editingCategory?.description || '', 
     parent_id: editingCategory?.parent_id || '',
   });
+  
+  // Strict Single-Image State
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [removeOldImage, setRemoveOldImage] = useState(false);
 
   const [initialDataStr] = useState(JSON.stringify(categoryFormData));
 
   const hasUnsavedChanges = () => {
-    return JSON.stringify(categoryFormData) !== initialDataStr || selectedImages.length > 0;
+    return JSON.stringify(categoryFormData) !== initialDataStr || selectedImages.length > 0 || removeOldImage;
   };
 
   useEffect(() => {
@@ -43,7 +46,7 @@ export function CategoryForm({ editingCategory, onSubmit, onCancel }: CategoryFo
       window.removeEventListener('beforeunload', handleBeforeUnload);
       (window as any).isFormDirty = false; 
     };
-  }, [categoryFormData, selectedImages, initialDataStr]);
+  }, [categoryFormData, selectedImages, removeOldImage, initialDataStr]);
 
   const handleSafeCancel = () => {
     if (hasUnsavedChanges()) {
@@ -86,14 +89,10 @@ export function CategoryForm({ editingCategory, onSubmit, onCancel }: CategoryFo
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files) {
-      const fileArray = Array.from(files);
-      setSelectedImages([...selectedImages, ...fileArray]);
+    if (files && files.length > 0) {
+      // Force the array to only ever hold the 1 most recently selected file
+      setSelectedImages([files[0]]);
     }
-  };
-
-  const removeImage = (index: number) => {
-    setSelectedImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const generateCategoryDescription = (): string => {
@@ -106,17 +105,14 @@ export function CategoryForm({ editingCategory, onSubmit, onCancel }: CategoryFo
     } else {
       description += `Category Type: Top-level category\n`;
     }
-    
     return description;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
     const itemDescription = generateCategoryDescription(); 
     (window as any).isFormDirty = false;
 
-    // Instantly pass all workload to parent and allow modal to close!
     onSubmit({
       isEditing: !!editingCategory,
       categoryId: editingCategory?.id,
@@ -126,7 +122,8 @@ export function CategoryForm({ editingCategory, onSubmit, onCancel }: CategoryFo
         description: categoryFormData.description,
         parent_id: categoryFormData.parent_id || null, 
       },
-      selectedImages,
+      selectedImages, // Now securely max length 1
+      removeOldImage, // The new deletion flag
       itemDescription
     });
   };
@@ -157,22 +154,41 @@ export function CategoryForm({ editingCategory, onSubmit, onCancel }: CategoryFo
               <label className="block text-sm font-semibold text-gray-800 mb-1">Description</label>
               <textarea value={categoryFormData.description} onChange={(e) => setCategoryFormData({ ...categoryFormData, description: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500" rows={3} placeholder="Brief description of the category" />
             </div>
+            
             <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-2">Category Images</label>
-              <div className="grid grid-cols-3 gap-3">
-                <label className="flex flex-col items-center justify-center aspect-square border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
-                  <Upload className="w-6 h-6 text-gray-400 mb-1" />
-                  <span className="text-xs text-gray-500 font-medium">Add Photo</span>
-                  <input type="file" multiple accept="image/*" onChange={handleImageChange} className="hidden" />
-                </label>
-                {selectedImages.map((file, index) => (
-                  <div key={index} className="relative group aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-green-200">
-                    <img src={URL.createObjectURL(file)} alt={`New ${index + 1}`} className="w-full h-full object-cover" />
-                    <button type="button" onClick={() => removeImage(index)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 shadow-md">
+              <label className="block text-sm font-semibold text-gray-800 mb-2">Category Thumbnail</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                
+                {/* 1. Add Photo Button (Only shows if no image is present/selected) */}
+                {selectedImages.length === 0 && (!editingCategory?.image_url || removeOldImage) && (
+                  <label className="flex flex-col items-center justify-center aspect-square border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                    <Upload className="w-6 h-6 text-gray-400 mb-1" />
+                    <span className="text-xs text-gray-500 font-medium">Add Photo</span>
+                    {/* The `multiple` attribute has been removed */}
+                    <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                  </label>
+                )}
+
+                {/* 2. Newly Uploaded Image */}
+                {selectedImages.length > 0 && (
+                  <div className="relative group aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-green-200">
+                    <img src={URL.createObjectURL(selectedImages[0])} alt="New Thumbnail" className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => setSelectedImages([])} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 shadow-md">
                       <X className="h-3 w-3" />
                     </button>
                   </div>
-                ))}
+                )}
+
+                {/* 3. Existing Category Image */}
+                {editingCategory?.image_url && selectedImages.length === 0 && !removeOldImage && (
+                  <div className="relative group aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-gray-200">
+                    <img src={editingCategory.image_url} alt="Current Thumbnail" className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => setRemoveOldImage(true)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 shadow-md">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+
               </div>
             </div>
           </form>

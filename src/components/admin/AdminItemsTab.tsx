@@ -338,7 +338,9 @@ export function AdminItemsTab() {
     <>
       <div className="flex justify-between items-center mb-4 sm:mb-6">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Inventory</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+            Inventory <span className="text-gray-500 text-lg sm:text-xl font-medium">({items.length})</span>
+          </h2>
           <p className="text-[10px] sm:text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Manage your catalogue, pricing, and stock.</p>
         </div>
         <button onClick={() => setShowAddForm(true)} className="bg-yellow-600 text-white p-2 sm:px-4 sm:py-2 rounded-lg hover:bg-yellow-700 flex items-center shadow-sm flex-shrink-0">

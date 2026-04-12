@@ -17,7 +17,6 @@ export function AdminCategoriesTab() {
   const [itemCounts, setItemCounts] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => { return () => { toast.dismiss(); }; }, []);
   useEffect(() => { loadItemCounts(); }, []);
 
   const loadItemCounts = async () => {

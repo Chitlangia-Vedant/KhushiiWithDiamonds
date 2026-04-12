@@ -1,13 +1,18 @@
 import { Diamond, JewelleryItem, DiamondPricingTier, StoneSlot } from '../types/index';
 import { DiamondQuality, GOLD_QUALITIES } from '../constants/jewellery';
 
-const GOLD_API_KEY = import.meta.env.VITE_GOLD_API_KEY || '9886e90c5c52f1a75a3ca50daccd91d4';
+const GOLD_API_KEY = import.meta.env.VITE_GOLD_API_KEY ;
 const GOLD_API_URL = `https://api.metalpriceapi.com/v1/latest?api_key=${GOLD_API_KEY}&base=INR&currencies=XAU`;
 const CACHE_DURATION = 24 * 60 * 60 * 1000;
 
 let cachedPrice: { price: number; timestamp: Date } | null = null;
 
+
 export const getCurrentGoldPrice = async (): Promise<number> => {
+  if (!GOLD_API_KEY) {
+    console.error("Missing Gold API Key in environment variables!");
+    return 0; // The hook will naturally fall back to the Admin 'Fallback Gold Price' you built!
+  }
   // Check cache first
   if (cachedPrice && Date.now() - cachedPrice.timestamp.getTime() < CACHE_DURATION) {
     return cachedPrice.price;

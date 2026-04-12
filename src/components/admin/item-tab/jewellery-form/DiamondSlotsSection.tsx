@@ -59,10 +59,17 @@ export function DiamondSlotsSection({
               {/* OVERRIDE GRID (Only visible if manually entering costs) */}
               {overrideDiamondCosts !== false && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 pt-3 border-t border-gray-200">
+                  {/* --- FIX: Use quality.value and quality.label --- */}
                   {DIAMOND_QUALITIES.map((quality) => (
-                    <div key={quality}>
-                      <label className="block text-[10px] text-gray-500 mb-0.5">{quality} (₹/ct)</label>
-                      <input type="number" value={slot.costs[quality]} onChange={(e) => updateDiamondCost(index, quality, parseFloat(e.target.value) || 0)} className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-gray-400" disabled={uploading} />
+                    <div key={quality.value}>
+                      <label className="block text-[10px] text-gray-500 mb-0.5">{quality.label} (₹/ct)</label>
+                      <input 
+                        type="number" 
+                        value={slot.costs[quality.value]} 
+                        onChange={(e) => updateDiamondCost(index, quality.value as DiamondQuality, parseFloat(e.target.value) || 0)} 
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-gray-400" 
+                        disabled={uploading} 
+                      />
                     </div>
                   ))}
                 </div>

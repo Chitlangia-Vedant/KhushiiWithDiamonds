@@ -3,106 +3,164 @@
 -- =======================
 
 -- Categories table
-CREATE TABLE IF NOT EXISTS categories (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name text UNIQUE NOT NULL,
-  description text DEFAULT '',
-  image_url text DEFAULT '',
-  created_at timestamptz DEFAULT now(),
-  parent_id uuid
+CREATE TABLE IF NOT EXISTS public.categories (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL UNIQUE,
+  description text DEFAULT ''::text,
+  image_url text DEFAULT ''::text,
+  created_at timestamp with time zone DEFAULT now(),
+  parent_id uuid,
+  CONSTRAINT categories_pkey PRIMARY KEY (id)
 );
 
-ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 
+-- Safely add the ON DELETE CASCADE constraint for subcategories
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'categories_parent_id_fkey'
   ) THEN
-    ALTER TABLE categories
+    ALTER TABLE public.categories
     ADD CONSTRAINT categories_parent_id_fkey
-    FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE CASCADE;
+    FOREIGN KEY (parent_id) REFERENCES public.categories(id) ON DELETE CASCADE;
   END IF;
 END $$;
 
-CREATE INDEX IF NOT EXISTS idx_categories_parent_id ON categories(parent_id);
+CREATE INDEX IF NOT EXISTS idx_categories_parent_id ON public.categories(parent_id);
 
 -- Jewellery items table
-CREATE TABLE IF NOT EXISTS jewellery_items (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+CREATE TABLE IF NOT EXISTS public.jewellery_items (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   name text NOT NULL,
-  description text DEFAULT '',
+  description text DEFAULT ''::text,
   category text NOT NULL,
-  image_url text[] DEFAULT '{}',
-  gold_weight decimal(10,3) DEFAULT 0,
-  gold_quality text DEFAULT '14K',
-  base_price decimal(10,2) DEFAULT 0,
-  making_charges_per_gram numeric(10,2) DEFAULT 500,
-  diamonds JSONB DEFAULT '[]'::jsonb;
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
+  image_url text[] DEFAULT '{}'::text[],
+  gold_weight numeric DEFAULT 0,
+  gold_quality text DEFAULT '14K'::text,
+  base_price numeric DEFAULT 0,
+  making_charges_per_gram numeric DEFAULT 500,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  diamonds jsonb DEFAULT '[]'::jsonb,
+  override_diamond_costs boolean DEFAULT true,
+  other_stones jsonb DEFAULT '[]'::jsonb,
+  CONSTRAINT jewellery_items_pkey PRIMARY KEY (id)
 );
 
-ALTER TABLE jewellery_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.jewellery_items ENABLE ROW LEVEL SECURITY;
 
-CREATE INDEX IF NOT EXISTS idx_jewellery_items_diamonds ON jewellery_items USING GIN (diamonds);
+CREATE INDEX IF NOT EXISTS idx_jewellery_items_diamonds ON public.jewellery_items USING GIN (diamonds);
+CREATE INDEX IF NOT EXISTS idx_jewellery_items_other_stones ON public.jewellery_items USING GIN (other_stones);
 
 -- Admin settings table
-CREATE TABLE IF NOT EXISTS admin_settings (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  setting_key text UNIQUE NOT NULL,
+CREATE TABLE IF NOT EXISTS public.admin_settings (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  setting_key text NOT NULL UNIQUE,
   setting_value text NOT NULL,
-  description text DEFAULT '',
-  updated_at timestamptz DEFAULT now()
+  description text DEFAULT ''::text,
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT admin_settings_pkey PRIMARY KEY (id)
 );
 
-ALTER TABLE admin_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_settings ENABLE ROW LEVEL SECURITY;
+
+-- Diamond pricing tiers table
+CREATE TABLE IF NOT EXISTS public.diamond_pricing_tiers (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  min_carat numeric NOT NULL,
+  max_carat numeric NOT NULL,
+  lab_grown_offset numeric NOT NULL DEFAULT 0,
+  gh_vs_si_offset numeric NOT NULL DEFAULT 0,
+  fg_vvs_si_offset numeric NOT NULL DEFAULT 0,
+  ef_vvs_offset numeric NOT NULL DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT diamond_pricing_tiers_pkey PRIMARY KEY (id)
+);
+
+ALTER TABLE public.diamond_pricing_tiers ENABLE ROW LEVEL SECURITY;
+
+-- Drive folder cache table
+CREATE TABLE IF NOT EXISTS public.drive_folder_cache (
+  path text NOT NULL,
+  folder_id text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT drive_folder_cache_pkey PRIMARY KEY (path)
+);
+
+ALTER TABLE public.drive_folder_cache ENABLE ROW LEVEL SECURITY;
 
 -- =======================
--- POLICIES
+-- ROW LEVEL SECURITY POLICIES
 -- =======================
 
--- Categories
+-- Categories Policies
 CREATE POLICY "Categories are publicly readable"
-  ON categories FOR SELECT TO public USING (true);
+  ON public.categories FOR SELECT TO public USING (true);
 
 CREATE POLICY "Only authenticated users can insert categories"
-  ON categories FOR INSERT TO authenticated WITH CHECK (true);
+  ON public.categories FOR INSERT TO authenticated WITH CHECK (true);
 
 CREATE POLICY "Only authenticated users can update categories"
-  ON categories FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+  ON public.categories FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 
 CREATE POLICY "Only authenticated users can delete categories"
-  ON categories FOR DELETE TO authenticated USING (true);
+  ON public.categories FOR DELETE TO authenticated USING (true);
 
--- Jewellery Items
+
+-- Jewellery Items Policies
 CREATE POLICY "Jewellery items are publicly readable"
-  ON jewellery_items FOR SELECT TO public USING (true);
+  ON public.jewellery_items FOR SELECT TO public USING (true);
 
 CREATE POLICY "Only authenticated users can insert jewellery items"
-  ON jewellery_items FOR INSERT TO authenticated WITH CHECK (true);
+  ON public.jewellery_items FOR INSERT TO authenticated WITH CHECK (true);
 
 CREATE POLICY "Only authenticated users can update jewellery items"
-  ON jewellery_items FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+  ON public.jewellery_items FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 
 CREATE POLICY "Only authenticated users can delete jewellery items"
-  ON jewellery_items FOR DELETE TO authenticated USING (true);
+  ON public.jewellery_items FOR DELETE TO authenticated USING (true);
 
--- Admin Settings
+
+-- Admin Settings Policies
 CREATE POLICY "Authenticated users can read admin settings"
-  ON admin_settings FOR SELECT TO authenticated USING (true);
+  ON public.admin_settings FOR SELECT TO authenticated USING (true);
 
 CREATE POLICY "Authenticated users can update admin settings"
-  ON admin_settings FOR UPDATE TO authenticated USING (true);
+  ON public.admin_settings FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 
 CREATE POLICY "Authenticated users can insert admin settings"
-  ON admin_settings FOR INSERT TO authenticated WITH CHECK (true);
-  
+  ON public.admin_settings FOR INSERT TO authenticated WITH CHECK (true);
+
+
+-- Diamond Pricing Tiers Policies
+CREATE POLICY "Diamond pricing tiers are publicly readable"
+  ON public.diamond_pricing_tiers FOR SELECT TO public USING (true);
+
+CREATE POLICY "Only authenticated users can insert diamond tiers"
+  ON public.diamond_pricing_tiers FOR INSERT TO authenticated WITH CHECK (true);
+
+CREATE POLICY "Only authenticated users can update diamond tiers"
+  ON public.diamond_pricing_tiers FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "Only authenticated users can delete diamond tiers"
+  ON public.diamond_pricing_tiers FOR DELETE TO authenticated USING (true);
+
+
+-- Drive Folder Cache Policies
+CREATE POLICY "Enable access for authenticated admins only" 
+  ON public.drive_folder_cache 
+  FOR ALL 
+  TO authenticated 
+  USING (auth.uid() IS NOT NULL) 
+  WITH CHECK (auth.uid() IS NOT NULL);
+
 -- =======================
 -- TRIGGERS & FUNCTIONS
 -- =======================
 
-CREATE OR REPLACE FUNCTION update_admin_settings_timestamp()
+-- Reusable function to automatically update the 'updated_at' timestamp
+CREATE OR REPLACE FUNCTION public.update_timestamp_column()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = now();
@@ -110,26 +168,52 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS update_admin_settings_timestamp ON admin_settings;
-
+-- Apply timestamp trigger to admin_settings
+DROP TRIGGER IF EXISTS update_admin_settings_timestamp ON public.admin_settings;
 CREATE TRIGGER update_admin_settings_timestamp
-  BEFORE UPDATE ON admin_settings
+  BEFORE UPDATE ON public.admin_settings
   FOR EACH ROW
-  EXECUTE FUNCTION update_admin_settings_timestamp();
+  EXECUTE FUNCTION public.update_timestamp_column();
+
+-- Apply timestamp trigger to jewellery_items
+DROP TRIGGER IF EXISTS update_jewellery_items_timestamp ON public.jewellery_items;
+CREATE TRIGGER update_jewellery_items_timestamp
+  BEFORE UPDATE ON public.jewellery_items
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_timestamp_column();
 
 -- =======================
--- DEFAULT DATA
+-- DEFAULT CORE DATA
 -- =======================
 
-INSERT INTO categories (name, description, image_url) VALUES
-  ('Rings', 'Elegant rings for every occasion', 'https://images.pexels.com/photos/265856/pexels-photo-265856.jpeg'),
-  ('Necklaces', 'Beautiful necklaces and pendants', 'https://images.pexels.com/photos/1191531/pexels-photo-1191531.jpeg'),
-  ('Earrings', 'Stunning earrings collection', 'https://images.pexels.com/photos/1420708/pexels-photo-1420708.jpeg'),
-  ('Bracelets', 'Elegant bracelets and bangles', 'https://images.pexels.com/photos/1458885/pexels-photo-1458885.jpeg'),
-  ('Watches', 'Luxury timepieces', 'https://images.pexels.com/photos/125779/pexels-photo-125779.jpeg')
-ON CONFLICT (name) DO NOTHING;
-
-INSERT INTO admin_settings (setting_key, setting_value, description) VALUES
+INSERT INTO public.admin_settings (setting_key, setting_value, description) VALUES
   ('fallback_gold_price', '5450', 'Fallback gold price per gram in INR when API fails'),
   ('gst_rate', '0.18', 'GST rate for jewelry (18% = 0.18)')
 ON CONFLICT (setting_key) DO NOTHING;
+
+-- =====================================
+-- CASCADE SYNC FOR CATEGORY RENAMES
+-- =====================================
+
+-- 1. Create the function that performs the sync
+CREATE OR REPLACE FUNCTION public.sync_category_name_change()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- If the category name was actually changed
+  IF OLD.name <> NEW.name THEN
+    -- Update all jewellery items to match the new name
+    UPDATE public.jewellery_items
+    SET category = NEW.name
+    WHERE category = OLD.name;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 2. Attach the function to the categories table
+DROP TRIGGER IF EXISTS trigger_sync_category_name ON public.categories;
+CREATE TRIGGER trigger_sync_category_name
+  AFTER UPDATE OF name ON public.categories
+  FOR EACH ROW
+  EXECUTE FUNCTION public.sync_category_name_change();

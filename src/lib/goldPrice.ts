@@ -1,52 +1,18 @@
-import { supabase } from './supabase';
-import { Diamond, DiamondQuality } from '../types/index';
+import { Diamond, JewelleryItem, DiamondPricingTier, StoneSlot } from '../types/index';
+import { DiamondQuality, GOLD_QUALITIES } from '../constants/jewellery';
 
-
-const GOLD_API_KEY = import.meta.env.VITE_GOLD_API_KEY || '9886e90c5c52f1a75a3ca50daccd91d4';
+const GOLD_API_KEY = import.meta.env.VITE_GOLD_API_KEY ;
 const GOLD_API_URL = `https://api.metalpriceapi.com/v1/latest?api_key=${GOLD_API_KEY}&base=INR&currencies=XAU`;
 const CACHE_DURATION = 24 * 60 * 60 * 1000;
 
 let cachedPrice: { price: number; timestamp: Date } | null = null;
 
-const getAdminSettings = async () => {
-  try {
-    const { data } = await supabase
-      .from('admin_settings')
-      .select('setting_key, setting_value')
-      .in('setting_key', ['fallback_gold_price', 'gst_rate', 'override_live_gold_price']);
 
-    const settings = { fallbackPrice: 5450, gstRate: 0.18, overrideLivePrice: false };
-    
-    data?.forEach(setting => {
-      if (setting.setting_key === 'fallback_gold_price') {
-        settings.fallbackPrice = parseFloat(setting.setting_value) || 5450;
-      } else if (setting.setting_key === 'gst_rate') {
-        settings.gstRate = parseFloat(setting.setting_value) || 0.18;
-      } else if (setting.setting_key === 'override_live_gold_price') {
-        settings.overrideLivePrice = setting.setting_value === 'true';
-      }
-    });
-    
-    return settings;
-  } catch (error) {
-    console.warn('Failed to load admin settings:', error);
-    return { fallbackPrice: 5450, gstRate: 0.18, overrideLivePrice: false };
+export const getCurrentGoldPrice = async (): Promise<number> => {
+  if (!GOLD_API_KEY) {
+    console.error("Missing Gold API Key in environment variables!");
+    return 0; // The hook will naturally fall back to the Admin 'Fallback Gold Price' you built!
   }
-};
-
-export const getCurrentGoldPrice = async (overrideLivePrice?: boolean): Promise<number> => {
-  const { fallbackPrice, overrideLivePrice: settingsOverride } = await getAdminSettings();
-  
-  // Use the override parameter if provided, otherwise use the setting from database
-  const shouldOverride = overrideLivePrice !== undefined ? overrideLivePrice : settingsOverride;
-  
-  // If override is enabled, return fallback price immediately
-  if (shouldOverride) {
-    console.log('Gold price override enabled, using fallback price:', fallbackPrice);
-    cachedPrice = { price: fallbackPrice, timestamp: new Date() };
-    return fallbackPrice;
-  }
-
   // Check cache first
   if (cachedPrice && Date.now() - cachedPrice.timestamp.getTime() < CACHE_DURATION) {
     return cachedPrice.price;
@@ -68,74 +34,46 @@ export const getCurrentGoldPrice = async (overrideLivePrice?: boolean): Promise<
     console.warn('Failed to fetch live gold price:', error);
   }
 
-  // Fallback to admin setting
-  console.log('Using fallback gold price due to API failure:', fallbackPrice);
-  cachedPrice = { price: fallbackPrice, timestamp: new Date() };
-  return fallbackPrice;
+  // Return 0 if the API fails so the Settings Tab knows to show the Error Badge!
+  return 0; 
 };
 
-const purityMultipliers = {
-  '14K': 0.600, '18K': 0.780, '24K': 1.000
+const getGoldMultiplier = (qualityValue: string): number => {
+  const quality = GOLD_QUALITIES.find(q => q.value === qualityValue);
+  return quality ? quality.multiplier : 1.000; // Defaults to 24K multiplier if not found
 };
-
-// Updated function to handle multiple diamond qualities
-export const calculateJewelleryPriceSync = (
-  basePrice: number,
-  goldWeight: number,
-  goldQuality: string,
-  diamondsData: { diamonds: Diamond[], quality: DiamondQuality | null },
-  makingChargesPerGram: number,
-  goldPricePerGram: number,
-  gstRate: number = 0.18
-): number => {
-  const purity = purityMultipliers[goldQuality as keyof typeof purityMultipliers] || 0.583;
-  const goldValue = goldWeight * goldPricePerGram * purity;
-  
-  // Calculate total diamond cost from all diamonds
-  const totalDiamondCost = diamondsData.diamonds.reduce((total, diamond) => {
-    return total + (diamond.carat * diamond.cost_per_carat);
-  }, 0);
-  
-  const makingCharges = goldWeight * makingChargesPerGram;
-  const subtotal = goldValue + totalDiamondCost + makingCharges + basePrice;
-  
-  return subtotal * (1 + gstRate);
-};
-
-export const formatCurrency = (amount: number): string => 
-  new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-
-export const formatWeight = (weight: number): string => `${weight.toFixed(2)} grams`;
 
 export const getPriceBreakdown = (
   basePrice: number,
   goldWeight: number,
   goldQuality: string,
   diamondsData: { diamonds: Diamond[], quality: DiamondQuality | null },
+  globalGoldMakingCharges: number,
   makingChargesPerGram: number,
   goldPricePerGram: number,
-  gstRate: number = 0.18
+  gstRate: number = 0.18,
+  otherStones: StoneSlot[] = []
 ) => {
-  const purity = purityMultipliers[goldQuality as keyof typeof purityMultipliers] || 0.583;
-  const goldValue = goldWeight * goldPricePerGram * purity;
-  
-  // Calculate total diamond cost and breakdown
+  const goldMultiplier = getGoldMultiplier(goldQuality);  
+  const goldValue = goldWeight * goldPricePerGram * goldMultiplier;
+
   const totalDiamondCost = diamondsData.diamonds.reduce((total, diamond) => {
     return total + (diamond.carat * diamond.cost_per_carat);
   }, 0);
   
-  const makingCharges = goldWeight * makingChargesPerGram;
-  const subtotal = goldValue + totalDiamondCost + makingCharges + basePrice;
+  const effectiveMakingCharges = makingChargesPerGram === -1 
+    ? globalGoldMakingCharges 
+    : makingChargesPerGram;
+
+  const totalOtherStonesCost = otherStones.reduce((total, stone) => total + (stone.carat * stone.cost_per_carat), 0);
+  const makingCharges = goldWeight * effectiveMakingCharges;
+  const subtotal = goldValue + totalDiamondCost + totalOtherStonesCost + makingCharges + basePrice;
   const gst = subtotal * gstRate;
 
   return { 
     goldValue, 
     diamondCost: totalDiamondCost, 
+    otherStonesCost: totalOtherStonesCost,
     makingCharges, 
     basePrice, 
     subtotal, 
@@ -145,18 +83,81 @@ export const getPriceBreakdown = (
   };
 };
 
-// Helper function to get total diamond weight
-export const getTotalDiamondWeight = (diamonds: Diamond[]): number => {
-  return diamonds.reduce((total, diamond) => total + diamond.carat, 0);
+export const calculateJewelleryPriceSync = (
+  basePrice: number,
+  goldWeight: number,
+  goldQuality: string,
+  diamondsData: { diamonds: Diamond[], quality: DiamondQuality | null },
+  globalGoldMakingCharges: number,
+  makingChargesPerGram: number,
+  goldPricePerGram: number,
+  gstRate: number = 0.18,
+  otherStones: StoneSlot[] = []
+): number => {
+  return getPriceBreakdown(
+    basePrice, goldWeight, goldQuality, diamondsData, globalGoldMakingCharges, 
+    makingChargesPerGram, goldPricePerGram, gstRate, otherStones
+  ).total;
 };
 
-// Helper function to format diamond summary
+export const getPriceBreakdownItem = (
+  item: JewelleryItem, 
+  goldQuality: string,
+  diamondQuality: DiamondQuality | null,
+  globalGoldMakingCharges: number, 
+  goldPricePerGram: number,
+  gstRate: number = 0.18,
+  diamondBaseCosts?: Record<string, number>, 
+  diamondTiers?: DiamondPricingTier[],
+) => {
+  const getOffsetKey = (q: string): keyof DiamondPricingTier => {
+    if (q === 'Lab Grown') return 'lab_grown_offset';
+    if (q === 'GH/VS-SI') return 'gh_vs_si_offset';
+    if (q === 'FG/VVS-SI') return 'fg_vvs_si_offset';
+    return 'ef_vvs_offset'; 
+  };
+
+  const mappedDiamonds = item.diamonds?.map(slot => {
+    let cost_per_carat = 0;
+    const isOverride = item.override_diamond_costs !== false; 
+
+    if (isOverride) {
+      cost_per_carat = diamondQuality && slot.costs ? (slot.costs[diamondQuality] || 0) : 0;
+    } else if (diamondBaseCosts && diamondTiers && diamondQuality) {
+      const baseCost = diamondBaseCosts[diamondQuality] || 0;
+      const matchingTier = diamondTiers.find(t => slot.carat >= t.min_carat && slot.carat <= t.max_carat);
+      const offsetKey = getOffsetKey(diamondQuality);
+      const offset = matchingTier ? (Number(matchingTier[offsetKey]) || 0) : 0;
+      cost_per_carat = baseCost + offset;
+    }
+    return { name: slot.name || 'Diamond', carat: slot.carat, cost_per_carat };
+  }) || [];
+
+  return getPriceBreakdown(
+    item.base_price, item.gold_weight, goldQuality, { diamonds: mappedDiamonds, quality: diamondQuality },
+    globalGoldMakingCharges, item.making_charges_per_gram, goldPricePerGram, gstRate, item.other_stones || []
+  );
+};
+
+export const calculateJewelleryPriceSyncItem = (
+  item: JewelleryItem, goldQuality: string, diamondQuality: DiamondQuality | null,
+  globalGoldMakingCharges: number, goldPricePerGram: number, gstRate: number = 0.18,
+  diamondBaseCosts?: Record<string, number>, diamondTiers?: DiamondPricingTier[]
+): number => {
+  return getPriceBreakdownItem(
+    item, goldQuality, diamondQuality, globalGoldMakingCharges, 
+    goldPricePerGram, gstRate, diamondBaseCosts, diamondTiers
+  ).total;
+};
+
+export const formatCurrency = (amount: number): string => 
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
+
+export const formatWeight = (weight: number): string => `${weight.toFixed(2)} grams`;
+export const getTotalDiamondWeight = (diamonds: Diamond[]): number => diamonds.reduce((total, diamond) => total + diamond.carat, 0);
+
 export const formatDiamondSummary = (diamonds: Diamond[], quality?: DiamondQuality | null): string => {
   if (diamonds.length === 0) return 'No diamonds';
-  if (diamonds.length === 1) {
-    const diamond = diamonds[0];
-    return `${diamond.carat}ct ${quality || ''}`.trim();
-  }
-  const totalCarats = getTotalDiamondWeight(diamonds);
-  return `${totalCarats.toFixed(2)}ct (${diamonds.length} stones)`.trim();
+  if (diamonds.length === 1) return `${diamonds[0].carat}ct ${quality || ''}`.trim();
+  return `${getTotalDiamondWeight(diamonds).toFixed(2)}ct (${diamonds.length} stones)`.trim();
 };

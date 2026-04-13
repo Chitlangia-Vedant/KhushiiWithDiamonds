@@ -1,12 +1,12 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { Layout } from './components/Layout';
 import { HomePage } from './pages/HomePage';
 import { CategoryPage } from './pages/CategoryPage';
 import { AdminPage } from './pages/AdminPage';
 import { QualityProvider } from './context/QualityContext';
 
-// Error Boundary Component
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; error?: Error }
@@ -51,7 +51,7 @@ class ErrorBoundary extends React.Component<
 const StorefrontZone = () => {
   return (
     <Layout>
-      <Outlet /> {/* This tells React Router where to put the Home or Category page */}
+      <Outlet />
     </Layout>
   );
 };
@@ -60,20 +60,36 @@ function App() {
   return (
     <ErrorBoundary>
       <QualityProvider>
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            // --- FIX: Removed the global 4000ms duration from here! ---
+            style: {
+              background: '#333',
+              color: '#fff',
+            },
+            success: {
+              duration: 4000, // <-- Moved here: Success messages will hide after 4 seconds
+              style: {
+                background: '#059669', 
+              },
+            },
+            error: {
+              duration: 6000, // <-- Moved here: Error messages will hide after 6 seconds
+              style: {
+                background: '#DC2626', 
+              },
+            },
+          }}
+        />
         <Router>
           <Routes>
-            
-            {/* --- SECURE ADMIN ZONE --- */}
-            {/* Because this is NOT inside StorefrontZone, it will completely hide the public Header/Footer! */}
-            {/* Your AdminPage already handles the Supabase Auth lock securely. */}
             <Route path="/admin/*" element={<AdminPage />} />
 
-            {/* --- PUBLIC STOREFRONT ZONE --- */}
             <Route element={<StorefrontZone />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/category/:categoryName" element={<CategoryPage />} />
             </Route>
-
           </Routes>
         </Router>
       </QualityProvider>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Lock, Eye, EyeOff } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface AdminLoginProps {
   onLoginSuccess: () => void;
@@ -16,7 +17,10 @@ export function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setError(''); // Clears any old inline errors
+
+    // 1. Trigger the loading toast
+    const loadingToastId = toast.loading('Signing in...');
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -25,12 +29,31 @@ export function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
       });
 
       if (error) {
-        setError(error.message);
+        setError(error.message); // Keep this if your UI uses it to turn input boxes red
+        
+        // Transform loading toast into an error toast
+        // Supabase defaults to "Invalid login credentials", we can make it sound slightly more human!
+        const errorMessage = error.message === 'Invalid login credentials' 
+          ? 'Invalid email or password. Please try again.' 
+          : error.message;
+
+        toast.error(errorMessage, { 
+          id: loadingToastId,
+          duration: 4000
+        });
       } else {
+        // 2. Transform loading toast into a success toast
+        toast.success('Welcome back!', { id: loadingToastId });
         onLoginSuccess();
       }
     } catch {
       setError('An unexpected error occurred');
+      
+      // 3. Catch-all for network drops or severe errors
+      toast.error('An unexpected error occurred. Please check your connection.', { 
+        id: loadingToastId,
+        duration: 4000
+      });
     } finally {
       setLoading(false);
     }

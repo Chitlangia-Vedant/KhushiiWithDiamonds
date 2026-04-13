@@ -1,30 +1,61 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { DiamondPricingTier } from '../types';
+import { DIAMOND_QUALITIES } from '../constants/jewellery';
 
 export function useAdminSettings() {
-  const [fallbackGoldPrice, setFallbackGoldPrice] = useState(5450);
+  const [fallbackGoldPrice, setFallbackGoldPrice] = useState(0);
   const [gstRate, setGstRate] = useState(0.18);
   const [overrideLiveGoldPrice, setOverrideLiveGoldPrice] = useState(false);
+  const [globalGoldMakingCharges, setGlobalGoldMakingCharges] = useState(0);
   const [loading, setLoading] = useState(true);
+  
+  // NEW Diamond State
+  const initialDiamondCosts = DIAMOND_QUALITIES.reduce((acc, q) => {
+    acc[q.value] = 0;
+    return acc;
+  }, {} as Record<string, number>);
+  const [diamondBaseCosts, setDiamondBaseCosts] = useState<Record<string, number>>(initialDiamondCosts);
+  const [diamondTiers, setDiamondTiers] = useState<DiamondPricingTier[]>([]);
 
   const loadSettings = async () => {
     try {
-      const { data } = await supabase
-        .from('admin_settings')
-        .select('setting_key, setting_value')
-        .in('setting_key', ['fallback_gold_price', 'gst_rate', 'override_live_gold_price']);
+      // --- 3. Dynamically build the fetch keys ---
+      const diamondCostKeys = DIAMOND_QUALITIES.map(q => `${q}_base_costs`);
+      const allSettingKeys = [
+        'fallback_gold_price', 
+        'gst_rate', 
+        'override_live_gold_price', 
+        'gold_making_charges_per_gram',
+        ...diamondCostKeys // Injects all diamond keys dynamically!
+      ];
 
-      data?.forEach(setting => {
-        if (setting.setting_key === 'fallback_gold_price') {
-          setFallbackGoldPrice(parseFloat(setting.setting_value) || 5450);
-        } else if (setting.setting_key === 'gst_rate') {
-          setGstRate(parseFloat(setting.setting_value) || 0.18);
-        } else if (setting.setting_key === 'override_live_gold_price') {
-          setOverrideLiveGoldPrice(setting.setting_value === 'true');
+      const [settingsRes, tiersRes] = await Promise.all([
+        supabase
+          .from('admin_settings')
+          .select('setting_key, setting_value')
+          .in('setting_key', allSettingKeys), // <-- Uses the dynamic array
+        supabase.from('diamond_pricing_tiers').select('*').order('min_carat', { ascending: true })
+      ]);
+
+      const newBaseCosts = { ...diamondBaseCosts };
+      
+      settingsRes.data?.forEach(setting => {
+        if (setting.setting_key === 'fallback_gold_price') setFallbackGoldPrice(parseFloat(setting.setting_value) || 0);
+        else if (setting.setting_key === 'gst_rate') setGstRate(parseFloat(setting.setting_value) || 0.18);
+        else if (setting.setting_key === 'override_live_gold_price') setOverrideLiveGoldPrice(setting.setting_value === 'true');
+        else if (setting.setting_key === 'gold_making_charges_per_gram') setGlobalGoldMakingCharges(parseFloat(setting.setting_value));
+        else if (setting.setting_key.endsWith('_base_costs')) {
+          const qName = setting.setting_key.replace('_base_costs', '');
+          newBaseCosts[qName] = parseFloat(setting.setting_value) || 0;
         }
       });
+      
+      setDiamondBaseCosts(newBaseCosts);
+      if (tiersRes.data) setDiamondTiers(tiersRes.data);
+
     } catch (err) {
-      console.error('Admin settings fetch error:', err);
+      console.error('Fetch error:', err);
     } finally {
       setLoading(false);
     }
@@ -32,42 +63,53 @@ export function useAdminSettings() {
 
   const updateSetting = async (key: string, value: string) => {
     try {
-      const { error } = await supabase
-        .from('admin_settings')
-        .upsert({ 
-          setting_key: key, 
-          setting_value: value 
-        }, { 
-          onConflict: 'setting_key' 
-        });
-
-      if (error) throw error;
-
-      if (key === 'fallback_gold_price') {
-        setFallbackGoldPrice(parseFloat(value) || 5450);
-      } else if (key === 'gst_rate') {
-        setGstRate(parseFloat(value) || 0.18);
-      } else if (key === 'override_live_gold_price') {
-        setOverrideLiveGoldPrice(value === 'true');
-      }
-
+      await supabase.from('admin_settings').upsert({ setting_key: key, setting_value: value }, { onConflict: 'setting_key' });
+      if (key === 'fallback_gold_price') setFallbackGoldPrice(parseFloat(value) || 0);
+      else if (key === 'gst_rate') setGstRate(parseFloat(value) || 0.18);
+      else if (key === 'override_live_gold_price') setOverrideLiveGoldPrice(value === 'true');
+      else if (key === 'gold_making_charges_per_gram') setGlobalGoldMakingCharges(parseFloat(value));
       return true;
     } catch (err) {
-      console.error('Error updating setting:', err);
       return false;
     }
   };
 
-  useEffect(() => {
-    loadSettings();
-  }, []);
+  const saveDiamondPricing = async (baseCosts: Record<string, number>, tiers: DiamondPricingTier[]) => {
+    try {
+      const baseCostUpserts = Object.entries(baseCosts).map(([quality, cost]) => ({
+        setting_key: `${quality}_base_costs`, 
+        setting_value: cost.toString()
+      }));
+      
+      const { error: baseError } = await supabase
+        .from('admin_settings')
+        .upsert(baseCostUpserts, { onConflict: 'setting_key' });
+        
+      if (baseError) throw baseError;
+
+      // --- THE FIX: Replace .delete() & .insert() with the Atomic RPC call ---
+      const cleanTiers = tiers.map(({ id, created_at, ...rest }) => rest);
+
+      const { error: tierError } = await supabase.rpc('save_diamond_pricing_tiers', {
+        new_tiers: cleanTiers
+      });
+
+      if (tierError) throw tierError;
+      // -----------------------------------------------------------------------
+      
+      await loadSettings(); 
+      return true;
+    } catch (err) {
+      console.error('Error saving diamond grid:', err);
+      return false;
+    }
+  };
+
+  useEffect(() => { loadSettings(); }, []);
 
   return { 
-    fallbackGoldPrice, 
-    gstRate, 
-    overrideLiveGoldPrice,
-    loading, 
-    updateSetting, 
-    refreshSettings: loadSettings 
+    fallbackGoldPrice, gstRate, overrideLiveGoldPrice, globalGoldMakingCharges, 
+    diamondBaseCosts, diamondTiers, loading, updateSetting, saveDiamondPricing,
+    refreshSettings: loadSettings
   };
 }

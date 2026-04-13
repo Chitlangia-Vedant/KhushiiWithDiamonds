@@ -6,7 +6,7 @@ import JewelleryCard from '../components/JewelleryCard';
 import { Search, Filter, Sparkles } from 'lucide-react';
 import { useCategories } from '../hooks/useCategories';
 import { useNavigate } from 'react-router-dom';
-import { CategoryFilter } from '../components/CategoryFilter';
+import { CategoryFilter } from '../components/shared/CategoryFilter';
 import { getValidCategoryNames } from '../utils/categoryUtils';
 
 
@@ -44,13 +44,13 @@ export function CategoryPage() {
   }, [])
 
   const handleCategorySelect = (categoryId: string) => {
-      if (categoryId === 'All') {
-        navigate('/category/All');
-      } else {
-        const selectedCat = categories.find(c => c.id === categoryId);
-        if (selectedCat) navigate(`/category/${selectedCat.name}`);
-      }
-    };
+    if (categoryId === 'All') {
+      navigate('/category/All');
+    } else {
+      const selectedCat = categories.find(c => c.id === categoryId);
+      if (selectedCat) navigate(`/category/${selectedCat.name}`);
+    }
+  };
 
   const filteredItems = items.filter(item => {
     if (activeCategoryId === 'All') return true;

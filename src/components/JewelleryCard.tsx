@@ -1,11 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, X, Gem } from 'lucide-react';
 import { JewelleryItem } from '../types';
-import { calculateJewelleryPriceSync, getPriceBreakdown, formatCurrency } from '../lib/goldPrice';
-import { useGoldPrice } from '../hooks/useGoldPrice';
-import { useAdminSettings } from '../hooks/useAdminSettings';
-import { getAvailableDiamondQualities, getDiamondsForQuality } from '../utils/diamondUtils';
+import { formatCurrency } from '../lib/goldPrice';
+import { getAvailableDiamondQualities } from '../utils/diamondUtils';
 import { useQualityContext } from '../context/QualityContext';
+import { useItemPrice } from '../hooks/useItemPrice'; // <-- ADD THIS
 
 interface JewelleryCardProps {
   item: JewelleryItem;
@@ -15,12 +14,9 @@ const JewelleryCard: React.FC<JewelleryCardProps> = ({ item }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showModal, setShowModal] = useState(false);
   
-  const { globalGoldPurity, globalDiamondQuality } = useQualityContext();
+  const pricing = useItemPrice(item);
 
-  // Fetch live prices and settings automatically
-  const { goldPrice } = useGoldPrice();
-  const { fallbackGoldPrice, gstRate, overrideLiveGoldPrice } = useAdminSettings();
-  const effectiveGoldPrice = overrideLiveGoldPrice ? fallbackGoldPrice : goldPrice;
+  const { globalGoldPurity, globalDiamondQuality } = useQualityContext();
 
   const images = item.image_url || [];
 
@@ -30,18 +26,6 @@ const JewelleryCard: React.FC<JewelleryCardProps> = ({ item }) => {
   
   const nextImage = () => setCurrentImageIndex((prev) => (prev + 1) % images.length);
   const prevImage = () => setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
-
-  // Helper to extract the correct diamond array for calculation
-  const diamondsData = getDiamondsForQuality(item, globalDiamondQuality);
-
-  // Use the updated pricing functions
-  const currentPrice = calculateJewelleryPriceSync(
-    item.base_price, item.gold_weight, globalGoldPurity, diamondsData, item.making_charges_per_gram, effectiveGoldPrice, gstRate
-  );
-  
-  const priceBreakdown = getPriceBreakdown(
-    item.base_price, item.gold_weight, globalGoldPurity, diamondsData, item.making_charges_per_gram, effectiveGoldPrice, gstRate
-  );
 
   return (
     <>
@@ -115,7 +99,7 @@ const JewelleryCard: React.FC<JewelleryCardProps> = ({ item }) => {
           </div>
           
           <div className="text-lg font-bold text-gray-900">
-            ₹{currentPrice.toLocaleString('en-IN')}
+            ₹{pricing.total.toLocaleString('en-IN')}
           </div>
         </div>
 
@@ -123,7 +107,7 @@ const JewelleryCard: React.FC<JewelleryCardProps> = ({ item }) => {
           <div className="border-t pt-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-2xl font-bold text-gray-900">
-                {formatCurrency(currentPrice)}
+                {formatCurrency(pricing.total)}
               </span>
             </div>
             
@@ -131,17 +115,23 @@ const JewelleryCard: React.FC<JewelleryCardProps> = ({ item }) => {
             <div className="text-xs text-gray-500 space-y-1">
               <div className="flex justify-between">
                 <span>Gold ({globalGoldPurity}):</span>
-                <span>{formatCurrency(priceBreakdown.goldValue)}</span>
+                <span>{formatCurrency(pricing.goldValue)}</span>
               </div>
-              {hasDiamonds && priceBreakdown.diamondCost > 0 && (
+              {hasDiamonds && pricing.diamondCost > 0 && (
                 <div className="flex justify-between">
                   <span>Diamonds ({globalDiamondQuality}):</span>
-                  <span>{formatCurrency(priceBreakdown.diamondCost)}</span>
+                  <span>{formatCurrency(pricing.diamondCost)}</span>
+                </div>
+              )}
+              {pricing.otherStonesCost > 0 && (
+                <div className="flex justify-between">
+                  <span>Other Stones:</span>
+                  <span>{formatCurrency(pricing.otherStonesCost)}</span>
                 </div>
               )}
               <div className="flex justify-between">
                 <span>Making Charges:</span>
-                <span>{formatCurrency(priceBreakdown.makingCharges)}</span>
+                <span>{formatCurrency(pricing.makingCharges)}</span>
               </div>
             </div>
           </div>

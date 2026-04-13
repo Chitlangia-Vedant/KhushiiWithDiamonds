@@ -19,16 +19,11 @@ useEffect(() => {
       }
 
       try {
-        const counts: Record<string, number> = {};
-        
-        for (const category of topLevelCategories) {
-          // Get subcategories using the hook's helper function
+        // --- FIX: Create an array of Promises to fetch concurrently ---
+        const countPromises = topLevelCategories.map(async (category) => {
           const subcategories = getSubcategories(category.id);
-          
-          // Create array of category names to search
           const categoryNames = [category.name, ...subcategories.map(sub => sub.name)];
 
-          // Count items in parent category and all its subcategories
           const { count, error: countError } = await supabase
             .from('jewellery_items')
             .select('*', { count: 'exact', head: true })
@@ -36,11 +31,21 @@ useEffect(() => {
           
           if (countError) {
             console.warn(`Error counting items for ${category.name}:`, countError);
-            counts[category.name] = 0;
-          } else {
-            counts[category.name] = count || 0;
+            return { name: category.name, count: 0 };
           }
-        }
+          
+          return { name: category.name, count: count || 0 };
+        });
+
+        // --- FIX: Wait for all queries to finish simultaneously ---
+        const results = await Promise.all(countPromises);
+        
+        // Map the results back into the expected Record<string, number> format
+        const counts: Record<string, number> = {};
+        results.forEach(result => {
+          counts[result.name] = result.count;
+        });
+
         setItemCounts(counts);
       } catch (error) {
         console.error('Error loading counts:', error);
@@ -50,7 +55,7 @@ useEffect(() => {
     };
 
     loadCounts();
-  }, [topLevelCategories, loadingCategories]); // Rerun if the categories update
+  }, [topLevelCategories, loadingCategories]);
 
   if (loadingCategories || loadingCounts) {
     return (

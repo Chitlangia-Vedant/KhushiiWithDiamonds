@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { Category } from '../types';
+import { Category } from '../../types';
 import { ChevronDown, ChevronRight, Folder } from 'lucide-react';
-import { useCategories } from '../hooks/useCategories';
-import { useClickOutside } from '../hooks/useClickOutside';
+import { useCategories } from '../../hooks/useCategories';
+import { useClickOutside } from '../../hooks/useClickOutside';
 
 interface CategoryDropdownProps {
   valueLabel: string;
   onSelect: (categoryId: string, categoryName: string) => void;
   onClear?: () => void;
   clearLabel?: string;
-  excludeCategoryId?: string;
+  excludeCategoryIds?: string[];
   disabled?: boolean;
   triggerClassName?: string;
 }
@@ -19,12 +19,13 @@ export function CategoryDropdown({
   onSelect,
   onClear,
   clearLabel = 'Clear Selection',
-  excludeCategoryId,
+  excludeCategoryIds,
   disabled,
   triggerClassName
 }: CategoryDropdownProps) {
   const { topLevelCategories, getSubcategories } = useCategories();
-  const { ref: dropdownRef, isOpen: showDropdown, setIsOpen: setShowDropdown } = useClickOutside<HTMLDivElement>();
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useClickOutside(() => setShowDropdown(false));
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
   const toggleExpanded = (categoryId: string) => {
@@ -47,8 +48,8 @@ export function CategoryDropdown({
   };
 
   const CategoryMenuItem = ({ category, level = 0 }: { category: Category; level?: number }) => {
-    // Prevent self-nesting if an exclude ID is provided
-    if (excludeCategoryId && category.id === excludeCategoryId) return null;
+    // --- FIX: Check against the new array of blocked IDs instead of a single ID ---
+    if (excludeCategoryIds && excludeCategoryIds.includes(category.id)) return null;
 
     const subcategories = getSubcategories(category.id);
     const hasSubcategories = subcategories.length > 0;

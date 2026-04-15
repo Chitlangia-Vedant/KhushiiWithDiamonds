@@ -144,8 +144,9 @@ export function Layout({ children }: LayoutProps) {
                   onChange={(e) => setGlobalGoldPurity(e.target.value)}
                   className="text-[11px] sm:text-sm border-none bg-yellow-50 text-yellow-800 rounded sm:rounded-md py-1 pl-1 pr-4 sm:pl-2 sm:pr-6 focus:ring-0 cursor-pointer font-bold"
                 >
+                  {/* --- FIX 1: Use gold.label for a cleaner UI! --- */}
                   {GOLD_QUALITIES.map((gold) => (
-                    <option key={gold.value} value={gold.value}>{gold.value}</option>
+                    <option key={gold.value} value={gold.value}>{gold.label}</option>
                   ))}
                 </select>
               </div>
@@ -158,8 +159,9 @@ export function Layout({ children }: LayoutProps) {
                   onChange={(e) => setGlobalDiamondQuality(e.target.value as DiamondQuality)}
                   className="text-[11px] sm:text-sm border-none bg-transparent text-blue-800 py-1 pl-0.5 sm:pl-1 pr-4 sm:pr-6 focus:ring-0 cursor-pointer font-bold"
                 >
+                  {/* --- FIX 2: Stop React from crashing by extracting the object properties --- */}
                   {DIAMOND_QUALITIES.map((quality) => (
-                    <option key={quality} value={quality}>{quality}</option>
+                    <option key={quality.value} value={quality.value}>{quality.label}</option>
                   ))}
                 </select>
               </div>

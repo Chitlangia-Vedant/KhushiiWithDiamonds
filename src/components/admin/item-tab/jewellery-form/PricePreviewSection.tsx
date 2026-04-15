@@ -36,7 +36,7 @@ export function PricePreviewSection({
               value={previewDiamondQuality} onChange={(e) => setPreviewDiamondQuality(e.target.value as DiamondQuality)}
               className="text-xs border border-gray-300 rounded px-2 py-1 font-medium bg-gray-50 focus:ring-0 cursor-pointer"
             >
-              {DIAMOND_QUALITIES.map(q => <option key={q.value} value={q.value}>{q.value}</option>)}
+              {DIAMOND_QUALITIES.map(q => <option key={q.value} value={q.value}>{q.label}</option>)}
             </select>
           )}
         </div>

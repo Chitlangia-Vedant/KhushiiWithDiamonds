@@ -65,7 +65,7 @@ export function DiamondSlotsSection({
                       <label className="block text-[10px] text-gray-500 mb-0.5">{quality.label} (₹/ct)</label>
                       <input 
                         type="number" 
-                        value={slot.costs[quality.value]} 
+                        value={slot.costs[quality.value as DiamondQuality]}
                         onChange={(e) => updateDiamondCost(index, quality.value as DiamondQuality, parseFloat(e.target.value) || 0)} 
                         className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-gray-400" 
                         disabled={uploading} 

@@ -21,7 +21,7 @@ export function useAdminSettings() {
   const loadSettings = async () => {
     try {
       // --- 3. Dynamically build the fetch keys ---
-      const diamondCostKeys = DIAMOND_QUALITIES.map(q => `${q}_base_costs`);
+      const diamondCostKeys = DIAMOND_QUALITIES.map(q => `${q.value}_base_costs`);
       const allSettingKeys = [
         'fallback_gold_price', 
         'gst_rate', 

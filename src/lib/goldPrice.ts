@@ -1,5 +1,5 @@
 import { Diamond, JewelleryItem, DiamondPricingTier, StoneSlot } from '../types/index';
-import { DiamondQuality, GOLD_QUALITIES } from '../constants/jewellery';
+import { DiamondQuality, GOLD_QUALITIES, DIAMOND_QUALITIES} from '../constants/jewellery';
 
 const GOLD_API_KEY = import.meta.env.VITE_GOLD_API_KEY ;
 const GOLD_API_URL = `https://api.metalpriceapi.com/v1/latest?api_key=${GOLD_API_KEY}&base=INR&currencies=XAU`;
@@ -111,10 +111,8 @@ export const getPriceBreakdownItem = (
   diamondTiers?: DiamondPricingTier[],
 ) => {
   const getOffsetKey = (q: string): keyof DiamondPricingTier => {
-    if (q === 'Lab Grown') return 'lab_grown_offset';
-    if (q === 'GH/VS-SI') return 'gh_vs_si_offset';
-    if (q === 'FG/VVS-SI') return 'fg_vvs_si_offset';
-    return 'ef_vvs_offset'; 
+    const quality = DIAMOND_QUALITIES.find(diamond => diamond.value === q);
+    return (quality?.offsetKey || 'ef_vvs_offset') as keyof DiamondPricingTier;
   };
 
   const mappedDiamonds = item.diamonds?.map(slot => {

@@ -107,7 +107,11 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Carat Range</th>
-                {DIAMOND_QUALITIES.map(q => <th key={q.value} className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{q.value.replace(' Grown', '')} <span className="lowercase font-normal">(₹/ct)</span></th>)}
+                {DIAMOND_QUALITIES.map(q => (
+                  <th key={q.value} className="...">
+                    {q.value.replace(' Grown', '')} <span className="..."> (₹/ct)</span>
+                  </th>
+                ))}
                 <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -117,10 +121,18 @@ export function AdminDiamondsTab({ initialBaseCosts, initialTiers, saveDiamondPr
               <tr className="bg-gray-50/50">
                 <td className="px-4 py-3 sm:py-4 font-bold text-gray-800 text-xs sm:text-sm">BASE COST</td>
                 {DIAMOND_QUALITIES.map(q => (
-                  <td key={q.value} className="px-4 py-3 sm:py-4">
+                  <td key={q.value} className="...">
                     <div className="flex items-center">
-                      <div className="w-6 h-6 sm:w-8 sm:h-8 mr-1 sm:mr-2 flex-shrink-0"></div>
-                      <input type="number" min="0" step="any" value={baseCosts[q.value] === 0 || baseCosts[q.value] === undefined ? '' : baseCosts[q.value]} onChange={(e) => { const parsed = parseFloat(e.target.value); setBaseCosts({ ...baseCosts, [q.value]: isNaN(parsed) ? 0 : parsed }); }} placeholder="0" className={inputCss} />
+                      <div className="..."></div>
+                      <input 
+                        type="number" 
+                        value={baseCosts[q.value] === 0 ? '' : baseCosts[q.value]} 
+                        onChange={(e) => { 
+                          const parsed = parseFloat(e.target.value); 
+                          setBaseCosts({ ...baseCosts, [q.value]: isNaN(parsed) ? 0 : parsed }); 
+                        }} 
+                        className={inputCss} 
+                      />
                     </div>
                   </td>
                 ))}
